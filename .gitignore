@@ -1,3 +1,4 @@
 .env
 .aider*
 node_modules
+dist
