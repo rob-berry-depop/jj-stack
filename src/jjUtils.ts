@@ -17,7 +17,7 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
 
     execFile(
       JJ_BINARY,
-      ["log", "--no-graph", "-T", jjTemplate],
+      ["log", "--no-graph", "--template", jjTemplate],
       (error, stdout, stderr) => {
         if (error) {
           console.error(`execFile error: ${(error as Error).toString()}`);
@@ -43,9 +43,11 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
  */
 export function getMyBookmarks(): Promise<Bookmark[]> {
   return new Promise((resolve, reject) => {
+    const bookmarkTemplate = `'{ "name":' ++ name.escape_json() ++ ', ' ++ '"commit_id":' ++ normal_target.commit_id().short().escape_json() ++ ', ' ++ '"change_id":' ++ normal_target.change_id().short().escape_json() ++ ' }\n'`;
+
     execFile(
       JJ_BINARY,
-      ["bookmark", "list", "-r", "mine()"],
+      ["bookmark", "list", "-r", "mine()", "--template", bookmarkTemplate],
       (error, stdout, stderr) => {
         if (error) {
           console.error(
@@ -63,13 +65,11 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
         for (const line of lines) {
           if (line.trim() === "") continue;
 
-          // Parse format: "bookmark_name: change_id commit_id description"
-          const match = line.match(/^(\S+):\s+(\S+)\s+(\S+)\s+(.*)$/);
-          if (match) {
-            const [, name, change_id, commit_id] = match;
-            // Use only the short form (first 8 chars) to match what we get from jj log
-            const shortCommitId = commit_id.slice(0, 8);
-            bookmarks.push({ name, commit_id: shortCommitId, change_id });
+          try {
+            const bookmark = JSON.parse(line) as Bookmark;
+            bookmarks.push(bookmark);
+          } catch (parseError) {
+            console.error(`Failed to parse bookmark line: ${line}`, parseError);
           }
         }
 
@@ -355,16 +355,7 @@ function identifyStacks(
 
       // Check if the other bookmark's commit is contained in this bookmark's history
       // This means the other bookmark is a base for this bookmark
-      // Use prefix match since commit IDs might be different lengths
-      const isContained = Array.from(bookmarkCommitIds).some(
-        (commitId) =>
-          commitId.startsWith(otherBookmark.commit_id) ||
-          otherBookmark.commit_id.startsWith(commitId),
-      );
-
-      console.log(`  Contains (prefix match): ${isContained}`);
-
-      if (isContained) {
+      if (bookmarkCommitIds.has(otherBookmark.commit_id)) {
         console.log(`  ✓ ${bookmark.name} is stacked on ${otherBookmark.name}`);
         stack.bookmarks.push(otherBookmark);
         const otherChanges = allChanges.get(otherBookmark.name) || [];
