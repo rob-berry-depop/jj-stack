@@ -67,7 +67,9 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
           const match = line.match(/^(\S+):\s+(\S+)\s+(\S+)\s+(.*)$/);
           if (match) {
             const [, name, change_id, commit_id] = match;
-            bookmarks.push({ name, commit_id, change_id });
+            // Use only the short form (first 8 chars) to match what we get from jj log
+            const shortCommitId = commit_id.slice(0, 8);
+            bookmarks.push({ name, commit_id: shortCommitId, change_id });
           }
         }
 
@@ -305,6 +307,21 @@ function identifyStacks(
   const stacks: BranchStack[] = [];
   const processedBookmarks = new Set<string>();
 
+  // Create a map of bookmark -> all commit IDs in its history (including the bookmark commit itself)
+  const bookmarkToAllCommits = new Map<string, Set<string>>();
+  for (const bookmark of bookmarks) {
+    const changes = allChanges.get(bookmark.name) || [];
+    const commitIds = new Set(changes.map((c) => c.commit_id));
+    commitIds.add(bookmark.commit_id); // Add the bookmark's own commit
+    bookmarkToAllCommits.set(bookmark.name, commitIds);
+
+    // Debug logging
+    console.log(
+      `Bookmark ${bookmark.name} (${bookmark.commit_id}) has commits:`,
+      Array.from(commitIds),
+    );
+  }
+
   for (const bookmark of bookmarks) {
     if (processedBookmarks.has(bookmark.name)) {
       continue;
@@ -313,12 +330,12 @@ function identifyStacks(
     const stack: BranchStack = {
       bookmarks: [bookmark],
       baseCommit: bookmarkToAncestor.get(bookmark.name)!.commit_id,
-      changes: allChanges.get(bookmark.name) || [],
+      changes: [...(allChanges.get(bookmark.name) || [])],
     };
 
-    // Find other bookmarks that are stacked on this one
-    const bookmarkCommitIds = new Set(stack.changes.map((c) => c.commit_id));
+    const bookmarkCommitIds = bookmarkToAllCommits.get(bookmark.name)!;
 
+    // Find other bookmarks that are stacked on this one
     for (const otherBookmark of bookmarks) {
       if (
         otherBookmark.name === bookmark.name ||
@@ -327,14 +344,42 @@ function identifyStacks(
         continue;
       }
 
-      const otherAncestor = bookmarkToAncestor.get(otherBookmark.name)!;
+      console.log(
+        `Checking if ${bookmark.name} contains ${otherBookmark.name} (${otherBookmark.commit_id})`,
+      );
+      console.log(
+        `  ${bookmark.name} has commits:`,
+        Array.from(bookmarkCommitIds),
+      );
+      console.log(`  Looking for: ${otherBookmark.commit_id}`);
 
-      // Check if this bookmark's base is in our change history
-      if (bookmarkCommitIds.has(otherAncestor.commit_id)) {
+      // Check if the other bookmark's commit is contained in this bookmark's history
+      // This means the other bookmark is a base for this bookmark
+      // Use prefix match since commit IDs might be different lengths
+      const isContained = Array.from(bookmarkCommitIds).some(
+        (commitId) =>
+          commitId.startsWith(otherBookmark.commit_id) ||
+          otherBookmark.commit_id.startsWith(commitId),
+      );
+
+      console.log(`  Contains (prefix match): ${isContained}`);
+
+      if (isContained) {
+        console.log(`  ✓ ${bookmark.name} is stacked on ${otherBookmark.name}`);
         stack.bookmarks.push(otherBookmark);
         const otherChanges = allChanges.get(otherBookmark.name) || [];
         stack.changes.push(...otherChanges);
         processedBookmarks.add(otherBookmark.name);
+
+        // Update the base commit to be the most ancestral one
+        const otherAncestor = bookmarkToAncestor.get(otherBookmark.name)!;
+        const currentBaseAncestor = bookmarkToAncestor.get(bookmark.name)!;
+
+        // The base should be the one that's further from trunk (has fewer ancestors)
+        // In this case, we'll use the other bookmark's ancestor if it's different
+        if (otherAncestor.commit_id !== currentBaseAncestor.commit_id) {
+          stack.baseCommit = otherAncestor.commit_id;
+        }
       }
     }
 
