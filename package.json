@@ -1,10 +1,10 @@
 {
-  "name": "jj-spice",
+  "name": "jj-stack",
   "version": "1.0.0",
   "description": "A CLI tool for creating and managing stacked pull requests on GitHub when using Jujutsu locally.",
   "main": "dist/index.js",
   "bin": {
-    "jj-spice": "dist/index.js"
+    "jj-stack": "dist/index.js"
   },
   "scripts": {
     "build": "tsc"
