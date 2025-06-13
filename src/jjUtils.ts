@@ -47,7 +47,14 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
 
     execFile(
       JJ_BINARY,
-      ["bookmark", "list", "-r", "mine()", "--template", bookmarkTemplate],
+      [
+        "bookmark",
+        "list",
+        "--revisions",
+        "mine()",
+        "--template",
+        bookmarkTemplate,
+      ],
       (error, stdout, stderr) => {
         if (error) {
           console.error(
@@ -98,12 +105,12 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
       JJ_BINARY,
       [
         "log",
-        "-r",
+        "--revisions",
         `ancestors(${bookmarkName}) & ancestors(trunk())`,
         "--no-graph",
         "-n",
         "1",
-        "-T",
+        "--template",
         jjTemplate,
       ],
       (error, stdout, stderr) => {
@@ -170,7 +177,16 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
 
     execFile(
       JJ_BINARY,
-      ["log", "-r", revset, "--no-graph", "--limit", "100", "-T", jjTemplate],
+      [
+        "log",
+        "--revisions",
+        revset,
+        "--no-graph",
+        "--limit",
+        "100",
+        "--template",
+        jjTemplate,
+      ],
       (error, stdout, stderr) => {
         if (error) {
           console.error(
