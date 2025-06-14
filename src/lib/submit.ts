@@ -34,7 +34,7 @@ export interface SubmissionPlan {
   bookmarksNeedingPR: {
     bookmark: string;
     baseBranch: string;
-    prContent: { title: string; body: string };
+    prContent: { title: string };
   }[];
   bookmarksNeedingPRBaseUpdate: {
     bookmark: string;
@@ -333,73 +333,21 @@ export async function getBaseBranch(bookmarkName: string): Promise<string> {
 }
 
 /**
- * Generate PR title and body from the bookmark's commits
+ * Generate PR title from the bookmark's commits
  */
-export async function generatePRContent(
-  bookmarkName: string,
-): Promise<{ title: string; body: string }> {
+export async function generatePRTitle(bookmarkName: string): Promise<string> {
   try {
     const changeGraph = await buildChangeGraph();
     const segmentChanges = changeGraph.segmentChanges.get(bookmarkName);
 
     if (!segmentChanges || segmentChanges.length === 0) {
-      return {
-        title: `Add ${bookmarkName}`,
-        body: `Changes from bookmark ${bookmarkName}`,
-      };
+      return `Add ${bookmarkName}`;
     }
 
     // Use the latest commit's description as the title
-    const title =
-      segmentChanges[0].descriptionFirstLine || `Add ${bookmarkName}`;
-
-    // Generate more detailed body
-    let body = `## Changes in \`${bookmarkName}\`\n\n`;
-
-    if (segmentChanges.length === 1) {
-      body += `This PR contains a single commit:\n\n`;
-    } else {
-      body += `This PR contains ${segmentChanges.length} commits:\n\n`;
-    }
-
-    for (let i = 0; i < segmentChanges.length; i++) {
-      const change = segmentChanges[i];
-      body += `${i + 1}. **${change.descriptionFirstLine}**\n`;
-      body += `   \`${change.commitId}\` by ${change.authorName}\n\n`;
-    }
-
-    // Add stacking information if this is part of a stack
-    for (const stack of changeGraph.stacks) {
-      const segmentIndex = stack.segments.findIndex(
-        (s) => s.bookmark.name === bookmarkName,
-      );
-      if (segmentIndex !== -1) {
-        if (stack.segments.length > 1) {
-          body += `---\n\n`;
-          body += `### 📚 Stack Information\n\n`;
-          body += `This PR is part of a stack of ${stack.segments.length} bookmarks:\n\n`;
-
-          for (let i = 0; i < stack.segments.length; i++) {
-            const segment = stack.segments[i];
-            const isCurrent = i === segmentIndex;
-            const marker = isCurrent ? "**→ " : "   ";
-            const suffix = isCurrent ? " (this PR)**" : "";
-            body += `${marker}${i + 1}. ${segment.bookmark.name}${suffix}\n`;
-          }
-          body += `\n`;
-        }
-        break;
-      }
-    }
-
-    body += `---\n*Created with [jj-stack](https://github.com/your-org/jj-stack)*`;
-
-    return { title, body };
+    return segmentChanges[0].descriptionFirstLine || `Add ${bookmarkName}`;
   } catch {
-    return {
-      title: `Add ${bookmarkName}`,
-      body: `Changes from bookmark ${bookmarkName}`,
-    };
+    return `Add ${bookmarkName}`;
   }
 }
 
@@ -431,13 +379,11 @@ export async function createPR(
   bookmarkName: string,
   baseBranch: string,
   title: string,
-  body: string,
 ): Promise<PullRequest> {
   const result = await octokit.rest.pulls.create({
     owner,
     repo,
     title,
-    body,
     head: bookmarkName,
     base: baseBranch,
   });
@@ -463,6 +409,74 @@ export async function updatePRBase(
   });
 
   return result.data;
+}
+
+/**
+ * Create or update a stack information comment on a PR
+ */
+export async function createOrUpdateStackComment(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  bookmarkName: string,
+  stackPRs: Array<{ bookmark: string; prNumber: number; prUrl: string }>,
+): Promise<void> {
+  const stackFooter =
+    "*Created with [jj-stack](https://github.com/your-org/jj-stack)*";
+
+  // Generate the stack comment content
+  const currentIndex = stackPRs.findIndex((pr) => pr.bookmark === bookmarkName);
+  let commentBody = `### 📚 Stack Information\n\n`;
+
+  if (stackPRs.length === 1) {
+    commentBody += `This PR contains 1 bookmark:\n\n`;
+  } else {
+    commentBody += `This PR is part of a stack of ${stackPRs.length} bookmarks:\n\n`;
+  }
+
+  for (let i = 0; i < stackPRs.length; i++) {
+    const stackPR = stackPRs[i];
+    const isCurrent = i === currentIndex;
+    const marker = isCurrent ? "**→ " : "   ";
+    const suffix = isCurrent ? " (this PR)**" : "";
+    const link = isCurrent
+      ? stackPR.bookmark
+      : `[${stackPR.bookmark}](${stackPR.prUrl})`;
+    commentBody += `${marker}${i + 1}. ${link}${suffix}\n`;
+  }
+
+  commentBody += `\n---\n${stackFooter}`;
+
+  // List existing comments to find our stack comment
+  const comments = await octokit.rest.issues.listComments({
+    owner,
+    repo,
+    issue_number: prNumber,
+  });
+
+  // Find existing jj-stack comment by looking for our footer
+  const existingComment = comments.data.find((comment) =>
+    comment.body?.includes(stackFooter),
+  );
+
+  if (existingComment) {
+    // Update existing comment
+    await octokit.rest.issues.updateComment({
+      owner,
+      repo,
+      comment_id: existingComment.id,
+      body: commentBody,
+    });
+  } else {
+    // Create new comment
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: commentBody,
+    });
+  }
 }
 
 /**
@@ -588,7 +602,7 @@ export async function analyzeSubmissionPlan(
     const bookmarksNeedingPR: {
       bookmark: string;
       baseBranch: string;
-      prContent: { title: string; body: string };
+      prContent: { title: string };
     }[] = [];
 
     for (const bookmark of bookmarksToSubmit) {
@@ -603,7 +617,7 @@ export async function analyzeSubmissionPlan(
         bookmarksNeedingPR.push({
           bookmark,
           baseBranch: await getBaseBranch(bookmark),
-          prContent: await generatePRContent(bookmark),
+          prContent: { title: await generatePRTitle(bookmark) },
         });
       }
     }
@@ -707,7 +721,6 @@ export async function executeSubmissionPlan(
           bookmark,
           baseBranch,
           prContent.title,
-          prContent.body,
         );
 
         callbacks?.onPRCompleted?.(bookmark, pr);
@@ -720,6 +733,80 @@ export async function executeSubmissionPlan(
         });
         callbacks?.onError?.(err, `creating PR for ${bookmark}`);
         result.success = false;
+      }
+    }
+
+    // Create stack comments for all PRs in the stack (both new and existing)
+    const allStackPRs: Array<{
+      bookmark: string;
+      prNumber: number;
+      prUrl: string;
+    }> = [];
+
+    // Add newly created PRs
+    for (const { bookmark, pr } of result.createdPRs) {
+      allStackPRs.push({
+        bookmark,
+        prNumber: pr.number,
+        prUrl: pr.html_url,
+      });
+    }
+
+    // Add existing PRs
+    for (const bookmark of plan.bookmarksToSubmit) {
+      const existingPR = plan.existingPRs.get(bookmark);
+      if (existingPR && !allStackPRs.some((pr) => pr.bookmark === bookmark)) {
+        allStackPRs.push({
+          bookmark,
+          prNumber: existingPR.number,
+          prUrl: existingPR.html_url,
+        });
+      }
+    }
+
+    // Add updated PRs
+    for (const { bookmark, pr } of result.updatedPRs) {
+      if (!allStackPRs.some((stackPR) => stackPR.bookmark === bookmark)) {
+        allStackPRs.push({
+          bookmark,
+          prNumber: pr.number,
+          prUrl: pr.html_url,
+        });
+      }
+    }
+
+    // Create/update stack comments for all PRs (even single PR "stacks")
+    if (allStackPRs.length > 0) {
+      // Sort stack PRs by the order they appear in bookmarksToSubmit
+      allStackPRs.sort((a, b) => {
+        const indexA = plan.bookmarksToSubmit.indexOf(a.bookmark);
+        const indexB = plan.bookmarksToSubmit.indexOf(b.bookmark);
+        return indexA - indexB;
+      });
+
+      // Create/update stack comments for each PR
+      for (const stackPR of allStackPRs) {
+        try {
+          await createOrUpdateStackComment(
+            githubConfig.octokit,
+            githubConfig.owner,
+            githubConfig.repo,
+            stackPR.prNumber,
+            stackPR.bookmark,
+            allStackPRs,
+          );
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          result.errors.push({
+            error: err,
+            context: `creating stack comment for ${stackPR.bookmark}`,
+          });
+          callbacks?.onError?.(
+            err,
+            `creating stack comment for ${stackPR.bookmark}`,
+          );
+          // Don't mark as failed for comment errors
+        }
       }
     }
 
