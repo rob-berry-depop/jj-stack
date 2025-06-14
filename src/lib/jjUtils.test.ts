@@ -61,8 +61,6 @@ export async function testBranchingScenario() {
   ];
 
   const mockJj: JjFunctions = {
-    getLogOutput: () => Promise.resolve(mockLogEntries),
-
     getMyBookmarks: () => Promise.resolve(mockBookmarks),
 
     findCommonAncestor: () => {
@@ -316,8 +314,6 @@ export async function testComplexBranchingScenario() {
   ];
 
   const mockJj: JjFunctions = {
-    getLogOutput: () => Promise.resolve(mockLogEntries),
-
     getMyBookmarks: () => Promise.resolve(mockBookmarks),
 
     findCommonAncestor: () => {

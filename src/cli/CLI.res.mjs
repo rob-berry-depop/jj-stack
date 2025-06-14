@@ -2,18 +2,9 @@
 
 import * as Js_exn from "rescript/lib/es6/js_exn.js";
 import * as AuthCommand from "./AuthCommand.res.mjs";
-import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 import * as SubmitCommand from "./SubmitCommand.res.mjs";
-import * as JjUtilsJs from "../lib/jjUtils.js";
+import * as AnalyzeCommand from "./AnalyzeCommand.res.mjs";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
-
-function getLogOutput(prim) {
-  return JjUtilsJs.getLogOutput();
-}
-
-function buildChangeGraph(prim) {
-  return JjUtilsJs.buildChangeGraph();
-}
 
 var help = "🔧 jj-stack - Jujutsu Git workflow automation\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nUSAGE:\n  jj-stack [COMMAND] [OPTIONS]\n\nCOMMANDS:\n  analyze               Analyze the current change graph\n\n  submit <bookmark>     Submit a bookmark (and its stack) as PRs\n    --dry-run           Show what would be done without making changes\n\n  auth test             Test GitHub authentication\n  auth logout           Clear saved authentication\n  auth help             Show authentication help\n\n  help, --help, -h      Show this help message\n\nDEFAULT BEHAVIOR:\n  Running jj-stack without arguments shows the current change graph\n\nEXAMPLES:\n  jj-stack                        # Show change graph\n  jj-stack submit feature-branch  # Submit feature-branch as PR\n  jj-stack submit feature-branch --dry-run  # Preview what would be done\n  jj-stack auth test              # Test GitHub authentication\n\nFor more information, visit: https://github.com/your-org/jj-stack\n";
 
@@ -24,44 +15,7 @@ async function main() {
     if (command !== undefined) {
       switch (command) {
         case "analyze" :
-            console.log("Building change graph from user bookmarks...");
-            var changeGraph = await JjUtilsJs.buildChangeGraph();
-            console.log("\n=== CHANGE GRAPH RESULTS ===");
-            console.log("Total bookmarks: " + String(changeGraph.bookmarks.length));
-            console.log("Total stacks: " + String(changeGraph.stacks.length));
-            if (changeGraph.stacks.length > 0) {
-              console.log("\n=== BOOKMARK STACKS ===");
-              changeGraph.stacks.forEach(function (stack, i) {
-                    console.log("\nStack " + String(i + 1 | 0) + ":");
-                    console.log("  Base commit: " + stack.baseCommit);
-                    console.log("  Bookmarks: " + stack.segments.map(function (s) {
-                                return s.bookmark.name;
-                              }).join(", "));
-                    var totalChanges = Core__Array.reduce(stack.segments, 0, (function (sum, segment) {
-                            return sum + segment.changes.length | 0;
-                          }));
-                    console.log("  Total changes: " + String(totalChanges));
-                    if (stack.segments.length > 1) {
-                      console.log("  📚 This is a stacked set of bookmarks!");
-                      return ;
-                    }
-                    
-                  });
-            }
-            console.log("\n=== INDIVIDUAL BOOKMARK DETAILS ===");
-            changeGraph.segmentChanges.forEach(function (segmentChanges, bookmarkName) {
-                  console.log("\n" + bookmarkName + ":");
-                  console.log("  Segment changes: " + String(segmentChanges.length));
-                  var match = segmentChanges.at(0);
-                  var match$1 = Core__Array.last(segmentChanges);
-                  if (match !== undefined && match$1 !== undefined) {
-                    console.log("  Latest: " + match.descriptionFirstLine);
-                    console.log("  Oldest: " + match$1.descriptionFirstLine);
-                    return ;
-                  }
-                  
-                });
-            return ;
+            return await AnalyzeCommand.analyzeCommand();
         case "auth" :
             var match = args[1];
             if (match === undefined) {
@@ -121,8 +75,6 @@ async function main() {
 }
 
 export {
-  getLogOutput ,
-  buildChangeGraph ,
   help ,
   main ,
 }

@@ -11,7 +11,6 @@ const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
 
 // Types for dependency injection
 export type JjFunctions = {
-  getLogOutput: () => Promise<LogEntry[]>;
   getMyBookmarks: () => Promise<Bookmark[]>;
   findCommonAncestor: (bookmarkName: string) => Promise<LogEntry>;
   getChangesBetween: (
@@ -20,41 +19,6 @@ export type JjFunctions = {
     lastSeenCommit?: string,
   ) => Promise<LogEntry[]>;
 };
-
-export function getLogOutput(): Promise<LogEntry[]> {
-  return new Promise((resolve, reject) => {
-    const jjTemplate = `'{ "commitId":' ++ commit_id.short().escape_json() ++ ', ' ++ '"changeId":' 
-++ change_id.short().escape_json() ++ ', ' ++ '"authorName":' ++ author.name().escape_json() ++ 
-', ' ++ '"authorEmail":' ++ stringify(author.email().local() ++ '@' ++
-author.email().domain()).escape_json() ++ ', ' ++ '"descriptionFirstLine":' ++ 
-description.first_line().trim().escape_json() ++ ', ' ++ '"parents": [' ++ parents.map(|p| 
-p.commit_id().short().escape_json()).join(",") ++ '], ' ++ '"localBookmarks": [' ++ 
-local_bookmarks.map(|b| b.name().escape_json()).join(",") ++ '], ' ++ '"remoteBookmarks": [' ++
-remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json()).join(",") ++ 
-'], ' ++ '"isCurrentWorkingCopy":' ++ current_working_copy ++ ' }\n'`;
-
-    execFile(
-      JJ_BINARY,
-      ["log", "--no-graph", "--template", jjTemplate],
-      (error, stdout, stderr) => {
-        if (error) {
-          console.error(`execFile error: ${(error as Error).toString()}`);
-          return reject(error as Error);
-        }
-        if (stderr) {
-          console.error(`stderr: ${stderr}`);
-        }
-
-        resolve(
-          stdout
-            .trim()
-            .split("\n")
-            .map((line) => JSON.parse(line) as LogEntry),
-        );
-      },
-    );
-  });
-}
 
 /**
  * Get all bookmarks created by the current user
@@ -475,7 +439,6 @@ function buildSegmentsFromBookmarks(
 export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
   // Use default implementations if no jj functions provided
   const jjFunctions = jj || {
-    getLogOutput,
     getMyBookmarks,
     findCommonAncestor,
     getChangesBetween,
@@ -614,7 +577,6 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
 
 // Default implementations
 export const defaultJjFunctions: JjFunctions = {
-  getLogOutput,
   getMyBookmarks,
   findCommonAncestor,
   getChangesBetween,
