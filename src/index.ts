@@ -7,6 +7,7 @@ import {
   authLogoutCommand,
   authHelpCommand,
 } from "./authCommand.js";
+import { greet } from "./Demo.gen.js";
 
 function showHelp() {
   console.log("🔧 jj-stack - Jujutsu Git workflow automation");
@@ -50,6 +51,8 @@ function showHelp() {
 }
 
 async function main() {
+  greet("Kevin");
+
   const args = process.argv.slice(2);
   const command = args[0];
 

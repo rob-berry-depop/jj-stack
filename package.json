@@ -8,7 +8,10 @@
     "jj-stack": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "res:build": "rescript",
+    "res:clean": "rescript clean",
+    "res:dev": "rescript -w"
   },
   "author": "",
   "license": "MIT",
@@ -21,6 +24,8 @@
     "typescript-eslint": "^8.34.0"
   },
   "dependencies": {
-    "octokit": "^5.0.3"
+    "@rescript/core": "^1.6.1",
+    "octokit": "^5.0.3",
+    "rescript": "^11.1.4"
   }
 }
