@@ -65,6 +65,8 @@ type submissionCallbacks = {
   onPushCompleted: option<(string, string) => unit>,
   onPRStarted: option<(string, string, string) => unit>,
   onPRCompleted: option<(string, pullRequest) => unit>,
+  onPRBaseUpdateStarted: option<(string, string, string) => unit>,
+  onPRBaseUpdateCompleted: option<(string, pullRequest) => unit>,
   onError: option<(Exn.t, string) => unit>,
 }
 
@@ -184,6 +186,19 @@ let createSubmissionCallbacks = (~dryRun: bool=false, ()): submissionCallbacks =
               )
             })
           }
+
+          if plan.bookmarksNeedingPRBaseUpdate->Array.length > 0 {
+            Console.log(
+              `\n🔄 Would update ${plan.bookmarksNeedingPRBaseUpdate
+                ->Array.length
+                ->Int.toString} PR bases:`,
+            )
+            plan.bookmarksNeedingPRBaseUpdate->Array.forEach(update => {
+              Console.log(
+                `   • ${update.bookmark}: from ${update.currentBaseBranch} to ${update.expectedBaseBranch}`,
+              )
+            })
+          }
         } else {
           if plan.bookmarksNeedingPush->Array.length > 0 {
             Console.log(
@@ -232,6 +247,25 @@ let createSubmissionCallbacks = (~dryRun: bool=false, ()): submissionCallbacks =
           Console.log(`✅ Created PR for ${bookmark}: ${pr.html_url}`)
           Console.log(`   Title: ${pr.title}`)
           Console.log(`   Base: ${pr.base.ref} <- Head: ${pr.head.ref}`)
+        }
+      },
+    ),
+    onPRBaseUpdateStarted: Some(
+      (bookmark: string, currentBase: string, expectedBase: string) => {
+        if dryRun {
+          Console.log(
+            `[DRY RUN] Would update PR base for ${bookmark} from ${currentBase} to ${expectedBase}`,
+          )
+        } else {
+          Console.log(`Updating PR base for ${bookmark} from ${currentBase} to ${expectedBase}...`)
+        }
+      },
+    ),
+    onPRBaseUpdateCompleted: Some(
+      (bookmark: string, pr: pullRequest) => {
+        if !dryRun {
+          Console.log(`✅ Updated PR base for ${bookmark}: ${pr.html_url}`)
+          Console.log(`   New Base: ${pr.base.ref} <- Head: ${pr.head.ref}`)
         }
       },
     ),

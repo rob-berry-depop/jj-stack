@@ -63,6 +63,12 @@ function createSubmissionCallbacks(dryRunOpt, param) {
                   plan.bookmarksNeedingPR.forEach(function (bookmark) {
                         console.log("   • " + bookmark.bookmark + ": \"" + bookmark.prContent.title + "\" (base: " + bookmark.baseBranch + ")");
                       });
+                }
+                if (plan.bookmarksNeedingPRBaseUpdate.length > 0) {
+                  console.log("\n🔄 Would update " + plan.bookmarksNeedingPRBaseUpdate.length.toString() + " PR bases:");
+                  plan.bookmarksNeedingPRBaseUpdate.forEach(function (update) {
+                        console.log("   • " + update.bookmark + ": from " + update.currentBaseBranch + " to " + update.expectedBaseBranch);
+                      });
                   return ;
                 } else {
                   return ;
@@ -106,6 +112,21 @@ function createSubmissionCallbacks(dryRunOpt, param) {
                 console.log("✅ Created PR for " + bookmark + ": " + pr.html_url);
                 console.log("   Title: " + pr.title);
                 console.log("   Base: " + pr.base.ref + " <- Head: " + pr.head.ref);
+                return ;
+              }
+              
+            }),
+          onPRBaseUpdateStarted: (function (bookmark, currentBase, expectedBase) {
+              if (dryRun) {
+                console.log("[DRY RUN] Would update PR base for " + bookmark + " from " + currentBase + " to " + expectedBase);
+              } else {
+                console.log("Updating PR base for " + bookmark + " from " + currentBase + " to " + expectedBase + "...");
+              }
+            }),
+          onPRBaseUpdateCompleted: (function (bookmark, pr) {
+              if (!dryRun) {
+                console.log("✅ Updated PR base for " + bookmark + ": " + pr.html_url);
+                console.log("   New Base: " + pr.base.ref + " <- Head: " + pr.head.ref);
                 return ;
               }
               
