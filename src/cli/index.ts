@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-import { buildChangeGraph } from "./jjUtils.js";
+import { buildChangeGraph } from "../lib/jjUtils.js";
 import { submitCommand } from "./submitCommand.js";
 import {
   authTestCommand,
   authLogoutCommand,
   authHelpCommand,
 } from "./authCommand.js";
-import { greet } from "./Demo.gen.js";
+import { greet } from "./cli.gen.js";
 
 function showHelp() {
   console.log("🔧 jj-stack - Jujutsu Git workflow automation");

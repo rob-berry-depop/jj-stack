@@ -1,4 +1,4 @@
-@module("./jjUtils.js") external getLogOutput: () => promise<'a> = "getLogOutput"
+@module("../lib/jjUtils.js") external getLogOutput: () => promise<'a> = "getLogOutput"
 
 let output = await getLogOutput()
 Console.log(output)

@@ -1,7 +1,7 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { Octokit } from "octokit";
-import { buildChangeGraph } from "./jjUtils.js";
+import { buildChangeGraph } from "../lib/jjUtils.js";
 import { getGitHubAuth } from "./authUtils.js";
 
 const execFileAsync = promisify(execFile);
