@@ -26,8 +26,7 @@ function formatBookmarkStatus(bookmark, remoteBookmarks, existingPRs) {
         );
 }
 
-function createSubmissionCallbacks(dryRunOpt, param) {
-  var dryRun = dryRunOpt !== undefined ? dryRunOpt : false;
+function createSubmissionCallbacks(dryRun) {
   return {
           onBookmarkValidated: (function (bookmark) {
               console.log("✅ Found local bookmark: " + bookmark);
@@ -86,50 +85,26 @@ function createSubmissionCallbacks(dryRunOpt, param) {
               }
             }),
           onPushStarted: (function (bookmark, remote) {
-              if (dryRun) {
-                console.log("[DRY RUN] Would push " + bookmark + " to " + remote);
-              } else {
-                console.log("Pushing " + bookmark + " to " + remote + "...");
-              }
+              console.log("Pushing " + bookmark + " to " + remote + "...");
             }),
           onPushCompleted: (function (bookmark, remote) {
-              if (!dryRun) {
-                console.log("✅ Successfully pushed " + bookmark + " to " + remote);
-                return ;
-              }
-              
+              console.log("✅ Successfully pushed " + bookmark + " to " + remote);
             }),
           onPRStarted: (function (bookmark, title, base) {
-              if (dryRun) {
-                console.log("   • " + bookmark + ": \"" + title + "\" (base: " + base + ")");
-              } else {
-                console.log("Creating PR: " + bookmark + " -> " + base);
-                console.log("   Title: \"" + title + "\"");
-              }
+              console.log("Creating PR: " + bookmark + " -> " + base);
+              console.log("   Title: \"" + title + "\"");
             }),
           onPRCompleted: (function (bookmark, pr) {
-              if (!dryRun) {
-                console.log("✅ Created PR for " + bookmark + ": " + pr.html_url);
-                console.log("   Title: " + pr.title);
-                console.log("   Base: " + pr.base.ref + " <- Head: " + pr.head.ref);
-                return ;
-              }
-              
+              console.log("✅ Created PR for " + bookmark + ": " + pr.html_url);
+              console.log("   Title: " + pr.title);
+              console.log("   Base: " + pr.base.ref + " <- Head: " + pr.head.ref);
             }),
           onPRBaseUpdateStarted: (function (bookmark, currentBase, expectedBase) {
-              if (dryRun) {
-                console.log("[DRY RUN] Would update PR base for " + bookmark + " from " + currentBase + " to " + expectedBase);
-              } else {
-                console.log("Updating PR base for " + bookmark + " from " + currentBase + " to " + expectedBase + "...");
-              }
+              console.log("Updating PR base for " + bookmark + " from " + currentBase + " to " + expectedBase + "...");
             }),
           onPRBaseUpdateCompleted: (function (bookmark, pr) {
-              if (!dryRun) {
-                console.log("✅ Updated PR base for " + bookmark + ": " + pr.html_url);
-                console.log("   New Base: " + pr.base.ref + " <- Head: " + pr.head.ref);
-                return ;
-              }
-              
+              console.log("✅ Updated PR base for " + bookmark + ": " + pr.html_url);
+              console.log("   New Base: " + pr.base.ref + " <- Head: " + pr.head.ref);
             }),
           onError: (function (error, context) {
               var errorMessage = Core__Option.getOr(error.message, "Unknown error");
@@ -145,7 +120,7 @@ async function submitCommand(bookmarkName, options) {
   } else {
     console.log("🚀 Submitting bookmark: " + bookmarkName);
   }
-  var callbacks = createSubmissionCallbacks(dryRun, undefined);
+  var callbacks = createSubmissionCallbacks(dryRun);
   var plan = await SubmitJs.analyzeSubmissionPlan(bookmarkName, callbacks);
   if (dryRun) {
     console.log("=".repeat(50));

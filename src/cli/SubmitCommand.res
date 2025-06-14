@@ -122,7 +122,7 @@ let formatBookmarkStatus = (
 /**
  * Create submission callbacks for console output
  */
-let createSubmissionCallbacks = (~dryRun: bool=false, ()): submissionCallbacks => {
+let createSubmissionCallbacks = (~dryRun: bool): submissionCallbacks => {
   {
     onBookmarkValidated: Some(
       (bookmark: string) => {
@@ -217,56 +217,36 @@ let createSubmissionCallbacks = (~dryRun: bool=false, ()): submissionCallbacks =
     ),
     onPushStarted: Some(
       (bookmark: string, remote: string) => {
-        if dryRun {
-          Console.log(`[DRY RUN] Would push ${bookmark} to ${remote}`)
-        } else {
-          Console.log(`Pushing ${bookmark} to ${remote}...`)
-        }
+        Console.log(`Pushing ${bookmark} to ${remote}...`)
       },
     ),
     onPushCompleted: Some(
       (bookmark: string, remote: string) => {
-        if !dryRun {
-          Console.log(`✅ Successfully pushed ${bookmark} to ${remote}`)
-        }
+        Console.log(`✅ Successfully pushed ${bookmark} to ${remote}`)
       },
     ),
     onPRStarted: Some(
       (bookmark: string, title: string, base: string) => {
-        if dryRun {
-          Console.log(`   • ${bookmark}: "${title}" (base: ${base})`)
-        } else {
-          Console.log(`Creating PR: ${bookmark} -> ${base}`)
-          Console.log(`   Title: "${title}"`)
-        }
+        Console.log(`Creating PR: ${bookmark} -> ${base}`)
+        Console.log(`   Title: "${title}"`)
       },
     ),
     onPRCompleted: Some(
       (bookmark: string, pr: pullRequest) => {
-        if !dryRun {
-          Console.log(`✅ Created PR for ${bookmark}: ${pr.html_url}`)
-          Console.log(`   Title: ${pr.title}`)
-          Console.log(`   Base: ${pr.base.ref} <- Head: ${pr.head.ref}`)
-        }
+        Console.log(`✅ Created PR for ${bookmark}: ${pr.html_url}`)
+        Console.log(`   Title: ${pr.title}`)
+        Console.log(`   Base: ${pr.base.ref} <- Head: ${pr.head.ref}`)
       },
     ),
     onPRBaseUpdateStarted: Some(
       (bookmark: string, currentBase: string, expectedBase: string) => {
-        if dryRun {
-          Console.log(
-            `[DRY RUN] Would update PR base for ${bookmark} from ${currentBase} to ${expectedBase}`,
-          )
-        } else {
-          Console.log(`Updating PR base for ${bookmark} from ${currentBase} to ${expectedBase}...`)
-        }
+        Console.log(`Updating PR base for ${bookmark} from ${currentBase} to ${expectedBase}...`)
       },
     ),
     onPRBaseUpdateCompleted: Some(
       (bookmark: string, pr: pullRequest) => {
-        if !dryRun {
-          Console.log(`✅ Updated PR base for ${bookmark}: ${pr.html_url}`)
-          Console.log(`   New Base: ${pr.base.ref} <- Head: ${pr.head.ref}`)
-        }
+        Console.log(`✅ Updated PR base for ${bookmark}: ${pr.html_url}`)
+        Console.log(`   New Base: ${pr.base.ref} <- Head: ${pr.head.ref}`)
       },
     ),
     onError: Some(
@@ -294,7 +274,7 @@ let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>
   }
 
   // Create callbacks for console output
-  let callbacks = createSubmissionCallbacks(~dryRun, ())
+  let callbacks = createSubmissionCallbacks(~dryRun)
 
   // Analyze what needs to be done
   let plan = await analyzeSubmissionPlan(bookmarkName, Some(callbacks))
