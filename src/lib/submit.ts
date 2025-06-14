@@ -446,6 +446,26 @@ export async function createPR(
 }
 
 /**
+ * Update the base branch of an existing PR
+ */
+export async function updatePRBase(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  newBaseBranch: string,
+): Promise<PullRequest> {
+  const result = await octokit.rest.pulls.update({
+    owner,
+    repo,
+    pull_number: prNumber,
+    base: newBaseBranch,
+  });
+
+  return result.data;
+}
+
+/**
  * Check for existing PRs for all bookmarks
  */
 export async function checkExistingPRs(
@@ -478,6 +498,48 @@ export async function checkRemoteBookmarks(
   }
 
   return results;
+}
+
+/**
+ * Validate existing PRs against expected base branches and identify mismatches
+ */
+export async function validatePRBases(
+  bookmarkNames: string[],
+  existingPRs: Map<string, PullRequestListItem | null>,
+): Promise<
+  {
+    bookmark: string;
+    currentBaseBranch: string;
+    expectedBaseBranch: string;
+    pr: PullRequestListItem;
+  }[]
+> {
+  const mismatches: {
+    bookmark: string;
+    currentBaseBranch: string;
+    expectedBaseBranch: string;
+    pr: PullRequestListItem;
+  }[] = [];
+
+  for (const bookmark of bookmarkNames) {
+    const existingPR = existingPRs.get(bookmark);
+
+    if (existingPR) {
+      const expectedBaseBranch = await getBaseBranch(bookmark);
+      const currentBaseBranch = existingPR.base.ref;
+
+      if (currentBaseBranch !== expectedBaseBranch) {
+        mismatches.push({
+          bookmark,
+          currentBaseBranch,
+          expectedBaseBranch,
+          pr: existingPR,
+        });
+      }
+    }
+  }
+
+  return mismatches;
 }
 
 /**
@@ -515,7 +577,13 @@ export async function analyzeSubmissionPlan(
       bookmarksToSubmit,
     );
 
-    // 6. Determine what actions are needed
+    // 6. Validate existing PRs against expected base branches
+    const bookmarksNeedingPRBaseUpdate = await validatePRBases(
+      bookmarksToSubmit,
+      existingPRs,
+    );
+
+    // 7. Determine what actions are needed
     const bookmarksNeedingPush: string[] = [];
     const bookmarksNeedingPR: {
       bookmark: string;
@@ -545,7 +613,7 @@ export async function analyzeSubmissionPlan(
       bookmarksToSubmit,
       bookmarksNeedingPush,
       bookmarksNeedingPR,
-      bookmarksNeedingPRBaseUpdate: [], // TODO: Implement in Phase 2
+      bookmarksNeedingPRBaseUpdate,
       repoInfo,
       existingPRs,
       remoteBookmarks,
