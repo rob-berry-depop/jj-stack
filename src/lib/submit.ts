@@ -640,7 +640,7 @@ export async function executeSubmissionPlan(
     success: true,
     pushedBookmarks: [],
     createdPRs: [],
-    updatedPRs: [], // TODO: Implement in Phase 2
+    updatedPRs: [],
     errors: [],
   };
 
@@ -656,6 +656,41 @@ export async function executeSubmissionPlan(
         const err = error instanceof Error ? error : new Error(String(error));
         result.errors.push({ error: err, context: `pushing ${bookmark}` });
         callbacks?.onError?.(err, `pushing ${bookmark}`);
+        result.success = false;
+      }
+    }
+
+    // Second, update PR bases for existing PRs that need it (in order from bottom to top)
+    for (const {
+      bookmark,
+      currentBaseBranch,
+      expectedBaseBranch,
+      pr,
+    } of plan.bookmarksNeedingPRBaseUpdate) {
+      try {
+        callbacks?.onPRBaseUpdateStarted?.(
+          bookmark,
+          currentBaseBranch,
+          expectedBaseBranch,
+        );
+
+        const updatedPR = await updatePRBase(
+          githubConfig.octokit,
+          githubConfig.owner,
+          githubConfig.repo,
+          pr.number,
+          expectedBaseBranch,
+        );
+
+        callbacks?.onPRBaseUpdateCompleted?.(bookmark, updatedPR);
+        result.updatedPRs.push({ bookmark, pr: updatedPR });
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        result.errors.push({
+          error: err,
+          context: `updating PR base for ${bookmark}`,
+        });
+        callbacks?.onError?.(err, `updating PR base for ${bookmark}`);
         result.success = false;
       }
     }
