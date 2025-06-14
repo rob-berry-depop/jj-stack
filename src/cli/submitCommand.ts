@@ -7,12 +7,6 @@ import {
   type RemoteBookmark,
   type PullRequest,
 } from "../lib/submitUtils.js";
-import type { Octokit } from "octokit";
-
-// Use Octokit's built-in types
-type PullRequestListItem = Awaited<
-  ReturnType<Octokit["rest"]["pulls"]["list"]>
->["data"][0];
 
 interface SubmitOptions {
   dryRun?: boolean;
@@ -24,7 +18,7 @@ interface SubmitOptions {
 function formatBookmarkStatus(
   bookmark: string,
   remoteBookmarks: Map<string, RemoteBookmark | null>,
-  existingPRs: Map<string, PullRequestListItem | null>,
+  existingPRs: Map<string, Record<string, unknown> | null>,
 ): string {
   const hasRemote = remoteBookmarks.get(bookmark);
   const hasExistingPR = existingPRs.get(bookmark);
