@@ -30,6 +30,13 @@ type pullRequest = {
   head: pullRequestBaseOrHead,
 }
 
+type bookmarkNeedingPRBaseUpdate = {
+  bookmark: string,
+  currentBaseBranch: string,
+  expectedBaseBranch: string,
+  pr: pullRequest,
+}
+
 type remoteBookmark = {
   name: string,
   remote: string,
@@ -41,6 +48,7 @@ type submissionPlan = {
   bookmarksToSubmit: array<string>,
   bookmarksNeedingPush: array<string>,
   bookmarksNeedingPR: array<bookmarkNeedingPR>,
+  bookmarksNeedingPRBaseUpdate: array<bookmarkNeedingPRBaseUpdate>,
   repoInfo: repoInfo,
   existingPRs: Map.t<string, option<pullRequest>>,
   remoteBookmarks: Map.t<string, option<remoteBookmark>>,

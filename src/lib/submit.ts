@@ -36,6 +36,12 @@ export interface SubmissionPlan {
     baseBranch: string;
     prContent: { title: string; body: string };
   }[];
+  bookmarksNeedingPRBaseUpdate: {
+    bookmark: string;
+    currentBaseBranch: string;
+    expectedBaseBranch: string;
+    pr: PullRequestListItem;
+  }[];
   repoInfo: { owner: string; repo: string };
   existingPRs: Map<string, PullRequestListItem | null>;
   remoteBookmarks: Map<string, RemoteBookmark | null>;
@@ -52,6 +58,12 @@ export interface SubmissionCallbacks {
   onPushCompleted?: (bookmark: string, remote: string) => void;
   onPRStarted?: (bookmark: string, title: string, base: string) => void;
   onPRCompleted?: (bookmark: string, pr: PullRequest) => void;
+  onPRBaseUpdateStarted?: (
+    bookmark: string,
+    currentBase: string,
+    newBase: string,
+  ) => void;
+  onPRBaseUpdateCompleted?: (bookmark: string, pr: PullRequest) => void;
   onError?: (error: Error, context: string) => void;
 }
 
@@ -59,6 +71,7 @@ export interface SubmissionResult {
   success: boolean;
   pushedBookmarks: string[];
   createdPRs: Array<{ bookmark: string; pr: PullRequest }>;
+  updatedPRs: Array<{ bookmark: string; pr: PullRequest }>;
   errors: Array<{ error: Error; context: string }>;
 }
 
@@ -532,6 +545,7 @@ export async function analyzeSubmissionPlan(
       bookmarksToSubmit,
       bookmarksNeedingPush,
       bookmarksNeedingPR,
+      bookmarksNeedingPRBaseUpdate: [], // TODO: Implement in Phase 2
       repoInfo,
       existingPRs,
       remoteBookmarks,
@@ -558,6 +572,7 @@ export async function executeSubmissionPlan(
     success: true,
     pushedBookmarks: [],
     createdPRs: [],
+    updatedPRs: [], // TODO: Implement in Phase 2
     errors: [],
   };
 
