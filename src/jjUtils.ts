@@ -360,33 +360,22 @@ function groupSegmentsIntoStacks(
   bookmarks: Bookmark[],
   stackingRelationships: Map<string, string>,
   segmentChanges: Map<string, LogEntry[]>,
+  stackRoots: Set<string>,
 ): BranchStack[] {
   const stacks: BranchStack[] = [];
-  const processedBookmarks = new Set<string>();
 
-  for (const bookmark of bookmarks) {
-    if (processedBookmarks.has(bookmark.name)) {
-      continue;
-    }
-
-    // Find the root of this stack (bookmark with no parent in relationships)
-    let root = bookmark.name;
-    while (stackingRelationships.has(root)) {
-      root = stackingRelationships.get(root)!;
-    }
-
+  // Process each stack root to build stacks
+  for (const rootBookmark of stackRoots) {
     // Collect all bookmarks in this stack by following the chain from root
-    const stackBookmarks: string[] = [root];
-    processedBookmarks.add(root);
+    const stackBookmarks: string[] = [rootBookmark];
 
     // Find children of each bookmark in the chain
-    let current = root;
+    let current = rootBookmark;
     while (true) {
       let foundChild = false;
       for (const [child, parent] of stackingRelationships.entries()) {
-        if (parent === current && !processedBookmarks.has(child)) {
+        if (parent === current) {
           stackBookmarks.push(child);
-          processedBookmarks.add(child);
           current = child;
           foundChild = true;
           break;
@@ -456,6 +445,7 @@ export async function buildChangeGraph(): Promise<ChangeGraph> {
   const stackingRelationships = new Map<string, string>(); // child -> parent
   const segmentChanges = new Map<string, LogEntry[]>(); // bookmark name -> just its segment changes
   const bookmarkToCommitId = new Map<string, string>();
+  const stackRoots = new Set<string>(); // Track which bookmarks are stack roots
 
   // Build bookmark lookup map
   for (const bookmark of bookmarks) {
@@ -514,6 +504,11 @@ export async function buildChangeGraph(): Promise<ChangeGraph> {
         console.log(
           `    Stacking: ${rootSegment.bookmark} -> ${result.baseBookmark}`,
         );
+      } else if (result.segments.length > 0) {
+        // We reached trunk, so the last segment is a root
+        const rootSegment = result.segments[result.segments.length - 1];
+        stackRoots.add(rootSegment.bookmark);
+        console.log(`    Root bookmark identified: ${rootSegment.bookmark}`);
       }
 
       console.log(
@@ -534,11 +529,21 @@ export async function buildChangeGraph(): Promise<ChangeGraph> {
     console.log("No stacking relationships found");
   }
 
+  // Debug: log the stack roots we identified
+  console.log("=== STACK ROOTS ===");
+  for (const root of stackRoots) {
+    console.log(`Root: ${root}`);
+  }
+  if (stackRoots.size === 0) {
+    console.log("No stack roots found");
+  }
+
   // Group segments into stacks based on relationships
   const stacks = groupSegmentsIntoStacks(
     bookmarks,
     stackingRelationships,
     segmentChanges,
+    stackRoots,
   );
 
   return {
