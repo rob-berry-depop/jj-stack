@@ -376,61 +376,129 @@ function groupSegmentsIntoStacks(
   stackRoots: Set<string>,
 ): BranchStack[] {
   const stacks: BranchStack[] = [];
+  const processedBookmarks = new Set<string>();
 
-  // Process each stack root to build stacks
-  for (const rootBookmark of stackRoots) {
-    // Collect all bookmarks in this stack by following the chain from root
-    const stackBookmarks: string[] = [rootBookmark];
+  // Helper function to find all children of a given bookmark
+  function findChildren(bookmark: string): string[] {
+    const children: string[] = [];
+    for (const [child, parent] of stackingRelationships.entries()) {
+      if (parent === bookmark && !processedBookmarks.has(child)) {
+        children.push(child);
+      }
+    }
+    return children;
+  }
 
-    // Find children of each bookmark in the chain
-    let current = rootBookmark;
+  // Helper function to build a complete stack starting from a given bookmark
+  function buildStackFromBookmark(startBookmark: string): string[] {
+    const stackBookmarks: string[] = [startBookmark];
+    processedBookmarks.add(startBookmark);
+
+    let current = startBookmark;
     while (true) {
-      let foundChild = false;
-      for (const [child, parent] of stackingRelationships.entries()) {
-        if (parent === current) {
-          stackBookmarks.push(child);
-          current = child;
-          foundChild = true;
-          break;
+      const children = findChildren(current);
+      if (children.length === 0) {
+        // No more children, end of this chain
+        break;
+      } else if (children.length === 1) {
+        // Single child, continue the chain
+        const child = children[0];
+        stackBookmarks.push(child);
+        processedBookmarks.add(child);
+        current = child;
+      } else {
+        // Multiple children - this shouldn't happen in a properly formed stack
+        // Each child should start its own separate stack from the root
+        throw new Error(
+          `Bookmark ${current} has multiple children: ${children.join(", ")}. This indicates a branching scenario that should be handled at the root level.`,
+        );
+      }
+    }
+
+    return stackBookmarks;
+  }
+
+  // Process each stack root
+  for (const rootBookmark of stackRoots) {
+    if (processedBookmarks.has(rootBookmark)) {
+      continue; // Already processed as part of another stack
+    }
+
+    // Find all direct children of this root
+    const rootChildren = findChildren(rootBookmark);
+
+    if (rootChildren.length === 0) {
+      // Single bookmark stack (just the root)
+      const stackBookmarks = buildStackFromBookmark(rootBookmark);
+      const segments = buildSegmentsFromBookmarks(
+        stackBookmarks,
+        bookmarks,
+        stackingRelationships,
+        segmentChanges,
+      );
+      stacks.push({
+        segments,
+        baseCommit: segments.length > 0 ? segments[0].baseCommit : "trunk",
+      });
+    } else {
+      // Root has children - create separate stacks for each child branch
+      for (const child of rootChildren) {
+        if (!processedBookmarks.has(child)) {
+          // Build a stack starting from the root and going through this child
+          const stackBookmarks: string[] = [rootBookmark];
+
+          // Add the child and follow its chain
+          const childChain = buildStackFromBookmark(child);
+          stackBookmarks.push(...childChain);
+
+          const segments = buildSegmentsFromBookmarks(
+            stackBookmarks,
+            bookmarks,
+            stackingRelationships,
+            segmentChanges,
+          );
+          stacks.push({
+            segments,
+            baseCommit: segments.length > 0 ? segments[0].baseCommit : "trunk",
+          });
         }
       }
-      if (!foundChild) break;
+      // Mark the root as processed after creating all its child stacks
+      processedBookmarks.add(rootBookmark);
     }
-
-    // Build segments for this stack
-    const segments: BookmarkSegment[] = [];
-    let baseCommit = "trunk"; // Default for standalone bookmarks
-
-    for (const bookmarkName of stackBookmarks) {
-      const bookmarkObj = bookmarks.find((b) => b.name === bookmarkName)!;
-      const changes = segmentChanges.get(bookmarkName) || [];
-
-      // Determine base commit for this segment
-      const segmentBaseCommit = stackingRelationships.has(bookmarkName)
-        ? bookmarks.find(
-            (b) => b.name === stackingRelationships.get(bookmarkName)!,
-          )!.commit_id
-        : "trunk";
-
-      segments.push({
-        bookmark: bookmarkObj,
-        changes,
-        baseCommit: segmentBaseCommit,
-      });
-    }
-
-    // Base commit for the stack is the base of the root bookmark
-    if (segments.length > 0) {
-      baseCommit = segments[0].baseCommit;
-    }
-
-    stacks.push({
-      segments,
-      baseCommit,
-    });
   }
 
   return stacks;
+}
+
+// Helper function to build segments from a list of bookmark names
+function buildSegmentsFromBookmarks(
+  stackBookmarks: string[],
+  bookmarks: Bookmark[],
+  stackingRelationships: Map<string, string>,
+  segmentChanges: Map<string, LogEntry[]>,
+): BookmarkSegment[] {
+  const segments: BookmarkSegment[] = [];
+
+  for (const bookmarkName of stackBookmarks) {
+    const bookmarkObj = bookmarks.find((b) => b.name === bookmarkName)!;
+    const changes = segmentChanges.get(bookmarkName) || [];
+
+    // Determine base commit for this segment
+    const segmentBaseCommit = stackingRelationships.has(bookmarkName)
+      ? bookmarks.find(
+          (b) => b.name === stackingRelationships.get(bookmarkName)!,
+        )!.commit_id
+      : "trunk";
+
+    segments.push({
+      bookmark: bookmarkObj,
+      changes,
+      baseCommit: segmentBaseCommit,
+    });
+  }
+
+  return segments;
 }
 
 /**
