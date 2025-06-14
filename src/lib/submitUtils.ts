@@ -18,7 +18,7 @@ type PullRequestListItem = Awaited<
 export interface RemoteBookmark {
   name: string;
   remote: string;
-  commit_id: string;
+  commitId: string;
 }
 
 export interface GitHubConfig {
@@ -138,7 +138,7 @@ export async function checkRemoteBookmark(
         return {
           name: remoteMatch[1],
           remote: remoteMatch[2],
-          commit_id: remoteMatch[3],
+          commitId: remoteMatch[3],
         };
       }
     }
