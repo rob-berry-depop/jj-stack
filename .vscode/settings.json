@@ -1,0 +1,6 @@
+{
+  "git.enabled": false,
+  "[rescript]": {
+    "editor.defaultFormatter": "chenglou92.rescript-vscode"
+  }
+}
