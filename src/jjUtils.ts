@@ -223,49 +223,6 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
 }
 
 /**
- * Collect all changes between a bookmark and its common ancestor with trunk
- */
-export async function getAllChangesBetween(
-  bookmark: Bookmark,
-  commonAncestor: LogEntry,
-): Promise<LogEntry[]> {
-  const allChanges: LogEntry[] = [];
-  let lastSeenCommit: string | undefined;
-
-  while (true) {
-    const changes = await getChangesBetween(
-      commonAncestor.commit_id,
-      bookmark.commit_id,
-      lastSeenCommit,
-    );
-
-    if (changes.length === 0) {
-      break;
-    }
-
-    // Check for merge commits (more than one parent)
-    for (const change of changes) {
-      if (change.parents.length > 1) {
-        throw new Error(
-          `Found merge commit ${change.commit_id} in branch ${bookmark.name}. This indicates a split/merge in the history which is not supported.`,
-        );
-      }
-    }
-
-    allChanges.push(...changes);
-
-    if (changes.length < 100) {
-      break; // We got all remaining changes
-    }
-
-    // Use the oldest commit in this batch as the cursor for the next page
-    lastSeenCommit = changes[changes.length - 1].commit_id;
-  }
-
-  return allChanges;
-}
-
-/**
  * Traverse from a bookmark toward trunk, discovering segments and relationships along the way
  */
 async function traverseAndDiscoverSegments(
