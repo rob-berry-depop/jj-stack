@@ -1,9 +1,106 @@
 #!/usr/bin/env node
 
-import { buildChangeGraph } from "./jjUtils";
+import { buildChangeGraph } from "./jjUtils.js";
+import { submitCommand } from "./submitCommand.js";
+import {
+  authTestCommand,
+  authLogoutCommand,
+  authHelpCommand,
+} from "./authCommand.js";
+
+function showHelp() {
+  console.log("🔧 jj-stack - Jujutsu Git workflow automation");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("");
+  console.log("USAGE:");
+  console.log("  jj-stack [COMMAND] [OPTIONS]");
+  console.log("");
+  console.log("COMMANDS:");
+  console.log(
+    "  submit <bookmark>     Submit a bookmark (and its stack) as PRs",
+  );
+  console.log(
+    "    --dry-run           Show what would be done without making changes",
+  );
+  console.log("");
+  console.log("  auth test             Test GitHub authentication");
+  console.log("  auth logout           Clear saved authentication");
+  console.log("  auth help             Show authentication help");
+  console.log("");
+  console.log("  help, --help, -h      Show this help message");
+  console.log("");
+  console.log("DEFAULT BEHAVIOR:");
+  console.log(
+    "  Running jj-stack without arguments shows the current change graph",
+  );
+  console.log("");
+  console.log("EXAMPLES:");
+  console.log("  jj-stack                        # Show change graph");
+  console.log(
+    "  jj-stack submit feature-branch  # Submit feature-branch as PR",
+  );
+  console.log(
+    "  jj-stack submit feature-branch --dry-run  # Preview what would be done",
+  );
+  console.log("  jj-stack auth test              # Test GitHub authentication");
+  console.log("");
+  console.log(
+    "For more information, visit: https://github.com/your-org/jj-stack",
+  );
+}
 
 async function main() {
-  console.log("jj-spice is running!");
+  const args = process.argv.slice(2);
+  const command = args[0];
+
+  if (command === "submit") {
+    const bookmarkName = args[1];
+    const isDryRun = args.includes("--dry-run");
+
+    if (!bookmarkName) {
+      console.error("Usage: jj-stack submit <bookmark-name> [--dry-run]");
+      process.exit(1);
+    }
+
+    try {
+      await submitCommand(bookmarkName, { dryRun: isDryRun });
+    } catch (error) {
+      console.error("Submit command failed:", error);
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (command === "auth") {
+    const subcommand = args[1];
+
+    try {
+      switch (subcommand) {
+        case "test":
+          await authTestCommand();
+          break;
+        case "logout":
+          await authLogoutCommand();
+          break;
+        case "help":
+        default:
+          authHelpCommand();
+          break;
+      }
+    } catch (error) {
+      console.error("Auth command failed:", error);
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (command === "help" || command === "--help" || command === "-h") {
+    showHelp();
+    return;
+  }
+
+  // Default behavior - show change graph
+  console.log("jj-stack is running!");
   console.log("Building change graph from user bookmarks...");
 
   try {

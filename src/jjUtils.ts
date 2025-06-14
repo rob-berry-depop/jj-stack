@@ -5,7 +5,7 @@ import type {
   BranchStack,
   ChangeGraph,
   BookmarkSegment,
-} from "./jjTypes";
+} from "./jjTypes.js";
 
 const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
 

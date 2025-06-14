@@ -1,5 +1,5 @@
-import { buildChangeGraph, type JjFunctions } from "./jjUtils";
-import type { LogEntry, Bookmark } from "./jjTypes";
+import { buildChangeGraph, type JjFunctions } from "./jjUtils.js";
+import type { LogEntry, Bookmark } from "./jjTypes.js";
 
 export async function testBranchingScenario() {
   console.log("\n=== Testing buildChangeGraph branching scenario ===");

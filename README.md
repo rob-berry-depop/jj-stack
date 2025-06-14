@@ -1,0 +1,182 @@
+# jj-stack
+
+A CLI tool for creating and managing stacked pull requests on GitHub when using Jujutsu locally.
+
+## Setup
+
+1. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+2. Build the project:
+
+   ```bash
+   npm run build
+   ```
+
+3. Make the CLI available globally (optional):
+
+   ```bash
+   npm link
+   ```
+
+   Or run directly with:
+
+   ```bash
+   node dist/index.js
+   ```
+
+4. Set up GitHub authentication:
+
+   jj-stack supports multiple authentication methods (in priority order):
+
+   **Option 1: GitHub CLI (Recommended) ⭐**
+
+   ```bash
+   # Install GitHub CLI if not already installed
+   brew install gh  # macOS
+   # or visit https://cli.github.com/
+
+   # Authenticate with GitHub
+   gh auth login
+
+   # That's it! jj-stack will automatically use your GitHub CLI auth
+   ```
+
+   **Option 2: Environment Variable**
+
+   ```bash
+   export GITHUB_TOKEN="your_github_personal_access_token"
+   # or
+   export GH_TOKEN="your_github_personal_access_token"
+   ```
+
+   **Option 3: Config File**
+
+   ```bash
+   mkdir -p ~/.config/jj-stack
+   echo '{"github":{"token":"your_token_here"}}' > ~/.config/jj-stack/config.json
+   ```
+
+   **Creating a Personal Access Token:**
+
+   - Go to https://github.com/settings/tokens/new
+   - Required scopes: `repo`, `workflow` (if using GitHub Actions)
+
+   **Test your authentication:**
+
+   ```bash
+   jj-stack auth test
+   ```
+
+   For more details, see [AUTHENTICATION.md](./AUTHENTICATION.md)
+
+## Usage
+
+### Authentication Commands
+
+```bash
+# Test your current authentication setup
+jj-stack auth test
+
+# Clear saved authentication
+jj-stack auth logout
+
+# Show authentication help
+jj-stack auth help
+```
+
+### Submit a bookmark as a PR
+
+```bash
+jj-stack submit <bookmark-name> [--dry-run]
+```
+
+#### Dry Run Mode
+
+Use `--dry-run` to simulate the entire process without making any changes:
+
+```bash
+jj-stack submit my-feature --dry-run
+```
+
+This will:
+
+- ✅ Validate the bookmark exists locally
+- ✅ Check for remote bookmarks
+- ✅ Auto-detect GitHub repository (no token required)
+- ✅ Determine base branch from stacking
+- ✅ Generate PR content
+- ✅ Show exactly what would be done
+- ✅ Output detailed JSON for debugging
+
+Perfect for development, testing, and understanding what the tool will do.
+
+#### Normal Mode
+
+```bash
+export GITHUB_TOKEN="your_token"
+jj-stack submit my-feature
+```
+
+This command will:
+
+1. **Check for remote bookmark**: Determine if the bookmark has already been pushed to the remote
+2. **Auto-detect GitHub repository**: Extract owner/repo from your git remote URL
+3. **Check for existing PR**: Look for an open PR for this bookmark
+4. **Determine base branch**:
+   - If the bookmark is stacked on another bookmark, use that as the base
+   - Otherwise, use `main` as the base branch
+5. **Generate PR content**: Use the bookmark's commit messages for title and description
+6. **Push bookmark**: Push the bookmark to the remote repository
+7. **Create PR**: Create a new pull request on GitHub
+
+### View bookmark stacks
+
+```bash
+jj-stack
+```
+
+Shows the current bookmark hierarchy and stacking relationships.
+
+## Requirements
+
+- Jujutsu (jj) version 0.30.0 or later
+- Git repository with GitHub remote
+- GitHub personal access token with repo permissions
+
+## Environment Variables
+
+- `GITHUB_TOKEN` (required): Your GitHub personal access token
+- `GITHUB_OWNER` (optional): Override auto-detected repository owner
+- `GITHUB_REPO` (optional): Override auto-detected repository name
+
+## How it works
+
+The tool leverages Jujutsu's bookmark system to understand the structure of your stacked changes. It:
+
+1. Analyzes your local bookmarks using `jj bookmark list` and `jj log`
+2. Builds a graph of how bookmarks are stacked on top of each other
+3. Uses this information to create properly linked pull requests on GitHub
+4. Sets the correct base branch for each PR based on the stacking relationship
+
+## Example Workflow
+
+```bash
+# Create a stack of bookmarks
+jj new main -m "Add user authentication"
+jj bookmark create auth
+
+jj new -m "Add user profile page"
+jj bookmark create profile
+
+jj new -m "Add profile editing"
+jj bookmark create profile-edit
+
+# Submit the entire stack
+jj-stack submit auth      # Creates PR: auth -> main
+jj-stack submit profile   # Creates PR: profile -> auth
+jj-stack submit profile-edit # Creates PR: profile-edit -> profile
+```
