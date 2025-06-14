@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "test": "node dist/lib/jjUtils.test.js",
     "res:build": "rescript",
     "res:clean": "rescript clean",
     "res:dev": "rescript -w"
