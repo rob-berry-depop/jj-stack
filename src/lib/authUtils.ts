@@ -4,6 +4,7 @@ import { readFile, writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { homedir } from "os";
 import { existsSync } from "fs";
+import { Octokit } from "octokit";
 
 const execFileAsync = promisify(execFile);
 
@@ -170,7 +171,6 @@ async function saveTokenToConfig(token: string): Promise<void> {
  */
 async function validateToken(token: string): Promise<boolean> {
   try {
-    const { Octokit } = await import("octokit");
     const octokit = new Octokit({ auth: token });
 
     // Test the token by getting user info
@@ -179,6 +179,19 @@ async function validateToken(token: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function getAuthDetails(authConfig: AuthConfig) {
+  const octokit = new Octokit({ auth: authConfig.token });
+  const user = await octokit.rest.users.getAuthenticated();
+  const response = await octokit.request("GET /user");
+  const scopes = response.headers["x-oauth-scopes"]?.split(", ") || [];
+  return {
+    username: user.data.login,
+    name: user.data.name,
+    email: user.data.email,
+    scopes,
+  };
 }
 
 /**

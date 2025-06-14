@@ -2,12 +2,7 @@
 
 import { buildChangeGraph } from "../lib/jjUtils.js";
 import { submitCommand } from "./submitCommand.js";
-import {
-  authTestCommand,
-  authLogoutCommand,
-  authHelpCommand,
-} from "./authCommand.js";
-import { greet } from "./cli.gen.js";
+import { main } from "./CLI.gen.js";
 
 function showHelp() {
   console.log("🔧 jj-stack - Jujutsu Git workflow automation");
@@ -50,9 +45,7 @@ function showHelp() {
   );
 }
 
-async function main() {
-  greet("Kevin");
-
+async function oldMain() {
   const args = process.argv.slice(2);
   const command = args[0];
 
@@ -69,29 +62,6 @@ async function main() {
       await submitCommand(bookmarkName, { dryRun: isDryRun });
     } catch (error) {
       console.error("Submit command failed:", error);
-      process.exit(1);
-    }
-    return;
-  }
-
-  if (command === "auth") {
-    const subcommand = args[1];
-
-    try {
-      switch (subcommand) {
-        case "test":
-          await authTestCommand();
-          break;
-        case "logout":
-          await authLogoutCommand();
-          break;
-        case "help":
-        default:
-          authHelpCommand();
-          break;
-      }
-    } catch (error) {
-      console.error("Auth command failed:", error);
       process.exit(1);
     }
     return;
@@ -153,4 +123,5 @@ async function main() {
   }
 }
 
+void oldMain();
 void main();
