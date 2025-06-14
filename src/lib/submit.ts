@@ -93,11 +93,10 @@ export async function validateBookmark(bookmarkName: string): Promise<void> {
 /**
  * Get all bookmarks in the stack that need to be submitted (including the target bookmark)
  */
-export async function getStackBookmarksToSubmit(
+export function getStackBookmarksToSubmit(
   bookmarkName: string,
-): Promise<string[]> {
-  const changeGraph = await buildChangeGraph();
-
+  changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
+): string[] {
   // Find which stack contains the target bookmark
   for (const stack of changeGraph.stacks) {
     const targetIndex = stack.segments.findIndex(
@@ -304,9 +303,12 @@ export async function getDefaultBranch(): Promise<string> {
 /**
  * Get the base branch for a bookmark based on what it's stacked on
  */
-export async function getBaseBranch(bookmarkName: string): Promise<string> {
+export async function getBaseBranch(
+  bookmarkName: string,
+  graph?: Awaited<ReturnType<typeof buildChangeGraph>>,
+): Promise<string> {
   try {
-    const changeGraph = await buildChangeGraph();
+    const changeGraph = graph || (await buildChangeGraph());
 
     // Find the bookmark in our change graph
     for (const stack of changeGraph.stacks) {
@@ -335,9 +337,12 @@ export async function getBaseBranch(bookmarkName: string): Promise<string> {
 /**
  * Generate PR title from the bookmark's commits
  */
-export async function generatePRTitle(bookmarkName: string): Promise<string> {
+export async function generatePRTitle(
+  bookmarkName: string,
+  graph?: Awaited<ReturnType<typeof buildChangeGraph>>,
+): Promise<string> {
   try {
-    const changeGraph = await buildChangeGraph();
+    const changeGraph = graph || (await buildChangeGraph());
     const segmentChanges = changeGraph.segmentChanges.get(bookmarkName);
 
     if (!segmentChanges || segmentChanges.length === 0) {
@@ -520,6 +525,7 @@ export async function checkRemoteBookmarks(
 export async function validatePRBases(
   bookmarkNames: string[],
   existingPRs: Map<string, PullRequestListItem | null>,
+  graph?: Awaited<ReturnType<typeof buildChangeGraph>>,
 ): Promise<
   {
     bookmark: string;
@@ -539,7 +545,7 @@ export async function validatePRBases(
     const existingPR = existingPRs.get(bookmark);
 
     if (existingPR) {
-      const expectedBaseBranch = await getBaseBranch(bookmark);
+      const expectedBaseBranch = await getBaseBranch(bookmark, graph);
       const currentBaseBranch = existingPR.base.ref;
 
       if (currentBaseBranch !== expectedBaseBranch) {
@@ -568,9 +574,15 @@ export async function analyzeSubmissionPlan(
     await validateBookmark(bookmarkName);
     callbacks?.onBookmarkValidated?.(bookmarkName);
 
-    // 2. Get all bookmarks in the stack that need to be submitted
+    // 2. Build change graph once for all operations
+    const changeGraph = await buildChangeGraph();
+
+    // 3. Get all bookmarks in the stack that need to be submitted
     callbacks?.onAnalyzingStack?.(bookmarkName);
-    const bookmarksToSubmit = await getStackBookmarksToSubmit(bookmarkName);
+    const bookmarksToSubmit = getStackBookmarksToSubmit(
+      bookmarkName,
+      changeGraph,
+    );
     callbacks?.onStackFound?.(bookmarksToSubmit);
 
     // 3. Get GitHub repository info
@@ -595,6 +607,7 @@ export async function analyzeSubmissionPlan(
     const bookmarksNeedingPRBaseUpdate = await validatePRBases(
       bookmarksToSubmit,
       existingPRs,
+      changeGraph,
     );
 
     // 7. Determine what actions are needed
@@ -616,8 +629,8 @@ export async function analyzeSubmissionPlan(
       if (!hasExistingPR) {
         bookmarksNeedingPR.push({
           bookmark,
-          baseBranch: await getBaseBranch(bookmark),
-          prContent: { title: await generatePRTitle(bookmark) },
+          baseBranch: await getBaseBranch(bookmark, changeGraph),
+          prContent: { title: await generatePRTitle(bookmark, changeGraph) },
         });
       }
     }
