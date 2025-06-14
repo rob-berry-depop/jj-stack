@@ -2,18 +2,18 @@
 
 import * as Process from "process";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
-import * as SubmitUtilsJs from "../lib/submitUtils.js";
+import * as SubmitJs from "../lib/submit.js";
 
 function analyzeSubmissionPlan(prim0, prim1) {
-  return SubmitUtilsJs.analyzeSubmissionPlan(prim0, prim1);
+  return SubmitJs.analyzeSubmissionPlan(prim0, prim1);
 }
 
 function executeSubmissionPlan(prim0, prim1, prim2) {
-  return SubmitUtilsJs.executeSubmissionPlan(prim0, prim1, prim2);
+  return SubmitJs.executeSubmissionPlan(prim0, prim1, prim2);
 }
 
 function getGitHubConfig(prim) {
-  return SubmitUtilsJs.getGitHubConfig();
+  return SubmitJs.getGitHubConfig();
 }
 
 function formatBookmarkStatus(bookmark, remoteBookmarks, existingPRs) {
@@ -125,15 +125,15 @@ async function submitCommand(bookmarkName, options) {
     console.log("🚀 Submitting bookmark: " + bookmarkName);
   }
   var callbacks = createSubmissionCallbacks(dryRun, undefined);
-  var plan = await SubmitUtilsJs.analyzeSubmissionPlan(bookmarkName, callbacks);
+  var plan = await SubmitJs.analyzeSubmissionPlan(bookmarkName, callbacks);
   if (dryRun) {
     console.log("=".repeat(50));
     console.log("✅ Dry run completed successfully!");
     return ;
   }
-  var githubConfig = await SubmitUtilsJs.getGitHubConfig();
+  var githubConfig = await SubmitJs.getGitHubConfig();
   console.log("🔑 Using GitHub authentication from: configured");
-  var result = await SubmitUtilsJs.executeSubmissionPlan(plan, githubConfig, callbacks);
+  var result = await SubmitJs.executeSubmissionPlan(plan, githubConfig, callbacks);
   if (result.success) {
     console.log("\n🎉 Successfully submitted stack up to " + bookmarkName + "!");
     if (result.pushedBookmarks.length > 0) {

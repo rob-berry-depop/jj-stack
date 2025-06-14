@@ -2,7 +2,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { Octokit } from "octokit";
 import { buildChangeGraph } from "./jjUtils.js";
-import { getGitHubAuth } from "./authUtils.js";
+import { getGitHubAuth } from "./auth.js";
 
 const execFileAsync = promisify(execFile);
 const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";

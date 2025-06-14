@@ -77,18 +77,18 @@ type submissionResult = {
   errors: array<errorWithContext>,
 }
 
-@module("../lib/submitUtils.js")
+@module("../lib/submit.js")
 external analyzeSubmissionPlan: (string, option<submissionCallbacks>) => promise<submissionPlan> =
   "analyzeSubmissionPlan"
 
-@module("../lib/submitUtils.js")
+@module("../lib/submit.js")
 external executeSubmissionPlan: (
   submissionPlan,
   'githubConfig,
   option<submissionCallbacks>,
 ) => promise<submissionResult> = "executeSubmissionPlan"
 
-@module("../lib/submitUtils.js")
+@module("../lib/submit.js")
 external getGitHubConfig: unit => promise<'githubConfig> = "getGitHubConfig"
 
 type submitOptions = {dryRun?: bool}

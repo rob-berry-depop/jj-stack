@@ -12,9 +12,9 @@ type authDetails = {
   scopes: array<string>,
 }
 
-@module("../lib/authUtils.js") external getGitHubAuth: unit => promise<authConfig> = "getGitHubAuth"
-@module("../lib/authUtils.js") external clearSavedAuth: unit => promise<unit> = "clearSavedAuth"
-@module("../lib/authUtils.js")
+@module("../lib/auth.js") external getGitHubAuth: unit => promise<authConfig> = "getGitHubAuth"
+@module("../lib/auth.js") external clearSavedAuth: unit => promise<unit> = "clearSavedAuth"
+@module("../lib/auth.js")
 external getAuthDetails: authConfig => promise<authDetails> = "getAuthDetails"
 
 let sourceToString = (source: source): string => {
