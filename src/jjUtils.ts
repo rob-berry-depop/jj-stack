@@ -9,6 +9,18 @@ import type {
 
 const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
 
+// Types for dependency injection
+export type JjFunctions = {
+  getLogOutput: () => Promise<LogEntry[]>;
+  getMyBookmarks: () => Promise<Bookmark[]>;
+  findCommonAncestor: (bookmarkName: string) => Promise<LogEntry>;
+  getChangesBetween: (
+    from: string,
+    to: string,
+    lastSeenCommit?: string,
+  ) => Promise<LogEntry[]>;
+};
+
 export function getLogOutput(): Promise<LogEntry[]> {
   return new Promise((resolve, reject) => {
     const jjTemplate = `'{ "commit_id":' ++ commit_id.short().escape_json() ++ ', ' ++ '"change_id":' 
@@ -230,6 +242,7 @@ async function traverseAndDiscoverSegments(
   commonAncestor: LogEntry,
   fullyCollectedBookmarks: Set<string>,
   bookmarkToCommitId: Map<string, string>,
+  jj: JjFunctions,
 ): Promise<{
   segments: Array<{ bookmark: string; changes: LogEntry[] }>;
   baseBookmark?: string; // if we hit a fully-collected bookmark
@@ -243,7 +256,7 @@ async function traverseAndDiscoverSegments(
   let baseBookmark: string | undefined;
 
   while (true) {
-    const changes = await getChangesBetween(
+    const changes = await jj.getChangesBetween(
       commonAncestor.commit_id,
       bookmark.commit_id,
       lastSeenCommit,
@@ -423,9 +436,17 @@ function groupSegmentsIntoStacks(
 /**
  * Build a complete change graph by discovering all bookmark segments and their relationships
  */
-export async function buildChangeGraph(): Promise<ChangeGraph> {
+export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
+  // Use default implementations if no jj functions provided
+  const jjFunctions = jj || {
+    getLogOutput,
+    getMyBookmarks,
+    findCommonAncestor,
+    getChangesBetween,
+  };
+
   console.log("Discovering user bookmarks...");
-  const bookmarks = await getMyBookmarks();
+  const bookmarks = await jjFunctions.getMyBookmarks();
 
   if (bookmarks.length === 0) {
     console.log("No user bookmarks found.");
@@ -463,7 +484,9 @@ export async function buildChangeGraph(): Promise<ChangeGraph> {
 
     try {
       // Find common ancestor with trunk (like before)
-      const commonAncestor = await findCommonAncestor(bookmark.name);
+      const commonAncestor = await jjFunctions.findCommonAncestor(
+        bookmark.name,
+      );
 
       // Use optimized collection that can stop early when hitting fully-collected bookmarks
       const result = await traverseAndDiscoverSegments(
@@ -471,6 +494,7 @@ export async function buildChangeGraph(): Promise<ChangeGraph> {
         commonAncestor,
         fullyCollectedBookmarks,
         bookmarkToCommitId,
+        jjFunctions,
       );
 
       // Store segment changes for all bookmarks found in the result
@@ -552,3 +576,11 @@ export async function buildChangeGraph(): Promise<ChangeGraph> {
     segmentChanges,
   };
 }
+
+// Default implementations
+export const defaultJjFunctions: JjFunctions = {
+  getLogOutput,
+  getMyBookmarks,
+  findCommonAncestor,
+  getChangesBetween,
+};
