@@ -17,10 +17,6 @@ function buildChangeGraph(prim) {
 
 var help = "🔧 jj-stack - Jujutsu Git workflow automation\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nUSAGE:\n  jj-stack [COMMAND] [OPTIONS]\n\nCOMMANDS:\n  analyze               Analyze the current change graph\n\n  submit <bookmark>     Submit a bookmark (and its stack) as PRs\n    --dry-run           Show what would be done without making changes\n\n  auth test             Test GitHub authentication\n  auth logout           Clear saved authentication\n  auth help             Show authentication help\n\n  help, --help, -h      Show this help message\n\nDEFAULT BEHAVIOR:\n  Running jj-stack without arguments shows the current change graph\n\nEXAMPLES:\n  jj-stack                        # Show change graph\n  jj-stack submit feature-branch  # Submit feature-branch as PR\n  jj-stack submit feature-branch --dry-run  # Preview what would be done\n  jj-stack auth test              # Test GitHub authentication\n\nFor more information, visit: https://github.com/your-org/jj-stack\n";
 
-function greet(name) {
-  console.log("Hello, " + name + "!");
-}
-
 async function main() {
   try {
     var args = process.argv.slice(2, process.argv.length);
@@ -128,7 +124,6 @@ export {
   getLogOutput ,
   buildChangeGraph ,
   help ,
-  greet ,
   main ,
 }
 /* AuthCommand Not a pure module */

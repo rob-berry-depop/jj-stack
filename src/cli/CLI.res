@@ -71,11 +71,6 @@ For more information, visit: https://github.com/your-org/jj-stack
 `
 
 @genType
-let greet = name => {
-  Console.log("Hello, " ++ name ++ "!")
-}
-
-@genType
 let main = async () => {
   try {
     let args = Array.slice(argv, ~start=2, ~end=Array.length(argv))
