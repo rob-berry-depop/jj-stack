@@ -24,7 +24,10 @@
   },
   "dependencies": {
     "@rescript/core": "^1.6.1",
+    "@rescript/react": "^0.13.1",
+    "ink": "^6.0.0",
     "octokit": "^5.0.3",
+    "react": "^19.1.0",
     "rescript": "^11.1.4"
   }
 }

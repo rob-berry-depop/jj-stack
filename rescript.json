@@ -9,11 +9,12 @@
     "in-source": true
   },
   "suffix": ".res.mjs",
-  "bs-dependencies": ["@rescript/core"],
+  "bs-dependencies": ["@rescript/core", "@rescript/react"],
   "bsc-flags": ["-open RescriptCore"],
   "gentypeconfig": {
     "module": "node16",
     "moduleResolution": "node16",
     "generatedFileExtension": ".gen.tsx"
-  }
+  },
+  "jsx": { "version": 4 }
 }
