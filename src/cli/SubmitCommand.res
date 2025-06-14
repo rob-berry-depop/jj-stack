@@ -1,3 +1,5 @@
+@module("process") external exit: int => unit = "exit"
+
 type prContent = {
   title: string,
   body: string,
@@ -89,17 +91,6 @@ external executeSubmissionPlan: (
 @module("../lib/submitUtils.js")
 external getGitHubConfig: unit => promise<'githubConfig> = "getGitHubConfig"
 
-// Console module
-@module("console") external log: string => unit = "log"
-@module("console") external error: string => unit = "error"
-
-// Process module
-@module("process") external exit: int => unit = "exit"
-
-// String methods
-@send external repeat: (string, int) => string = "repeat"
-@send external join: (array<string>, string) => string = "join"
-
 type submitOptions = {dryRun?: bool}
 
 /**
@@ -125,22 +116,24 @@ let createSubmissionCallbacks = (~dryRun: bool=false, ()): submissionCallbacks =
   {
     onBookmarkValidated: Some(
       (bookmark: string) => {
-        log(`✅ Found local bookmark: ${bookmark}`)
+        Console.log(`✅ Found local bookmark: ${bookmark}`)
       },
     ),
     onAnalyzingStack: Some(
       (targetBookmark: string) => {
-        log(`🔍 Finding all bookmarks in stack for ${targetBookmark}...`)
+        Console.log(`🔍 Finding all bookmarks in stack for ${targetBookmark}...`)
       },
     ),
     onStackFound: Some(
       (bookmarks: array<string>) => {
-        log(`📚 Found stack bookmarks to submit: ${bookmarks->join(" -> ")}`)
+        Console.log(`📚 Found stack bookmarks to submit: ${bookmarks->Array.join(" -> ")}`)
       },
     ),
     onCheckingRemotes: Some(
       (bookmarks: array<string>) => {
-        log(`\n🔍 Checking status of ${bookmarks->Array.length->Int.toString} bookmarks...`)
+        Console.log(
+          `\n🔍 Checking status of ${bookmarks->Array.length->Int.toString} bookmarks...`,
+        )
       },
     ),
     onCheckingPRs: Some(
@@ -151,46 +144,50 @@ let createSubmissionCallbacks = (~dryRun: bool=false, ()): submissionCallbacks =
     ),
     onPlanReady: Some(
       (plan: submissionPlan) => {
-        log(`📍 GitHub repository: ${plan.repoInfo.owner}/${plan.repoInfo.repo}`)
+        Console.log(`📍 GitHub repository: ${plan.repoInfo.owner}/${plan.repoInfo.repo}`)
 
         // Show status of all bookmarks
         plan.bookmarksToSubmit->Array.forEach(bookmark => {
-          log(formatBookmarkStatus(bookmark, plan.remoteBookmarks, plan.existingPRs))
+          Console.log(formatBookmarkStatus(bookmark, plan.remoteBookmarks, plan.existingPRs))
         })
 
         if dryRun {
-          log("\n🧪 DRY RUN - Simulating all operations:")
-          log("="->repeat(50))
+          Console.log("\n🧪 DRY RUN - Simulating all operations:")
+          Console.log("="->String.repeat(50))
 
           if plan.bookmarksNeedingPush->Array.length > 0 {
-            log(
+            Console.log(
               `\n🛜 Would push ${plan.bookmarksNeedingPush
                 ->Array.length
                 ->Int.toString} bookmarks to remote:`,
             )
             plan.bookmarksNeedingPush->Array.forEach(bookmark => {
-              log(`   • ${bookmark}`)
+              Console.log(`   • ${bookmark}`)
             })
           }
 
           if plan.bookmarksNeedingPR->Array.length > 0 {
-            log(`\n📝 Would create ${plan.bookmarksNeedingPR->Array.length->Int.toString} PRs:`)
+            Console.log(
+              `\n📝 Would create ${plan.bookmarksNeedingPR->Array.length->Int.toString} PRs:`,
+            )
             plan.bookmarksNeedingPR->Array.forEach(bookmark => {
-              log(
+              Console.log(
                 `   • ${bookmark.bookmark}: "${bookmark.prContent.title}" (base: ${bookmark.baseBranch})`,
               )
             })
           }
         } else {
           if plan.bookmarksNeedingPush->Array.length > 0 {
-            log(
+            Console.log(
               `\n📤 Pushing ${plan.bookmarksNeedingPush
                 ->Array.length
                 ->Int.toString} bookmarks to remote...`,
             )
           }
           if plan.bookmarksNeedingPR->Array.length > 0 {
-            log(`\n📝 Creating ${plan.bookmarksNeedingPR->Array.length->Int.toString} PRs...`)
+            Console.log(
+              `\n📝 Creating ${plan.bookmarksNeedingPR->Array.length->Int.toString} PRs...`,
+            )
           }
         }
       },
@@ -198,35 +195,35 @@ let createSubmissionCallbacks = (~dryRun: bool=false, ()): submissionCallbacks =
     onPushStarted: Some(
       (bookmark: string, remote: string) => {
         if dryRun {
-          log(`[DRY RUN] Would push ${bookmark} to ${remote}`)
+          Console.log(`[DRY RUN] Would push ${bookmark} to ${remote}`)
         } else {
-          log(`Pushing ${bookmark} to ${remote}...`)
+          Console.log(`Pushing ${bookmark} to ${remote}...`)
         }
       },
     ),
     onPushCompleted: Some(
       (bookmark: string, remote: string) => {
         if !dryRun {
-          log(`✅ Successfully pushed ${bookmark} to ${remote}`)
+          Console.log(`✅ Successfully pushed ${bookmark} to ${remote}`)
         }
       },
     ),
     onPRStarted: Some(
       (bookmark: string, title: string, base: string) => {
         if dryRun {
-          log(`   • ${bookmark}: "${title}" (base: ${base})`)
+          Console.log(`   • ${bookmark}: "${title}" (base: ${base})`)
         } else {
-          log(`Creating PR: ${bookmark} -> ${base}`)
-          log(`   Title: "${title}"`)
+          Console.log(`Creating PR: ${bookmark} -> ${base}`)
+          Console.log(`   Title: "${title}"`)
         }
       },
     ),
     onPRCompleted: Some(
       (bookmark: string, pr: pullRequest) => {
         if !dryRun {
-          log(`✅ Created PR for ${bookmark}: ${pr.html_url}`)
-          log(`   Title: ${pr.title}`)
-          log(`   Base: ${pr.base.ref} <- Head: ${pr.head.ref}`)
+          Console.log(`✅ Created PR for ${bookmark}: ${pr.html_url}`)
+          Console.log(`   Title: ${pr.title}`)
+          Console.log(`   Base: ${pr.base.ref} <- Head: ${pr.head.ref}`)
         }
       },
     ),
@@ -249,9 +246,9 @@ let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>
   }
 
   if dryRun {
-    log(`🧪 DRY RUN: Simulating submission of bookmark: ${bookmarkName}`)
+    Console.log(`🧪 DRY RUN: Simulating submission of bookmark: ${bookmarkName}`)
   } else {
-    log(`🚀 Submitting bookmark: ${bookmarkName}`)
+    Console.log(`🚀 Submitting bookmark: ${bookmarkName}`)
   }
 
   // Create callbacks for console output
@@ -262,32 +259,32 @@ let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>
 
   // If this is a dry run, we're done after showing the plan
   if dryRun {
-    log("="->repeat(50))
-    log(`✅ Dry run completed successfully!`)
+    Console.log("="->String.repeat(50))
+    Console.log(`✅ Dry run completed successfully!`)
   } else {
     // Get GitHub configuration for execution
     let githubConfig = await getGitHubConfig()
-    log(`🔑 Using GitHub authentication from: configured`)
+    Console.log(`🔑 Using GitHub authentication from: configured`)
 
     // Execute the plan
     let result = await executeSubmissionPlan(plan, githubConfig, Some(callbacks))
 
     if result.success {
-      log(`\n🎉 Successfully submitted stack up to ${bookmarkName}!`)
+      Console.log(`\n🎉 Successfully submitted stack up to ${bookmarkName}!`)
 
       if result.pushedBookmarks->Array.length > 0 {
-        log(`   📤 Pushed: ${result.pushedBookmarks->join(", ")}`)
+        Console.log(`   📤 Pushed: ${result.pushedBookmarks->Array.join(", ")}`)
       }
 
       if result.createdPrs->Array.length > 0 {
         let createdPrBookmarks = result.createdPrs->Array.map(pr => pr.bookmark)
-        log(`   📝 Created PRs: ${createdPrBookmarks->join(", ")}`)
+        Console.log(`   📝 Created PRs: ${createdPrBookmarks->Array.join(", ")}`)
       }
     } else {
-      error(`\n❌ Submission completed with errors:`)
+      Console.error(`\n❌ Submission completed with errors:`)
       result.errors->Array.forEach(({error: err, context}) => {
         let errorMessage = err->Exn.message->Option.getOr("Unknown error")
-        error(`   • ${context}: ${errorMessage}`)
+        Console.error(`   • ${context}: ${errorMessage}`)
       })
       exit(1)
     }
