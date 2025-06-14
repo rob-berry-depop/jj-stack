@@ -1,5 +1,11 @@
 import { execFile } from "child_process"; // Changed from 'exec' to 'execFile'
-import type { LogEntry, Bookmark, BranchStack, ChangeGraph } from "./jjTypes";
+import type {
+  LogEntry,
+  Bookmark,
+  BranchStack,
+  ChangeGraph,
+  BookmarkSegment,
+} from "./jjTypes";
 
 const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
 
@@ -260,21 +266,21 @@ export async function getAllChangesBetween(
 }
 
 /**
- * Collect changes between two commits with early termination when hitting fully-collected bookmarks
+ * Traverse from a bookmark toward trunk, discovering segments and relationships along the way
  */
-async function getAllChangesBetweenOptimized(
+async function traverseAndDiscoverSegments(
   bookmark: Bookmark,
   commonAncestor: LogEntry,
   fullyCollectedBookmarks: Set<string>,
   bookmarkToCommitId: Map<string, string>,
 ): Promise<{
-  changes: LogEntry[];
+  segments: Array<{ bookmark: string; changes: LogEntry[] }>;
   baseBookmark?: string; // if we hit a fully-collected bookmark
   baseCommit: string;
-  pathBookmarks: string[]; // bookmarks encountered on the path
 }> {
-  const allChanges: LogEntry[] = [];
-  const pathBookmarks: string[] = [];
+  const segments: Array<{ bookmark: string; changes: LogEntry[] }> = [];
+  let currentSegmentChanges: LogEntry[] = [];
+  let currentBookmark = bookmark.name;
   let lastSeenCommit: string | undefined;
   let baseCommit = commonAncestor.commit_id;
   let baseBookmark: string | undefined;
@@ -301,29 +307,54 @@ async function getAllChangesBetweenOptimized(
 
     // Check each change for bookmarks, stopping if we find a fully-collected one
     let foundFullyCollected = false;
-    for (let i = 0; i < changes.length; i++) {
-      const change = changes[i];
-
+    for (const change of changes) {
       // Check if this change has any bookmarks
+      let processedChange = false;
+
       for (const bookmarkName of change.local_bookmarks) {
         if (bookmarkToCommitId.has(bookmarkName)) {
           if (fullyCollectedBookmarks.has(bookmarkName)) {
-            // Found a fully-collected bookmark! Stop here and truncate
+            // Found a fully-collected bookmark! Stop here
             console.log(
               `    Found fully-collected bookmark ${bookmarkName} at ${change.commit_id}`,
             );
             baseBookmark = bookmarkName;
             baseCommit = change.commit_id;
-            // Only include changes up to (but not including) this bookmark
-            allChanges.push(...changes.slice(0, i));
+
+            // Complete current segment (don't include this bookmark's change)
+            if (currentSegmentChanges.length > 0) {
+              segments.push({
+                bookmark: currentBookmark,
+                changes: currentSegmentChanges,
+              });
+            }
+
             foundFullyCollected = true;
+            processedChange = true;
             break;
           } else {
-            // Track this bookmark in our path (but skip the starting bookmark itself)
+            // Found a bookmark that hasn't been fully collected yet
+            // Complete the current segment and start a new one
             if (bookmarkName !== bookmark.name) {
-              pathBookmarks.push(bookmarkName);
               console.log(`    Found bookmark ${bookmarkName} on path`);
+
+              // Complete current segment (don't include this bookmark's change)
+              if (currentSegmentChanges.length > 0) {
+                segments.push({
+                  bookmark: currentBookmark,
+                  changes: currentSegmentChanges,
+                });
+              }
+
+              // Start new segment for the encountered bookmark
+              currentBookmark = bookmarkName;
+              currentSegmentChanges = [];
             }
+
+            // Add this bookmark's change to its segment
+            currentSegmentChanges.push(change);
+            processedChange = true;
+            break; // Only process first bookmark on this change
           }
         }
       }
@@ -331,14 +362,16 @@ async function getAllChangesBetweenOptimized(
       if (foundFullyCollected) {
         break;
       }
+
+      // If this change didn't have any relevant bookmarks, add it to current segment
+      if (!processedChange) {
+        currentSegmentChanges.push(change);
+      }
     }
 
     if (foundFullyCollected) {
       break;
     }
-
-    // If we didn't find a fully-collected bookmark, add all changes
-    allChanges.push(...changes);
 
     if (changes.length < 100) {
       break; // We got all remaining changes
@@ -348,21 +381,28 @@ async function getAllChangesBetweenOptimized(
     lastSeenCommit = changes[changes.length - 1].commit_id;
   }
 
+  // Add the final segment if it has changes
+  if (currentSegmentChanges.length > 0) {
+    segments.push({
+      bookmark: currentBookmark,
+      changes: currentSegmentChanges,
+    });
+  }
+
   return {
-    changes: allChanges,
+    segments,
     baseBookmark,
     baseCommit,
-    pathBookmarks,
   };
 }
 
 /**
- * Build stacks from stacking relationships
+ * Group segments into stacks based on their relationships
  */
-function buildStacksFromRelationships(
+function groupSegmentsIntoStacks(
   bookmarks: Bookmark[],
   stackingRelationships: Map<string, string>,
-  allChanges: Map<string, LogEntry[]>,
+  segmentChanges: Map<string, LogEntry[]>,
 ): BranchStack[] {
   const stacks: BranchStack[] = [];
   const processedBookmarks = new Set<string>();
@@ -373,46 +413,61 @@ function buildStacksFromRelationships(
     }
 
     // Find the root of this stack (bookmark with no parent in relationships)
-    let current = bookmark.name;
-    const stackBookmarks: Bookmark[] = [];
-
-    // Collect all bookmarks in this stack
-    while (current) {
-      const bookmarkObj = bookmarks.find((b) => b.name === current)!;
-      stackBookmarks.unshift(bookmarkObj); // Add to front to get bottom-to-top order
-      processedBookmarks.add(current);
-
-      const parent = stackingRelationships.get(current);
-      current = parent && !processedBookmarks.has(parent) ? parent : "";
+    let root = bookmark.name;
+    while (stackingRelationships.has(root)) {
+      root = stackingRelationships.get(root)!;
     }
 
-    // Build the stack
-    const rootBookmark = stackBookmarks[0];
-    const allStackChanges: LogEntry[] = [];
+    // Collect all bookmarks in this stack by following the chain from root
+    const stackBookmarks: string[] = [root];
+    processedBookmarks.add(root);
 
-    // Collect all changes for the entire stack
-    for (const stackBookmark of stackBookmarks) {
-      const bookmarkChanges = allChanges.get(stackBookmark.name) || [];
-      allStackChanges.push(...bookmarkChanges);
+    // Find children of each bookmark in the chain
+    let current = root;
+    while (true) {
+      let foundChild = false;
+      for (const [child, parent] of stackingRelationships.entries()) {
+        if (parent === current && !processedBookmarks.has(child)) {
+          stackBookmarks.push(child);
+          processedBookmarks.add(child);
+          current = child;
+          foundChild = true;
+          break;
+        }
+      }
+      if (!foundChild) break;
     }
 
-    // Find base commit (we'll use the common ancestor approach for now)
-    // This could be optimized further but let's keep it simple
-    let baseCommit = "trunk"; // Default fallback
-    try {
-      const commonAncestor = stackingRelationships.has(rootBookmark.name)
-        ? rootBookmark.commit_id // If it's stacked, use its commit as base
-        : "trunk"; // If it's not stacked, find common ancestor with trunk
-      baseCommit = commonAncestor;
-    } catch {
-      // Fallback to trunk if we can't find ancestor
-      baseCommit = "trunk";
+    // Build segments for this stack
+    const segments: BookmarkSegment[] = [];
+    let baseCommit = "trunk"; // Default for standalone bookmarks
+
+    for (const bookmarkName of stackBookmarks) {
+      const bookmarkObj = bookmarks.find((b) => b.name === bookmarkName)!;
+      const changes = segmentChanges.get(bookmarkName) || [];
+
+      // Determine base commit for this segment
+      const segmentBaseCommit = stackingRelationships.has(bookmarkName)
+        ? bookmarks.find(
+            (b) => b.name === stackingRelationships.get(bookmarkName)!,
+          )!.commit_id
+        : "trunk";
+
+      segments.push({
+        bookmark: bookmarkObj,
+        changes,
+        baseCommit: segmentBaseCommit,
+      });
+    }
+
+    // Base commit for the stack is the base of the root bookmark
+    if (segments.length > 0) {
+      baseCommit = segments[0].baseCommit;
     }
 
     stacks.push({
-      bookmarks: stackBookmarks,
+      segments,
       baseCommit,
-      changes: allStackChanges,
     });
   }
 
@@ -420,7 +475,7 @@ function buildStacksFromRelationships(
 }
 
 /**
- * Build a complete change graph from all user bookmarks using optimized graph traversal
+ * Build a complete change graph by discovering all bookmark segments and their relationships
  */
 export async function buildChangeGraph(): Promise<ChangeGraph> {
   console.log("Discovering user bookmarks...");
@@ -431,7 +486,7 @@ export async function buildChangeGraph(): Promise<ChangeGraph> {
     return {
       bookmarks: [],
       stacks: [],
-      allChanges: new Map(),
+      segmentChanges: new Map(),
     };
   }
 
@@ -442,7 +497,7 @@ export async function buildChangeGraph(): Promise<ChangeGraph> {
   // Data structures for the optimized algorithm
   const fullyCollectedBookmarks = new Set<string>();
   const stackingRelationships = new Map<string, string>(); // child -> parent
-  const allChanges = new Map<string, LogEntry[]>();
+  const segmentChanges = new Map<string, LogEntry[]>(); // bookmark name -> just its segment changes
   const bookmarkToCommitId = new Map<string, string>();
 
   // Build bookmark lookup map
@@ -450,7 +505,7 @@ export async function buildChangeGraph(): Promise<ChangeGraph> {
     bookmarkToCommitId.set(bookmark.name, bookmark.commit_id);
   }
 
-  // Process each bookmark
+  // Process each bookmark to collect segment changes
   for (const bookmark of bookmarks) {
     if (fullyCollectedBookmarks.has(bookmark.name)) {
       console.log(`Skipping already processed bookmark: ${bookmark.name}`);
@@ -464,92 +519,48 @@ export async function buildChangeGraph(): Promise<ChangeGraph> {
       const commonAncestor = await findCommonAncestor(bookmark.name);
 
       // Use optimized collection that can stop early when hitting fully-collected bookmarks
-      const result = await getAllChangesBetweenOptimized(
+      const result = await traverseAndDiscoverSegments(
         bookmark,
         commonAncestor,
         fullyCollectedBookmarks,
         bookmarkToCommitId,
       );
 
-      // Build the complete change list for this bookmark
-      let bookmarkChanges = [...result.changes];
+      // Store segment changes for all bookmarks found in the result
+      for (const segment of result.segments) {
+        segmentChanges.set(segment.bookmark, segment.changes);
+        fullyCollectedBookmarks.add(segment.bookmark);
 
-      // If we hit a fully-collected bookmark, include its changes too
-      if (result.baseBookmark && allChanges.has(result.baseBookmark)) {
-        bookmarkChanges = [
-          ...allChanges.get(result.baseBookmark)!,
-          ...bookmarkChanges,
-        ];
+        console.log(
+          `    Found segment for ${segment.bookmark}: ${segment.changes.length} changes`,
+        );
       }
 
-      allChanges.set(bookmark.name, bookmarkChanges);
-      fullyCollectedBookmarks.add(bookmark.name);
-
-      // Establish stacking relationship if we hit a fully-collected bookmark
-      if (result.baseBookmark) {
-        stackingRelationships.set(bookmark.name, result.baseBookmark);
+      // Establish stacking relationships based on the segment order
+      // Segments are returned in order from target back to base, so we need to reverse for stacking
+      for (let i = 0; i < result.segments.length - 1; i++) {
+        const childSegment = result.segments[i];
+        const parentSegment = result.segments[i + 1];
+        stackingRelationships.set(
+          childSegment.bookmark,
+          parentSegment.bookmark,
+        );
+        console.log(
+          `    Stacking: ${childSegment.bookmark} -> ${parentSegment.bookmark}`,
+        );
       }
 
-      // Process bookmarks found on the path
-      let currentParent = result.baseBookmark || null;
-      for (let i = result.pathBookmarks.length - 1; i >= 0; i--) {
-        const pathBookmark = result.pathBookmarks[i];
-
-        if (!fullyCollectedBookmarks.has(pathBookmark)) {
-          // For path bookmarks, we need to collect their individual changes
-          // For now, let's use the same approach but we could optimize this further
-          const pathBookmarkObj = bookmarks.find(
-            (b) => b.name === pathBookmark,
-          )!;
-          const pathCommonAncestor = currentParent
-            ? {
-                commit_id: bookmarkToCommitId.get(currentParent)!,
-                change_id: "",
-                author_name: "",
-                author_email: "",
-                description_first_line: "",
-                parents: [],
-                local_bookmarks: [],
-                remote_bookmarks: [],
-                is_current_working_copy: false,
-              }
-            : await findCommonAncestor(pathBookmark);
-
-          const pathChanges = await getAllChangesBetween(
-            pathBookmarkObj,
-            pathCommonAncestor,
-          );
-
-          // Build complete change list for path bookmark
-          let pathBookmarkChanges = [...pathChanges];
-          if (currentParent && allChanges.has(currentParent)) {
-            pathBookmarkChanges = [
-              ...allChanges.get(currentParent)!,
-              ...pathBookmarkChanges,
-            ];
-          }
-
-          allChanges.set(pathBookmark, pathBookmarkChanges);
-          fullyCollectedBookmarks.add(pathBookmark);
-
-          // Establish stacking relationship
-          if (currentParent) {
-            stackingRelationships.set(pathBookmark, currentParent);
-          }
-        }
-
-        currentParent = pathBookmark;
-      }
-
-      // Update the stacking relationship for the original bookmark if there were path bookmarks
-      if (result.pathBookmarks.length > 0) {
-        // The bookmark should be stacked on the last bookmark in the path (closest to trunk)
-        const parentBookmark = result.pathBookmarks[result.pathBookmarks.length - 1];
-        stackingRelationships.set(bookmark.name, parentBookmark);
+      // If we hit a fully-collected bookmark, establish relationship to it
+      if (result.baseBookmark && result.segments.length > 0) {
+        const rootSegment = result.segments[result.segments.length - 1];
+        stackingRelationships.set(rootSegment.bookmark, result.baseBookmark);
+        console.log(
+          `    Stacking: ${rootSegment.bookmark} -> ${result.baseBookmark}`,
+        );
       }
 
       console.log(
-        `  Processed ${bookmark.name} - found ${bookmarkChanges.length} total changes`,
+        `  Processed ${bookmark.name} - found ${result.segments.length} segments`,
       );
     } catch (error) {
       console.error(`Failed to process bookmark ${bookmark.name}:`, error);
@@ -566,16 +577,16 @@ export async function buildChangeGraph(): Promise<ChangeGraph> {
     console.log("No stacking relationships found");
   }
 
-  // Build stacks from the stacking relationships
-  const stacks = buildStacksFromRelationships(
+  // Group segments into stacks based on relationships
+  const stacks = groupSegmentsIntoStacks(
     bookmarks,
     stackingRelationships,
-    allChanges,
+    segmentChanges,
   );
 
   return {
     bookmarks,
     stacks,
-    allChanges,
+    segmentChanges,
   };
 }

@@ -20,24 +20,30 @@ async function main() {
         console.log(`\nStack ${i + 1}:`);
         console.log(`  Base commit: ${stack.baseCommit}`);
         console.log(
-          `  Bookmarks: ${stack.bookmarks.map((b) => b.name).join(", ")}`,
+          `  Bookmarks: ${stack.segments.map((s) => s.bookmark.name).join(", ")}`,
         );
-        console.log(`  Total changes: ${stack.changes.length}`);
 
-        if (stack.bookmarks.length > 1) {
+        // Calculate total changes across all segments
+        const totalChanges = stack.segments.reduce(
+          (sum, segment) => sum + segment.changes.length,
+          0,
+        );
+        console.log(`  Total changes: ${totalChanges}`);
+
+        if (stack.segments.length > 1) {
           console.log("  📚 This is a stacked set of bookmarks!");
         }
       }
     }
 
     console.log("\n=== INDIVIDUAL BOOKMARK DETAILS ===");
-    for (const [bookmarkName, changes] of changeGraph.allChanges) {
+    for (const [bookmarkName, segmentChanges] of changeGraph.segmentChanges) {
       console.log(`\n${bookmarkName}:`);
-      console.log(`  Changes: ${changes.length}`);
-      if (changes.length > 0) {
-        console.log(`  Latest: ${changes[0].description_first_line}`);
+      console.log(`  Segment changes: ${segmentChanges.length}`);
+      if (segmentChanges.length > 0) {
+        console.log(`  Latest: ${segmentChanges[0].description_first_line}`);
         console.log(
-          `  Oldest: ${changes[changes.length - 1].description_first_line}`,
+          `  Oldest: ${segmentChanges[segmentChanges.length - 1].description_first_line}`,
         );
       }
     }

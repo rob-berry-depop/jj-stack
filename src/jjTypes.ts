@@ -16,14 +16,19 @@ export interface Bookmark {
   change_id: string;
 }
 
+export interface BookmarkSegment {
+  bookmark: Bookmark;
+  changes: LogEntry[]; // Only the changes introduced by this specific bookmark
+  baseCommit: string; // The commit this segment starts from (parent bookmark or trunk)
+}
+
 export interface BranchStack {
-  bookmarks: Bookmark[];
-  baseCommit: string; // The common ancestor with trunk
-  changes: LogEntry[];
+  segments: BookmarkSegment[]; // Ordered from base to top (trunk → intermediate → top)
+  baseCommit: string; // The common ancestor with trunk for the entire stack
 }
 
 export interface ChangeGraph {
   bookmarks: Bookmark[];
   stacks: BranchStack[];
-  allChanges: Map<string, LogEntry[]>; // bookmark name -> changes
+  segmentChanges: Map<string, LogEntry[]>; // bookmark name -> just its segment changes
 }
