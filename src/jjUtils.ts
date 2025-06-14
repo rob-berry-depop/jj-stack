@@ -368,104 +368,72 @@ async function traverseAndDiscoverSegments(
 
 /**
  * Group segments into stacks based on their relationships
+ * Creates one stack per leaf bookmark, with each stack representing the full path from trunk to that leaf
  */
 function groupSegmentsIntoStacks(
   bookmarks: Bookmark[],
   stackingRelationships: Map<string, string>,
   segmentChanges: Map<string, LogEntry[]>,
-  stackRoots: Set<string>,
 ): BranchStack[] {
   const stacks: BranchStack[] = [];
-  const processedBookmarks = new Set<string>();
 
   // Helper function to find all children of a given bookmark
-  function findChildren(bookmark: string): string[] {
+  function findAllChildren(bookmark: string): string[] {
     const children: string[] = [];
     for (const [child, parent] of stackingRelationships.entries()) {
-      if (parent === bookmark && !processedBookmarks.has(child)) {
+      if (parent === bookmark) {
         children.push(child);
       }
     }
     return children;
   }
 
-  // Helper function to build a complete stack starting from a given bookmark
-  function buildStackFromBookmark(startBookmark: string): string[] {
-    const stackBookmarks: string[] = [startBookmark];
-    processedBookmarks.add(startBookmark);
+  // Helper function to find all leaf bookmarks (bookmarks with no children)
+  function findLeafBookmarks(): string[] {
+    const allBookmarkNames = bookmarks.map((b) => b.name);
+    const leafBookmarks: string[] = [];
 
-    let current = startBookmark;
-    while (true) {
-      const children = findChildren(current);
+    for (const bookmarkName of allBookmarkNames) {
+      const children = findAllChildren(bookmarkName);
       if (children.length === 0) {
-        // No more children, end of this chain
-        break;
-      } else if (children.length === 1) {
-        // Single child, continue the chain
-        const child = children[0];
-        stackBookmarks.push(child);
-        processedBookmarks.add(child);
-        current = child;
-      } else {
-        // Multiple children - this shouldn't happen in a properly formed stack
-        // Each child should start its own separate stack from the root
-        throw new Error(
-          `Bookmark ${current} has multiple children: ${children.join(", ")}. This indicates a branching scenario that should be handled at the root level.`,
-        );
+        leafBookmarks.push(bookmarkName);
       }
     }
 
-    return stackBookmarks;
+    return leafBookmarks;
   }
 
-  // Process each stack root
-  for (const rootBookmark of stackRoots) {
-    if (processedBookmarks.has(rootBookmark)) {
-      continue; // Already processed as part of another stack
+  // Helper function to build a path from a leaf bookmark back to the root
+  function buildPathToRoot(leafBookmark: string): string[] {
+    const path: string[] = [leafBookmark];
+    let current = leafBookmark;
+
+    // Walk backwards through the stacking relationships to build the full path
+    while (stackingRelationships.has(current)) {
+      const parent = stackingRelationships.get(current)!;
+      path.unshift(parent); // Add parent at the beginning
+      current = parent;
     }
 
-    // Find all direct children of this root
-    const rootChildren = findChildren(rootBookmark);
+    return path;
+  }
 
-    if (rootChildren.length === 0) {
-      // Single bookmark stack (just the root)
-      const stackBookmarks = buildStackFromBookmark(rootBookmark);
-      const segments = buildSegmentsFromBookmarks(
-        stackBookmarks,
-        bookmarks,
-        stackingRelationships,
-        segmentChanges,
-      );
-      stacks.push({
-        segments,
-        baseCommit: segments.length > 0 ? segments[0].baseCommit : "trunk",
-      });
-    } else {
-      // Root has children - create separate stacks for each child branch
-      for (const child of rootChildren) {
-        if (!processedBookmarks.has(child)) {
-          // Build a stack starting from the root and going through this child
-          const stackBookmarks: string[] = [rootBookmark];
+  // Find all leaf bookmarks and create a stack for each
+  const leafBookmarks = findLeafBookmarks();
 
-          // Add the child and follow its chain
-          const childChain = buildStackFromBookmark(child);
-          stackBookmarks.push(...childChain);
+  for (const leafBookmark of leafBookmarks) {
+    const stackBookmarks = buildPathToRoot(leafBookmark);
+    const segments = buildSegmentsFromBookmarks(
+      stackBookmarks,
+      bookmarks,
+      stackingRelationships,
+      segmentChanges,
+    );
 
-          const segments = buildSegmentsFromBookmarks(
-            stackBookmarks,
-            bookmarks,
-            stackingRelationships,
-            segmentChanges,
-          );
-          stacks.push({
-            segments,
-            baseCommit: segments.length > 0 ? segments[0].baseCommit : "trunk",
-          });
-        }
-      }
-      // Mark the root as processed after creating all its child stacks
-      processedBookmarks.add(rootBookmark);
-    }
+    stacks.push({
+      segments,
+      baseCommit: segments.length > 0 ? segments[0].baseCommit : "trunk",
+    });
   }
 
   return stacks;
@@ -635,7 +603,6 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
     bookmarks,
     stackingRelationships,
     segmentChanges,
-    stackRoots,
   );
 
   return {
