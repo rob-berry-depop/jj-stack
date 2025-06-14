@@ -2,6 +2,7 @@
 
 import * as Js_exn from "rescript/lib/es6/js_exn.js";
 import * as AuthCommand from "./AuthCommand.res.mjs";
+import * as SubmitCommand from "./SubmitCommand.res.mjs";
 import * as JjUtilsJs from "../lib/jjUtils.js";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
@@ -41,8 +42,20 @@ async function main() {
         case "help" :
             console.log(help);
             return ;
+        case "submit" :
+            var bookmarkName = args[1];
+            if (bookmarkName !== undefined) {
+              var isDryRun = args.includes("--dry-run");
+              return await SubmitCommand.submitCommand(bookmarkName, {
+                          dryRun: isDryRun
+                        });
+            }
+            console.error("Usage: jj-stack submit <bookmark-name> [--dry-run]");
+            process.exit(1);
+            return ;
         default:
-          console.log("Unknown command: " + command + ". Use 'jj-stack help' for usage information.");
+          console.error("Unknown command: " + command + ". Use 'jj-stack help' for usage information.");
+          process.exit(1);
           return ;
       }
     } else {

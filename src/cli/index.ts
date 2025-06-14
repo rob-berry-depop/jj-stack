@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { buildChangeGraph } from "../lib/jjUtils.js";
-import { submitCommand } from "./submitCommand.js";
 import { main } from "./CLI.gen.js";
 
 function showHelp() {
@@ -48,24 +47,6 @@ function showHelp() {
 async function oldMain() {
   const args = process.argv.slice(2);
   const command = args[0];
-
-  if (command === "submit") {
-    const bookmarkName = args[1];
-    const isDryRun = args.includes("--dry-run");
-
-    if (!bookmarkName) {
-      console.error("Usage: jj-stack submit <bookmark-name> [--dry-run]");
-      process.exit(1);
-    }
-
-    try {
-      await submitCommand(bookmarkName, { dryRun: isDryRun });
-    } catch (error) {
-      console.error("Submit command failed:", error);
-      process.exit(1);
-    }
-    return;
-  }
 
   if (command === "help" || command === "--help" || command === "-h") {
     showHelp();

@@ -50,9 +50,24 @@ let main = async () => {
       | Some("logout") => await AuthCommand.authLogoutCommand()
       | _ => AuthCommand.authHelpCommand()
       }
+    | Some("submit") =>
+      switch args[1] {
+      | Some(bookmarkName) => {
+          let isDryRun = args->Array.includes("--dry-run")
+          await SubmitCommand.submitCommand(bookmarkName, ~options={dryRun: isDryRun})
+        }
+      | None => {
+          Console.error("Usage: jj-stack submit <bookmark-name> [--dry-run]")
+          exit(1)
+        }
+      }
     | Some("help") | Some("--help") | Some("-h") => Console.log(help)
-    | Some(unknownCommand) =>
-      Console.log(`Unknown command: ${unknownCommand}. Use 'jj-stack help' for usage information.`)
+    | Some(unknownCommand) => {
+        Console.error(
+          `Unknown command: ${unknownCommand}. Use 'jj-stack help' for usage information.`,
+        )
+        exit(1)
+      }
     | _ => Console.log(help)
     }
   } catch {
