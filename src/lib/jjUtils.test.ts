@@ -8,55 +8,55 @@ export async function testBranchingScenario() {
   //                          \-> D (bookmark2)
 
   const mockBookmarks: Bookmark[] = [
-    { name: "bookmark1", commit_id: "commit_c", change_id: "change_c" },
-    { name: "bookmark2", commit_id: "commit_d", change_id: "change_d" },
-    { name: "bookmark3", commit_id: "commit_b", change_id: "change_b" },
+    { name: "bookmark1", commitId: "commit_c", changeId: "change_c" },
+    { name: "bookmark2", commitId: "commit_d", changeId: "change_d" },
+    { name: "bookmark3", commitId: "commit_b", changeId: "change_b" },
   ];
 
   const mockLogEntries: LogEntry[] = [
     {
-      commit_id: "commit_a",
-      change_id: "change_a",
-      author_name: "Test",
-      author_email: "test@example.com",
-      description_first_line: "Change A (trunk)",
+      commitId: "commit_a",
+      changeId: "change_a",
+      authorName: "Test",
+      authorEmail: "test@example.com",
+      descriptionFirstLine: "Change A (trunk)",
       parents: [],
-      local_bookmarks: [],
-      remote_bookmarks: [],
-      is_current_working_copy: false,
+      localBookmarks: [],
+      remoteBookmarks: [],
+      isCurrentWorkingCopy: false,
     },
     {
-      commit_id: "commit_b",
-      change_id: "change_b",
-      author_name: "Test",
-      author_email: "test@example.com",
-      description_first_line: "Change B",
+      commitId: "commit_b",
+      changeId: "change_b",
+      authorName: "Test",
+      authorEmail: "test@example.com",
+      descriptionFirstLine: "Change B",
       parents: ["commit_a"],
-      local_bookmarks: ["bookmark3"],
-      remote_bookmarks: [],
-      is_current_working_copy: false,
+      localBookmarks: ["bookmark3"],
+      remoteBookmarks: [],
+      isCurrentWorkingCopy: false,
     },
     {
-      commit_id: "commit_c",
-      change_id: "change_c",
-      author_name: "Test",
-      author_email: "test@example.com",
-      description_first_line: "Change C",
+      commitId: "commit_c",
+      changeId: "change_c",
+      authorName: "Test",
+      authorEmail: "test@example.com",
+      descriptionFirstLine: "Change C",
       parents: ["commit_b"],
-      local_bookmarks: ["bookmark1"],
-      remote_bookmarks: [],
-      is_current_working_copy: false,
+      localBookmarks: ["bookmark1"],
+      remoteBookmarks: [],
+      isCurrentWorkingCopy: false,
     },
     {
-      commit_id: "commit_d",
-      change_id: "change_d",
-      author_name: "Test",
-      author_email: "test@example.com",
-      description_first_line: "Change D",
+      commitId: "commit_d",
+      changeId: "change_d",
+      authorName: "Test",
+      authorEmail: "test@example.com",
+      descriptionFirstLine: "Change D",
       parents: ["commit_b"],
-      local_bookmarks: ["bookmark2"],
-      remote_bookmarks: [],
-      is_current_working_copy: false,
+      localBookmarks: ["bookmark2"],
+      remoteBookmarks: [],
+      isCurrentWorkingCopy: false,
     },
   ];
 
@@ -125,13 +125,13 @@ export async function testBranchingScenario() {
   // The bookmark3 segments should contain change B
   if (
     result.stacks[0].segments[0].changes.length !== 1 ||
-    result.stacks[0].segments[0].changes[0].change_id !== "change_b"
+    result.stacks[0].segments[0].changes[0].changeId !== "change_b"
   ) {
     throw new Error(`Expected stack 0 bookmark3 segment to contain change_b`);
   }
   if (
     result.stacks[1].segments[0].changes.length !== 1 ||
-    result.stacks[1].segments[0].changes[0].change_id !== "change_b"
+    result.stacks[1].segments[0].changes[0].changeId !== "change_b"
   ) {
     throw new Error(`Expected stack 1 bookmark3 segment to contain change_b`);
   }
@@ -157,26 +157,26 @@ export async function testBranchingScenario() {
   if (stack1LastSegment.bookmark.name === "bookmark1") {
     if (
       stack1LastSegment.changes.length !== 1 ||
-      stack1LastSegment.changes[0].change_id !== "change_c"
+      stack1LastSegment.changes[0].changeId !== "change_c"
     ) {
       throw new Error(`Expected bookmark1 segment to contain change_c`);
     }
     if (
       stack2LastSegment.changes.length !== 1 ||
-      stack2LastSegment.changes[0].change_id !== "change_d"
+      stack2LastSegment.changes[0].changeId !== "change_d"
     ) {
       throw new Error(`Expected bookmark2 segment to contain change_d`);
     }
   } else {
     if (
       stack1LastSegment.changes.length !== 1 ||
-      stack1LastSegment.changes[0].change_id !== "change_d"
+      stack1LastSegment.changes[0].changeId !== "change_d"
     ) {
       throw new Error(`Expected bookmark2 segment to contain change_d`);
     }
     if (
       stack2LastSegment.changes.length !== 1 ||
-      stack2LastSegment.changes[0].change_id !== "change_c"
+      stack2LastSegment.changes[0].changeId !== "change_c"
     ) {
       throw new Error(`Expected bookmark1 segment to contain change_c`);
     }
@@ -190,21 +190,21 @@ export async function testBranchingScenario() {
   if (
     !bookmark1Changes ||
     bookmark1Changes.length !== 1 ||
-    bookmark1Changes[0].change_id !== "change_c"
+    bookmark1Changes[0].changeId !== "change_c"
   ) {
     throw new Error(`Expected bookmark1 segmentChanges to contain change_c`);
   }
   if (
     !bookmark2Changes ||
     bookmark2Changes.length !== 1 ||
-    bookmark2Changes[0].change_id !== "change_d"
+    bookmark2Changes[0].changeId !== "change_d"
   ) {
     throw new Error(`Expected bookmark2 segmentChanges to contain change_d`);
   }
   if (
     !bookmark3Changes ||
     bookmark3Changes.length !== 1 ||
-    bookmark3Changes[0].change_id !== "change_b"
+    bookmark3Changes[0].changeId !== "change_b"
   ) {
     throw new Error(`Expected bookmark3 segmentChanges to contain change_b`);
   }
@@ -227,91 +227,91 @@ export async function testComplexBranchingScenario() {
   // Expected: 3 stacks (one for each leaf: bookmark3, bookmark5, bookmark6)
 
   const mockBookmarks: Bookmark[] = [
-    { name: "bookmark1", commit_id: "commit_b", change_id: "change_b" },
-    { name: "bookmark2", commit_id: "commit_c", change_id: "change_c" },
-    { name: "bookmark3", commit_id: "commit_d", change_id: "change_d" },
-    { name: "bookmark4", commit_id: "commit_e", change_id: "change_e" },
-    { name: "bookmark5", commit_id: "commit_f", change_id: "change_f" },
-    { name: "bookmark6", commit_id: "commit_g", change_id: "change_g" },
+    { name: "bookmark1", commitId: "commit_b", changeId: "change_b" },
+    { name: "bookmark2", commitId: "commit_c", changeId: "change_c" },
+    { name: "bookmark3", commitId: "commit_d", changeId: "change_d" },
+    { name: "bookmark4", commitId: "commit_e", changeId: "change_e" },
+    { name: "bookmark5", commitId: "commit_f", changeId: "change_f" },
+    { name: "bookmark6", commitId: "commit_g", changeId: "change_g" },
   ];
 
   const mockLogEntries: LogEntry[] = [
     {
-      commit_id: "commit_a",
-      change_id: "change_a",
-      author_name: "Test",
-      author_email: "test@example.com",
-      description_first_line: "Change A (trunk)",
+      commitId: "commit_a",
+      changeId: "change_a",
+      authorName: "Test",
+      authorEmail: "test@example.com",
+      descriptionFirstLine: "Change A (trunk)",
       parents: [],
-      local_bookmarks: [],
-      remote_bookmarks: [],
-      is_current_working_copy: false,
+      localBookmarks: [],
+      remoteBookmarks: [],
+      isCurrentWorkingCopy: false,
     },
     {
-      commit_id: "commit_b",
-      change_id: "change_b",
-      author_name: "Test",
-      author_email: "test@example.com",
-      description_first_line: "Change B",
+      commitId: "commit_b",
+      changeId: "change_b",
+      authorName: "Test",
+      authorEmail: "test@example.com",
+      descriptionFirstLine: "Change B",
       parents: ["commit_a"],
-      local_bookmarks: ["bookmark1"],
-      remote_bookmarks: [],
-      is_current_working_copy: false,
+      localBookmarks: ["bookmark1"],
+      remoteBookmarks: [],
+      isCurrentWorkingCopy: false,
     },
     {
-      commit_id: "commit_c",
-      change_id: "change_c",
-      author_name: "Test",
-      author_email: "test@example.com",
-      description_first_line: "Change C",
+      commitId: "commit_c",
+      changeId: "change_c",
+      authorName: "Test",
+      authorEmail: "test@example.com",
+      descriptionFirstLine: "Change C",
       parents: ["commit_b"],
-      local_bookmarks: ["bookmark2"],
-      remote_bookmarks: [],
-      is_current_working_copy: false,
+      localBookmarks: ["bookmark2"],
+      remoteBookmarks: [],
+      isCurrentWorkingCopy: false,
     },
     {
-      commit_id: "commit_d",
-      change_id: "change_d",
-      author_name: "Test",
-      author_email: "test@example.com",
-      description_first_line: "Change D",
+      commitId: "commit_d",
+      changeId: "change_d",
+      authorName: "Test",
+      authorEmail: "test@example.com",
+      descriptionFirstLine: "Change D",
       parents: ["commit_c"],
-      local_bookmarks: ["bookmark3"],
-      remote_bookmarks: [],
-      is_current_working_copy: false,
+      localBookmarks: ["bookmark3"],
+      remoteBookmarks: [],
+      isCurrentWorkingCopy: false,
     },
     {
-      commit_id: "commit_e",
-      change_id: "change_e",
-      author_name: "Test",
-      author_email: "test@example.com",
-      description_first_line: "Change E",
+      commitId: "commit_e",
+      changeId: "change_e",
+      authorName: "Test",
+      authorEmail: "test@example.com",
+      descriptionFirstLine: "Change E",
       parents: ["commit_c"],
-      local_bookmarks: ["bookmark4"],
-      remote_bookmarks: [],
-      is_current_working_copy: false,
+      localBookmarks: ["bookmark4"],
+      remoteBookmarks: [],
+      isCurrentWorkingCopy: false,
     },
     {
-      commit_id: "commit_f",
-      change_id: "change_f",
-      author_name: "Test",
-      author_email: "test@example.com",
-      description_first_line: "Change F",
+      commitId: "commit_f",
+      changeId: "change_f",
+      authorName: "Test",
+      authorEmail: "test@example.com",
+      descriptionFirstLine: "Change F",
       parents: ["commit_e"],
-      local_bookmarks: ["bookmark5"],
-      remote_bookmarks: [],
-      is_current_working_copy: false,
+      localBookmarks: ["bookmark5"],
+      remoteBookmarks: [],
+      isCurrentWorkingCopy: false,
     },
     {
-      commit_id: "commit_g",
-      change_id: "change_g",
-      author_name: "Test",
-      author_email: "test@example.com",
-      description_first_line: "Change G",
+      commitId: "commit_g",
+      changeId: "change_g",
+      authorName: "Test",
+      authorEmail: "test@example.com",
+      descriptionFirstLine: "Change G",
       parents: ["commit_e"],
-      local_bookmarks: ["bookmark6"],
-      remote_bookmarks: [],
-      is_current_working_copy: false,
+      localBookmarks: ["bookmark6"],
+      remoteBookmarks: [],
+      isCurrentWorkingCopy: false,
     },
   ];
 
@@ -463,7 +463,7 @@ export async function testComplexBranchingScenario() {
   if (
     !bookmark1Changes ||
     bookmark1Changes.length !== 1 ||
-    bookmark1Changes[0].change_id !== "change_b"
+    bookmark1Changes[0].changeId !== "change_b"
   ) {
     throw new Error(
       `Expected bookmark1 segmentChanges to contain only change_b`,
@@ -472,7 +472,7 @@ export async function testComplexBranchingScenario() {
   if (
     !bookmark2Changes ||
     bookmark2Changes.length !== 1 ||
-    bookmark2Changes[0].change_id !== "change_c"
+    bookmark2Changes[0].changeId !== "change_c"
   ) {
     throw new Error(
       `Expected bookmark2 segmentChanges to contain only change_c`,
@@ -481,7 +481,7 @@ export async function testComplexBranchingScenario() {
   if (
     !bookmark3Changes ||
     bookmark3Changes.length !== 1 ||
-    bookmark3Changes[0].change_id !== "change_d"
+    bookmark3Changes[0].changeId !== "change_d"
   ) {
     throw new Error(
       `Expected bookmark3 segmentChanges to contain only change_d`,
@@ -490,7 +490,7 @@ export async function testComplexBranchingScenario() {
   if (
     !bookmark4Changes ||
     bookmark4Changes.length !== 1 ||
-    bookmark4Changes[0].change_id !== "change_e"
+    bookmark4Changes[0].changeId !== "change_e"
   ) {
     throw new Error(
       `Expected bookmark4 segmentChanges to contain only change_e`,
@@ -499,7 +499,7 @@ export async function testComplexBranchingScenario() {
   if (
     !bookmark5Changes ||
     bookmark5Changes.length !== 1 ||
-    bookmark5Changes[0].change_id !== "change_f"
+    bookmark5Changes[0].changeId !== "change_f"
   ) {
     throw new Error(
       `Expected bookmark5 segmentChanges to contain only change_f`,
@@ -508,7 +508,7 @@ export async function testComplexBranchingScenario() {
   if (
     !bookmark6Changes ||
     bookmark6Changes.length !== 1 ||
-    bookmark6Changes[0].change_id !== "change_g"
+    bookmark6Changes[0].changeId !== "change_g"
   ) {
     throw new Error(
       `Expected bookmark6 segmentChanges to contain only change_g`,

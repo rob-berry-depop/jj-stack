@@ -73,7 +73,7 @@ type errorWithContext = {
 type submissionResult = {
   success: bool,
   pushedBookmarks: array<string>,
-  createdPrs: array<createdPr>,
+  createdPRs: array<createdPr>,
   errors: array<errorWithContext>,
 }
 
@@ -276,8 +276,8 @@ let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>
         Console.log(`   📤 Pushed: ${result.pushedBookmarks->Array.join(", ")}`)
       }
 
-      if result.createdPrs->Array.length > 0 {
-        let createdPrBookmarks = result.createdPrs->Array.map(pr => pr.bookmark)
+      if result.createdPRs->Array.length > 0 {
+        let createdPrBookmarks = result.createdPRs->Array.map(pr => pr.bookmark)
         Console.log(`   📝 Created PRs: ${createdPrBookmarks->Array.join(", ")}`)
       }
     } else {

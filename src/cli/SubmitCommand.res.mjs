@@ -139,10 +139,10 @@ async function submitCommand(bookmarkName, options) {
     if (result.pushedBookmarks.length > 0) {
       console.log("   📤 Pushed: " + result.pushedBookmarks.join(", "));
     }
-    if (result.createdPrs.length <= 0) {
+    if (result.createdPRs.length <= 0) {
       return ;
     }
-    var createdPrBookmarks = result.createdPrs.map(function (pr) {
+    var createdPrBookmarks = result.createdPRs.map(function (pr) {
           return pr.bookmark;
         });
     console.log("   📝 Created PRs: " + createdPrBookmarks.join(", "));

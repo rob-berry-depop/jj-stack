@@ -23,15 +23,15 @@ export type JjFunctions = {
 
 export function getLogOutput(): Promise<LogEntry[]> {
   return new Promise((resolve, reject) => {
-    const jjTemplate = `'{ "commit_id":' ++ commit_id.short().escape_json() ++ ', ' ++ '"change_id":' 
-++ change_id.short().escape_json() ++ ', ' ++ '"author_name":' ++ author.name().escape_json() ++ 
-', ' ++ '"author_email":' ++ stringify(author.email().local() ++ '@' ++
-author.email().domain()).escape_json() ++ ', ' ++ '"description_first_line":' ++ 
+    const jjTemplate = `'{ "commitId":' ++ commit_id.short().escape_json() ++ ', ' ++ '"changeId":' 
+++ change_id.short().escape_json() ++ ', ' ++ '"authorName":' ++ author.name().escape_json() ++ 
+', ' ++ '"authorEmail":' ++ stringify(author.email().local() ++ '@' ++
+author.email().domain()).escape_json() ++ ', ' ++ '"descriptionFirstLine":' ++ 
 description.first_line().trim().escape_json() ++ ', ' ++ '"parents": [' ++ parents.map(|p| 
-p.commit_id().short().escape_json()).join(",") ++ '], ' ++ '"local_bookmarks": [' ++ 
-local_bookmarks.map(|b| b.name().escape_json()).join(",") ++ '], ' ++ '"remote_bookmarks": [' ++
+p.commit_id().short().escape_json()).join(",") ++ '], ' ++ '"localBookmarks": [' ++ 
+local_bookmarks.map(|b| b.name().escape_json()).join(",") ++ '], ' ++ '"remoteBookmarks": [' ++
 remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json()).join(",") ++ 
-'], ' ++ '"is_current_working_copy":' ++ current_working_copy ++ ' }\n'`;
+'], ' ++ '"isCurrentWorkingCopy":' ++ current_working_copy ++ ' }\n'`;
 
     execFile(
       JJ_BINARY,
@@ -61,7 +61,7 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
  */
 export function getMyBookmarks(): Promise<Bookmark[]> {
   return new Promise((resolve, reject) => {
-    const bookmarkTemplate = `'{ "name":' ++ name.escape_json() ++ ', ' ++ '"commit_id":' ++ normal_target.commit_id().short().escape_json() ++ ', ' ++ '"change_id":' ++ normal_target.change_id().short().escape_json() ++ ' }\n'`;
+    const bookmarkTemplate = `'{ "name":' ++ name.escape_json() ++ ', ' ++ '"commitId":' ++ normal_target.commit_id().short().escape_json() ++ ', ' ++ '"changeId":' ++ normal_target.change_id().short().escape_json() ++ ' }\n'`;
 
     execFile(
       JJ_BINARY,
@@ -109,15 +109,15 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
  */
 export function findCommonAncestor(bookmarkName: string): Promise<LogEntry> {
   return new Promise((resolve, reject) => {
-    const jjTemplate = `'{ "commit_id":' ++ commit_id.short().escape_json() ++ ', ' ++ '"change_id":' 
-++ change_id.short().escape_json() ++ ', ' ++ '"author_name":' ++ author.name().escape_json() ++ 
-', ' ++ '"author_email":' ++ stringify(author.email().local() ++ '@' ++
-author.email().domain()).escape_json() ++ ', ' ++ '"description_first_line":' ++ 
+    const jjTemplate = `'{ "commitId":' ++ commit_id.short().escape_json() ++ ', ' ++ '"changeId":' 
+++ change_id.short().escape_json() ++ ', ' ++ '"authorName":' ++ author.name().escape_json() ++ 
+', ' ++ '"authorEmail":' ++ stringify(author.email().local() ++ '@' ++
+author.email().domain()).escape_json() ++ ', ' ++ '"descriptionFirstLine":' ++ 
 description.first_line().trim().escape_json() ++ ', ' ++ '"parents": [' ++ parents.map(|p| 
-p.commit_id().short().escape_json()).join(",") ++ '], ' ++ '"local_bookmarks": [' ++ 
-local_bookmarks.map(|b| b.name().escape_json()).join(",") ++ '], ' ++ '"remote_bookmarks": [' ++
+p.commit_id().short().escape_json()).join(",") ++ '], ' ++ '"localBookmarks": [' ++ 
+local_bookmarks.map(|b| b.name().escape_json()).join(",") ++ '], ' ++ '"remoteBookmarks": [' ++
 remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json()).join(",") ++ 
-'], ' ++ '"is_current_working_copy":' ++ current_working_copy ++ ' }\n'`;
+'], ' ++ '"isCurrentWorkingCopy":' ++ current_working_copy ++ ' }\n'`;
 
     execFile(
       JJ_BINARY,
@@ -177,15 +177,15 @@ export function getChangesBetween(
   lastSeenCommit?: string,
 ): Promise<LogEntry[]> {
   return new Promise((resolve, reject) => {
-    const jjTemplate = `'{ "commit_id":' ++ commit_id.short().escape_json() ++ ', ' ++ '"change_id":' 
-++ change_id.short().escape_json() ++ ', ' ++ '"author_name":' ++ author.name().escape_json() ++ 
-', ' ++ '"author_email":' ++ stringify(author.email().local() ++ '@' ++
-author.email().domain()).escape_json() ++ ', ' ++ '"description_first_line":' ++ 
+    const jjTemplate = `'{ "commitId":' ++ commit_id.short().escape_json() ++ ', ' ++ '"changeId":' 
+++ change_id.short().escape_json() ++ ', ' ++ '"authorName":' ++ author.name().escape_json() ++ 
+', ' ++ '"authorEmail":' ++ stringify(author.email().local() ++ '@' ++
+author.email().domain()).escape_json() ++ ', ' ++ '"descriptionFirstLine":' ++ 
 description.first_line().trim().escape_json() ++ ', ' ++ '"parents": [' ++ parents.map(|p| 
-p.commit_id().short().escape_json()).join(",") ++ '], ' ++ '"local_bookmarks": [' ++ 
-local_bookmarks.map(|b| b.name().escape_json()).join(",") ++ '], ' ++ '"remote_bookmarks": [' ++
+p.commit_id().short().escape_json()).join(",") ++ '], ' ++ '"localBookmarks": [' ++ 
+local_bookmarks.map(|b| b.name().escape_json()).join(",") ++ '], ' ++ '"remoteBookmarks": [' ++
 remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json()).join(",") ++ 
-'], ' ++ '"is_current_working_copy":' ++ current_working_copy ++ ' }\n'`;
+'], ' ++ '"isCurrentWorkingCopy":' ++ current_working_copy ++ ' }\n'`;
 
     // Build revset: from..to but exclude already seen commits
     let revset = `${from}..${to}`;
@@ -252,13 +252,13 @@ async function traverseAndDiscoverSegments(
   let currentSegmentChanges: LogEntry[] = [];
   let currentBookmark = bookmark.name;
   let lastSeenCommit: string | undefined;
-  let baseCommit = commonAncestor.commit_id;
+  let baseCommit = commonAncestor.commitId;
   let baseBookmark: string | undefined;
 
   while (true) {
     const changes = await jj.getChangesBetween(
-      commonAncestor.commit_id,
-      bookmark.commit_id,
+      commonAncestor.commitId,
+      bookmark.commitId,
       lastSeenCommit,
     );
 
@@ -270,7 +270,7 @@ async function traverseAndDiscoverSegments(
     for (const change of changes) {
       if (change.parents.length > 1) {
         throw new Error(
-          `Found merge commit ${change.commit_id} in branch ${bookmark.name}. This indicates a split/merge in the history which is not supported.`,
+          `Found merge commit ${change.commitId} in branch ${bookmark.name}. This indicates a split/merge in the history which is not supported.`,
         );
       }
     }
@@ -281,15 +281,15 @@ async function traverseAndDiscoverSegments(
       // Check if this change has any bookmarks
       let processedChange = false;
 
-      for (const bookmarkName of change.local_bookmarks) {
+      for (const bookmarkName of change.localBookmarks) {
         if (bookmarkToCommitId.has(bookmarkName)) {
           if (fullyCollectedBookmarks.has(bookmarkName)) {
             // Found a fully-collected bookmark! Stop here
             console.log(
-              `    Found fully-collected bookmark ${bookmarkName} at ${change.commit_id}`,
+              `    Found fully-collected bookmark ${bookmarkName} at ${change.commitId}`,
             );
             baseBookmark = bookmarkName;
-            baseCommit = change.commit_id;
+            baseCommit = change.commitId;
 
             // Complete current segment (don't include this bookmark's change)
             if (currentSegmentChanges.length > 0) {
@@ -348,7 +348,7 @@ async function traverseAndDiscoverSegments(
     }
 
     // Use the oldest commit in this batch as the cursor for the next page
-    lastSeenCommit = changes[changes.length - 1].commit_id;
+    lastSeenCommit = changes[changes.length - 1].commitId;
   }
 
   // Add the final segment if it has changes
@@ -456,7 +456,7 @@ function buildSegmentsFromBookmarks(
     const segmentBaseCommit = stackingRelationships.has(bookmarkName)
       ? bookmarks.find(
           (b) => b.name === stackingRelationships.get(bookmarkName)!,
-        )!.commit_id
+        )!.commitId
       : "trunk";
 
     segments.push({
@@ -506,7 +506,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
 
   // Build bookmark lookup map
   for (const bookmark of bookmarks) {
-    bookmarkToCommitId.set(bookmark.name, bookmark.commit_id);
+    bookmarkToCommitId.set(bookmark.name, bookmark.commitId);
   }
 
   // Process each bookmark to collect segment changes

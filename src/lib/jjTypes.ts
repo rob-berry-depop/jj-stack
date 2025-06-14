@@ -1,19 +1,19 @@
 export interface LogEntry {
-  commit_id: string;
-  change_id: string;
-  author_name: string;
-  author_email: string;
-  description_first_line: string;
+  commitId: string;
+  changeId: string;
+  authorName: string;
+  authorEmail: string;
+  descriptionFirstLine: string;
   parents: string[];
-  local_bookmarks: string[];
-  remote_bookmarks: string[];
-  is_current_working_copy: boolean;
+  localBookmarks: string[];
+  remoteBookmarks: string[];
+  isCurrentWorkingCopy: boolean;
 }
 
 export interface Bookmark {
   name: string;
-  commit_id: string;
-  change_id: string;
+  commitId: string;
+  changeId: string;
 }
 
 export interface BookmarkSegment {

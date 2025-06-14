@@ -338,7 +338,7 @@ export async function generatePRContent(
 
     // Use the latest commit's description as the title
     const title =
-      segmentChanges[0].description_first_line || `Add ${bookmarkName}`;
+      segmentChanges[0].descriptionFirstLine || `Add ${bookmarkName}`;
 
     // Generate more detailed body
     let body = `## Changes in \`${bookmarkName}\`\n\n`;
@@ -351,8 +351,8 @@ export async function generatePRContent(
 
     for (let i = 0; i < segmentChanges.length; i++) {
       const change = segmentChanges[i];
-      body += `${i + 1}. **${change.description_first_line}**\n`;
-      body += `   \`${change.commit_id}\` by ${change.author_name}\n\n`;
+      body += `${i + 1}. **${change.descriptionFirstLine}**\n`;
+      body += `   \`${change.commitId}\` by ${change.authorName}\n\n`;
     }
 
     // Add stacking information if this is part of a stack
