@@ -216,16 +216,16 @@ async function traverseAndDiscoverSegments(
   fullyCollectedBookmarks: Set<string>,
   jj: JjFunctions,
 ): Promise<{
-  segments: Array<{ bookmark: string; changes: LogEntry[] }>;
-  baseBookmark?: string; // if we hit a fully-collected bookmark
+  segments: Array<{ bookmarks: string[]; changes: LogEntry[] }>;
+  baseBookmarks?: string[]; // if we hit a fully-collected bookmark
 }> {
-  const segments: Array<{ bookmark: string; changes: LogEntry[] }> = [];
-  let currentSegmentChanges: LogEntry[] = [];
-  let currentBookmark = bookmark.name;
+  const segments: Array<{ bookmarks: string[]; changes: LogEntry[] }> = [];
+  let currentSegment: { bookmarks: string[]; changes: LogEntry[] } | undefined =
+    undefined;
   let lastSeenCommit: string | undefined;
-  let baseBookmark: string | undefined;
+  let baseBookmarks: string[] | undefined;
 
-  while (true) {
+  pageLoop: while (true) {
     const changes = await jj.getBranchChangesPaginated(
       trunkRev,
       bookmark.commitId,
@@ -246,68 +246,36 @@ async function traverseAndDiscoverSegments(
     }
 
     // Check each change for bookmarks, stopping if we find a fully-collected one
-    let foundFullyCollected = false;
     for (const change of changes) {
-      // Check if this change has any bookmarks
-      let processedChange = false;
-
-      for (const bookmarkName of change.localBookmarks) {
-        if (fullyCollectedBookmarks.has(bookmarkName)) {
-          // Found a fully-collected bookmark! Stop here
-          console.log(
-            `    Found fully-collected bookmark ${bookmarkName} at ${change.commitId}`,
-          );
-          baseBookmark = bookmarkName;
-
-          // Complete current segment (don't include this bookmark's change)
-          if (currentSegmentChanges.length > 0) {
-            segments.push({
-              bookmark: currentBookmark,
-              changes: currentSegmentChanges,
-            });
-          }
-
-          foundFullyCollected = true;
-          processedChange = true;
-          break;
-        } else {
-          // Found a bookmark that hasn't been fully collected yet
-          // Complete the current segment and start a new one
-          if (bookmarkName !== bookmark.name) {
-            console.log(`    Found bookmark ${bookmarkName} on path`);
-
-            // Complete current segment (don't include this bookmark's change)
-            if (currentSegmentChanges.length > 0) {
-              segments.push({
-                bookmark: currentBookmark,
-                changes: currentSegmentChanges,
-              });
-            }
-
-            // Start new segment for the encountered bookmark
-            currentBookmark = bookmarkName;
-            currentSegmentChanges = [];
-          }
-
-          // Add this bookmark's change to its segment
-          currentSegmentChanges.push(change);
-          processedChange = true;
-          break; // Only process first bookmark on this change
+      if (change.localBookmarks.length) {
+        if (currentSegment) {
+          segments.push(currentSegment);
         }
+        if (change.localBookmarks.some((b) => fullyCollectedBookmarks.has(b))) {
+          console.log(
+            `    Found fully-collected bookmark at ${change.commitId}`,
+          );
+          baseBookmarks = change.localBookmarks;
+          currentSegment = undefined; // So it doesn't get re-added at the end
+          break pageLoop;
+        } else {
+          currentSegment = {
+            bookmarks: change.localBookmarks,
+            changes: [],
+          };
+        }
+        console.log(
+          `    Starting new segment for bookmarks: ${change.localBookmarks.join(
+            ", ",
+          )} at commit ${change.commitId}`,
+        );
       }
-
-      if (foundFullyCollected) {
-        break;
+      if (!currentSegment) {
+        throw new Error(
+          "No current segment initialized, but we have changes to process",
+        );
       }
-
-      // If this change didn't have any relevant bookmarks, add it to current segment
-      if (!processedChange) {
-        currentSegmentChanges.push(change);
-      }
-    }
-
-    if (foundFullyCollected) {
-      break;
+      currentSegment.changes.push(change);
     }
 
     if (changes.length < 100) {
@@ -318,17 +286,13 @@ async function traverseAndDiscoverSegments(
     lastSeenCommit = changes[changes.length - 1].commitId;
   }
 
-  // Add the final segment if it has changes
-  if (currentSegmentChanges.length > 0) {
-    segments.push({
-      bookmark: currentBookmark,
-      changes: currentSegmentChanges,
-    });
+  if (currentSegment) {
+    segments.push(currentSegment);
   }
 
   return {
     segments,
-    baseBookmark,
+    baseBookmarks,
   };
 }
 
@@ -490,11 +454,13 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
 
       // Store segment changes for all bookmarks found in the result
       for (const segment of result.segments) {
-        segmentChanges.set(segment.bookmark, segment.changes);
-        fullyCollectedBookmarks.add(segment.bookmark);
+        for (const bookmark of segment.bookmarks) {
+          segmentChanges.set(bookmark, segment.changes);
+          fullyCollectedBookmarks.add(bookmark);
+        }
 
         console.log(
-          `    Found segment for ${segment.bookmark}: ${segment.changes.length} changes`,
+          `    Found segment for [${segment.bookmarks.join(", ")}]: ${segment.changes.length} changes`,
         );
       }
 
@@ -503,27 +469,34 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
       for (let i = 0; i < result.segments.length - 1; i++) {
         const childSegment = result.segments[i];
         const parentSegment = result.segments[i + 1];
-        stackingRelationships.set(
-          childSegment.bookmark,
-          parentSegment.bookmark,
-        );
+        for (const childBookmark of childSegment.bookmarks) {
+          for (const parentBookmark of parentSegment.bookmarks) {
+            stackingRelationships.set(childBookmark, parentBookmark);
+          }
+        }
         console.log(
-          `    Stacking: ${childSegment.bookmark} -> ${parentSegment.bookmark}`,
+          `    Stacking: [${childSegment.bookmarks.join(", ")}] -> [${parentSegment.bookmarks.join(", ")}]`,
         );
       }
 
       // If we hit a fully-collected bookmark, establish relationship to it
-      if (result.baseBookmark && result.segments.length > 0) {
+      if (result.baseBookmarks && result.segments.length > 0) {
         const rootSegment = result.segments[result.segments.length - 1];
-        stackingRelationships.set(rootSegment.bookmark, result.baseBookmark);
+        for (const bookmark of rootSegment.bookmarks) {
+          for (const baseBookmark of result.baseBookmarks) {
+            stackingRelationships.set(bookmark, baseBookmark);
+          }
+        }
         console.log(
-          `    Stacking: ${rootSegment.bookmark} -> ${result.baseBookmark}`,
+          `    Stacking: [${rootSegment.bookmarks.join(", ")}] -> [${result.baseBookmarks.join(", ")}]`,
         );
       } else if (result.segments.length > 0) {
         // We reached trunk, so the last segment is a root
         const rootSegment = result.segments[result.segments.length - 1];
-        stackRoots.add(rootSegment.bookmark);
-        console.log(`    Root bookmark identified: ${rootSegment.bookmark}`);
+        for (const bookmark of rootSegment.bookmarks) {
+          stackRoots.add(bookmark);
+          console.log(`    Root bookmark identified: ${bookmark}`);
+        }
       }
 
       console.log(
