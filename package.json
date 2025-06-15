@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "node dist/lib/jjUtils.test.js",
+    "test": "mocha 'src/**/*.test.ts'",
     "res:build": "rescript",
     "res:clean": "rescript clean",
     "res:dev": "rescript -w"
@@ -17,9 +17,12 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.28.0",
+    "@types/mocha": "^10.0.10",
     "eslint": "^9.28.0",
     "globals": "^16.2.0",
+    "mocha": "^11.6.0",
     "prettier": "3.5.3",
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.34.0"
   },
