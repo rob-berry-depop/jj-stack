@@ -140,7 +140,6 @@ async function traverseAndDiscoverSegments(
   bookmark: Bookmark,
   trunkRev: string,
   fullyCollectedBookmarks: Set<string>,
-  bookmarkToCommitId: Map<string, string>,
   jj: JjFunctions,
 ): Promise<{
   segments: Array<{ bookmark: string; changes: LogEntry[] }>;
@@ -179,13 +178,29 @@ async function traverseAndDiscoverSegments(
       let processedChange = false;
 
       for (const bookmarkName of change.localBookmarks) {
-        if (bookmarkToCommitId.has(bookmarkName)) {
-          if (fullyCollectedBookmarks.has(bookmarkName)) {
-            // Found a fully-collected bookmark! Stop here
-            console.log(
-              `    Found fully-collected bookmark ${bookmarkName} at ${change.commitId}`,
-            );
-            baseBookmark = bookmarkName;
+        if (fullyCollectedBookmarks.has(bookmarkName)) {
+          // Found a fully-collected bookmark! Stop here
+          console.log(
+            `    Found fully-collected bookmark ${bookmarkName} at ${change.commitId}`,
+          );
+          baseBookmark = bookmarkName;
+
+          // Complete current segment (don't include this bookmark's change)
+          if (currentSegmentChanges.length > 0) {
+            segments.push({
+              bookmark: currentBookmark,
+              changes: currentSegmentChanges,
+            });
+          }
+
+          foundFullyCollected = true;
+          processedChange = true;
+          break;
+        } else {
+          // Found a bookmark that hasn't been fully collected yet
+          // Complete the current segment and start a new one
+          if (bookmarkName !== bookmark.name) {
+            console.log(`    Found bookmark ${bookmarkName} on path`);
 
             // Complete current segment (don't include this bookmark's change)
             if (currentSegmentChanges.length > 0) {
@@ -195,33 +210,15 @@ async function traverseAndDiscoverSegments(
               });
             }
 
-            foundFullyCollected = true;
-            processedChange = true;
-            break;
-          } else {
-            // Found a bookmark that hasn't been fully collected yet
-            // Complete the current segment and start a new one
-            if (bookmarkName !== bookmark.name) {
-              console.log(`    Found bookmark ${bookmarkName} on path`);
-
-              // Complete current segment (don't include this bookmark's change)
-              if (currentSegmentChanges.length > 0) {
-                segments.push({
-                  bookmark: currentBookmark,
-                  changes: currentSegmentChanges,
-                });
-              }
-
-              // Start new segment for the encountered bookmark
-              currentBookmark = bookmarkName;
-              currentSegmentChanges = [];
-            }
-
-            // Add this bookmark's change to its segment
-            currentSegmentChanges.push(change);
-            processedChange = true;
-            break; // Only process first bookmark on this change
+            // Start new segment for the encountered bookmark
+            currentBookmark = bookmarkName;
+            currentSegmentChanges = [];
           }
+
+          // Add this bookmark's change to its segment
+          currentSegmentChanges.push(change);
+          processedChange = true;
+          break; // Only process first bookmark on this change
         }
       }
 
@@ -394,13 +391,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
   const fullyCollectedBookmarks = new Set<string>();
   const stackingRelationships = new Map<string, string>(); // child -> parent
   const segmentChanges = new Map<string, LogEntry[]>(); // bookmark name -> just its segment changes
-  const bookmarkToCommitId = new Map<string, string>();
   const stackRoots = new Set<string>(); // Track which bookmarks are stack roots
-
-  // Build bookmark lookup map
-  for (const bookmark of bookmarks) {
-    bookmarkToCommitId.set(bookmark.name, bookmark.commitId);
-  }
 
   // Process each bookmark to collect segment changes
   for (const bookmark of bookmarks) {
@@ -419,7 +410,6 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
         bookmark,
         trunkRev,
         fullyCollectedBookmarks,
-        bookmarkToCommitId,
         jjFunctions,
       );
 
