@@ -305,11 +305,9 @@ export async function getDefaultBranch(): Promise<string> {
  */
 export async function getBaseBranch(
   bookmarkName: string,
-  graph?: Awaited<ReturnType<typeof buildChangeGraph>>,
+  changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
 ): Promise<string> {
   try {
-    const changeGraph = graph || (await buildChangeGraph());
-
     // Find the bookmark in our change graph
     for (const stack of changeGraph.stacks) {
       for (let i = 0; i < stack.segments.length; i++) {
@@ -337,12 +335,11 @@ export async function getBaseBranch(
 /**
  * Generate PR title from the bookmark's commits
  */
-export async function generatePRTitle(
+export function generatePRTitle(
   bookmarkName: string,
-  graph?: Awaited<ReturnType<typeof buildChangeGraph>>,
-): Promise<string> {
+  changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
+): string {
   try {
-    const changeGraph = graph || (await buildChangeGraph());
     const segmentChanges = changeGraph.segmentChanges.get(bookmarkName);
 
     if (!segmentChanges || segmentChanges.length === 0) {
@@ -525,7 +522,7 @@ export async function checkRemoteBookmarks(
 export async function validatePRBases(
   bookmarkNames: string[],
   existingPRs: Map<string, PullRequestListItem | null>,
-  graph?: Awaited<ReturnType<typeof buildChangeGraph>>,
+  changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
 ): Promise<
   {
     bookmark: string;
@@ -545,7 +542,7 @@ export async function validatePRBases(
     const existingPR = existingPRs.get(bookmark);
 
     if (existingPR) {
-      const expectedBaseBranch = await getBaseBranch(bookmark, graph);
+      const expectedBaseBranch = await getBaseBranch(bookmark, changeGraph);
       const currentBaseBranch = existingPR.base.ref;
 
       if (currentBaseBranch !== expectedBaseBranch) {
@@ -630,7 +627,7 @@ export async function analyzeSubmissionPlan(
         bookmarksNeedingPR.push({
           bookmark,
           baseBranch: await getBaseBranch(bookmark, changeGraph),
-          prContent: { title: await generatePRTitle(bookmark, changeGraph) },
+          prContent: { title: generatePRTitle(bookmark, changeGraph) },
         });
       }
     }
