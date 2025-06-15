@@ -14,6 +14,8 @@ export interface Bookmark {
   name: string;
   commitId: string;
   changeId: string;
+  hasRemote: boolean;
+  isSynced: boolean;
 }
 
 export interface BookmarkSegment {

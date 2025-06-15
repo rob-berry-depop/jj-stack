@@ -8,9 +8,27 @@ export async function testBranchingScenario() {
   //                          \-> D (bookmark2)
 
   const mockBookmarks: Bookmark[] = [
-    { name: "bookmark1", commitId: "commit_c", changeId: "change_c" },
-    { name: "bookmark2", commitId: "commit_d", changeId: "change_d" },
-    { name: "bookmark3", commitId: "commit_b", changeId: "change_b" },
+    {
+      name: "bookmark1",
+      commitId: "commit_c",
+      changeId: "change_c",
+      hasRemote: false,
+      isSynced: false,
+    },
+    {
+      name: "bookmark2",
+      commitId: "commit_d",
+      changeId: "change_d",
+      hasRemote: false,
+      isSynced: false,
+    },
+    {
+      name: "bookmark3",
+      commitId: "commit_b",
+      changeId: "change_b",
+      hasRemote: false,
+      isSynced: false,
+    },
   ];
 
   const mockLogEntries: LogEntry[] = [
@@ -61,6 +79,8 @@ export async function testBranchingScenario() {
   ];
 
   const mockJj: JjFunctions = {
+    gitFetch: () => Promise.resolve(),
+
     getMyBookmarks: () => Promise.resolve(mockBookmarks),
 
     getBranchChangesPaginated: (_from: string, to: string) => {
@@ -220,12 +240,48 @@ export async function testComplexBranchingScenario() {
   // Expected: 3 stacks (one for each leaf: bookmark3, bookmark5, bookmark6)
 
   const mockBookmarks: Bookmark[] = [
-    { name: "bookmark1", commitId: "commit_b", changeId: "change_b" },
-    { name: "bookmark2", commitId: "commit_c", changeId: "change_c" },
-    { name: "bookmark3", commitId: "commit_d", changeId: "change_d" },
-    { name: "bookmark4", commitId: "commit_e", changeId: "change_e" },
-    { name: "bookmark5", commitId: "commit_f", changeId: "change_f" },
-    { name: "bookmark6", commitId: "commit_g", changeId: "change_g" },
+    {
+      name: "bookmark1",
+      commitId: "commit_b",
+      changeId: "change_b",
+      hasRemote: false,
+      isSynced: false,
+    },
+    {
+      name: "bookmark2",
+      commitId: "commit_c",
+      changeId: "change_c",
+      hasRemote: false,
+      isSynced: false,
+    },
+    {
+      name: "bookmark3",
+      commitId: "commit_d",
+      changeId: "change_d",
+      hasRemote: false,
+      isSynced: false,
+    },
+    {
+      name: "bookmark4",
+      commitId: "commit_e",
+      changeId: "change_e",
+      hasRemote: false,
+      isSynced: false,
+    },
+    {
+      name: "bookmark5",
+      commitId: "commit_f",
+      changeId: "change_f",
+      hasRemote: false,
+      isSynced: false,
+    },
+    {
+      name: "bookmark6",
+      commitId: "commit_g",
+      changeId: "change_g",
+      hasRemote: false,
+      isSynced: false,
+    },
   ];
 
   const mockLogEntries: LogEntry[] = [
@@ -309,6 +365,8 @@ export async function testComplexBranchingScenario() {
   ];
 
   const mockJj: JjFunctions = {
+    gitFetch: () => Promise.resolve(),
+
     getMyBookmarks: () => Promise.resolve(mockBookmarks),
 
     getBranchChangesPaginated: (_from: string, to: string) => {

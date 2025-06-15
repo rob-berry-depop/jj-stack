@@ -11,6 +11,7 @@ const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
 
 // Types for dependency injection
 export type JjFunctions = {
+  gitFetch: () => Promise<void>;
   getMyBookmarks: () => Promise<Bookmark[]>;
   getBranchChangesPaginated: (
     from: string,
@@ -20,11 +21,47 @@ export type JjFunctions = {
 };
 
 /**
+ * Fetch latest changes from all git remotes
+ */
+export function gitFetch(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      JJ_BINARY,
+      ["git", "fetch", "--all-remotes"],
+      (error, stdout, stderr) => {
+        if (error) {
+          console.error(
+            `Failed to fetch from remotes: ${(error as Error).toString()}`,
+          );
+          return reject(error as Error);
+        }
+        if (stderr) {
+          console.warn(`Git fetch warnings: ${stderr}`);
+        }
+        console.log("Successfully fetched from all remotes");
+        resolve();
+      },
+    );
+  });
+}
+
+/**
  * Get all bookmarks created by the current user
  */
 export function getMyBookmarks(): Promise<Bookmark[]> {
   return new Promise((resolve, reject) => {
-    const bookmarkTemplate = `'{ "name":' ++ name.escape_json() ++ ', ' ++ '"commitId":' ++ normal_target.commit_id().short().escape_json() ++ ', ' ++ '"changeId":' ++ normal_target.change_id().short().escape_json() ++ ' }\n'`;
+    type BookmarkOutput = {
+      name: string;
+      commitId: string;
+      changeId: string;
+      localBookmarks: string[];
+      remoteBookmarks: string[];
+    };
+    const bookmarkTemplate = `'{ "name":' ++ name.escape_json() ++ ', ' ++
+    '"commitId":' ++ normal_target.commit_id().short().escape_json() ++ ', ' ++
+    '"changeId":' ++ normal_target.change_id().short().escape_json() ++ ', ' ++
+    '"localBookmarks": [' ++ normal_target.local_bookmarks().map(|b| b.name().escape_json()).join(",") ++ '], ' ++
+    '"remoteBookmarks": [' ++ normal_target.remote_bookmarks().map(|b| stringify(b.name() ++ "@" ++ b.remote()).escape_json()).join(",") ++ '] }\n'`;
 
     execFile(
       JJ_BINARY,
@@ -47,21 +84,44 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
           console.error(`stderr: ${stderr}`);
         }
 
-        const bookmarks: Bookmark[] = [];
+        const bookmarks = new Map<string, Bookmark>();
         const lines = stdout.trim().split("\n");
 
         for (const line of lines) {
           if (line.trim() === "") continue;
 
           try {
-            const bookmark = JSON.parse(line) as Bookmark;
-            bookmarks.push(bookmark);
-          } catch (parseError) {
-            console.error(`Failed to parse bookmark line: ${line}`, parseError);
+            const bookmark = JSON.parse(line) as BookmarkOutput;
+
+            const existingBookmark = bookmarks.get(bookmark.name);
+            if (!existingBookmark) {
+              bookmarks.set(bookmark.name, {
+                name: bookmark.name,
+                commitId: bookmark.commitId,
+                changeId: bookmark.changeId,
+                hasRemote: !!bookmark.remoteBookmarks.length,
+                isSynced:
+                  !!bookmark.localBookmarks.length &&
+                  !!bookmark.remoteBookmarks.length,
+              });
+            } else {
+              existingBookmark.hasRemote ||= !!bookmark.remoteBookmarks.length;
+              if (
+                !bookmark.localBookmarks.length &&
+                bookmark.remoteBookmarks.length
+              ) {
+                // We found a tracked remote bookmark that points to a commit without local bookmarks.
+                // This means the local bookmark has at least one out of sync remote.
+                existingBookmark.isSynced = false;
+              }
+            }
+          } catch (error) {
+            console.error(`Failed to parse bookmark line: ${line}`, error);
+            reject(error as Error);
           }
         }
 
-        resolve(bookmarks);
+        resolve(Array.from(bookmarks.values()));
       },
     );
   });
@@ -366,7 +426,8 @@ function buildSegmentsFromBookmarks(
  */
 export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
   // Use default implementations if no jj functions provided
-  const jjFunctions = jj || {
+  const jjFunctions: JjFunctions = jj || {
+    gitFetch,
     getMyBookmarks,
     getBranchChangesPaginated,
   };
@@ -494,6 +555,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
 
 // Default implementations
 export const defaultJjFunctions: JjFunctions = {
+  gitFetch,
   getMyBookmarks,
   getBranchChangesPaginated,
 };

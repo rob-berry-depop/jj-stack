@@ -1,7 +1,7 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { Octokit } from "octokit";
-import { buildChangeGraph } from "./jjUtils.js";
+import { buildChangeGraph, gitFetch } from "./jjUtils.js";
 import { getGitHubAuth } from "./auth.js";
 
 const execFileAsync = promisify(execFile);
@@ -570,6 +570,8 @@ export async function analyzeSubmissionPlan(
     // 1. Validate target bookmark exists locally
     await validateBookmark(bookmarkName);
     callbacks?.onBookmarkValidated?.(bookmarkName);
+
+    await gitFetch();
 
     // 2. Build change graph once for all operations
     const changeGraph = await buildChangeGraph();
