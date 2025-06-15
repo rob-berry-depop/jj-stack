@@ -210,13 +210,11 @@ async function traverseAndDiscoverSegments(
 ): Promise<{
   segments: Array<{ bookmark: string; changes: LogEntry[] }>;
   baseBookmark?: string; // if we hit a fully-collected bookmark
-  baseCommit: string;
 }> {
   const segments: Array<{ bookmark: string; changes: LogEntry[] }> = [];
   let currentSegmentChanges: LogEntry[] = [];
   let currentBookmark = bookmark.name;
   let lastSeenCommit: string | undefined;
-  let baseCommit = commonAncestor.commitId;
   let baseBookmark: string | undefined;
 
   while (true) {
@@ -253,7 +251,6 @@ async function traverseAndDiscoverSegments(
               `    Found fully-collected bookmark ${bookmarkName} at ${change.commitId}`,
             );
             baseBookmark = bookmarkName;
-            baseCommit = change.commitId;
 
             // Complete current segment (don't include this bookmark's change)
             if (currentSegmentChanges.length > 0) {
@@ -326,7 +323,6 @@ async function traverseAndDiscoverSegments(
   return {
     segments,
     baseBookmark,
-    baseCommit,
   };
 }
 
