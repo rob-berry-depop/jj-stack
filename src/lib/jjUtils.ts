@@ -133,7 +133,8 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
 }
 
 /**
- * Get changes between two commits with pagination
+ * Get changes between two commits with pagination. The result is ordered from `to` to `from`.
+ * `from` should be an ancestor of `to`.
  */
 export function getChangesBetween(
   from: string,
@@ -152,10 +153,9 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
 '], ' ++ '"isCurrentWorkingCopy":' ++ current_working_copy ++ ' }\n'`;
 
     // Build revset: from..to but exclude already seen commits
-    let revset = `${from}..${to}`;
-    if (lastSeenCommit) {
-      revset = `(${from}..${to}) ~ ::${lastSeenCommit}`;
-    }
+    const revset = lastSeenCommit
+      ? `(${from}..${to}) ~ ${lastSeenCommit}::`
+      : `${from}..${to}`;
 
     execFile(
       JJ_BINARY,
