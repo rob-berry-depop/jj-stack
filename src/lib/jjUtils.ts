@@ -6,6 +6,7 @@ import type {
   ChangeGraph,
   BookmarkSegment,
 } from "./jjTypes.js";
+import * as v from "valibot";
 
 const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
 
@@ -45,18 +46,19 @@ export function gitFetch(): Promise<void> {
   });
 }
 
+const BookmarkOutputSchema = v.object({
+  name: v.string(),
+  commitId: v.string(),
+  changeId: v.string(),
+  localBookmarks: v.array(v.string()),
+  remoteBookmarks: v.array(v.string()),
+});
+
 /**
  * Get all bookmarks created by the current user
  */
 export function getMyBookmarks(): Promise<Bookmark[]> {
   return new Promise((resolve, reject) => {
-    type BookmarkOutput = {
-      name: string;
-      commitId: string;
-      changeId: string;
-      localBookmarks: string[];
-      remoteBookmarks: string[];
-    };
     const bookmarkTemplate = `'{ "name":' ++ name.escape_json() ++ ', ' ++
     '"commitId":' ++ normal_target.commit_id().short().escape_json() ++ ', ' ++
     '"changeId":' ++ normal_target.change_id().short().escape_json() ++ ', ' ++
@@ -91,7 +93,7 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
           if (line.trim() === "") continue;
 
           try {
-            const bookmark = JSON.parse(line) as BookmarkOutput;
+            const bookmark = v.parse(BookmarkOutputSchema, JSON.parse(line));
 
             const existingBookmark = bookmarks.get(bookmark.name);
             if (!existingBookmark) {
@@ -126,6 +128,18 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
     );
   });
 }
+
+const LogEntrySchema = v.object({
+  commitId: v.string(),
+  changeId: v.string(),
+  authorName: v.string(),
+  authorEmail: v.string(),
+  descriptionFirstLine: v.string(),
+  parents: v.array(v.string()),
+  localBookmarks: v.array(v.string()),
+  remoteBookmarks: v.array(v.string()),
+  isCurrentWorkingCopy: v.boolean(),
+});
 
 /**
  * Get changes that are ancestors of `to` that are not ancestors of `trunk`. The result
@@ -181,7 +195,7 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
         for (const line of lines) {
           if (line.trim() === "") continue;
           try {
-            changes.push(JSON.parse(line) as LogEntry);
+            changes.push(v.parse(LogEntrySchema, JSON.parse(line)));
           } catch (parseError) {
             console.error(`Failed to parse line: ${line}`, parseError);
           }

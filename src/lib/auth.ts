@@ -5,6 +5,7 @@ import { join } from "path";
 import { homedir } from "os";
 import { existsSync } from "fs";
 import { Octokit } from "octokit";
+import * as v from "valibot";
 
 const execFileAsync = promisify(execFile);
 
@@ -13,11 +14,15 @@ export interface AuthConfig {
   source: "gh-cli" | "env-var" | "config-file" | "manual";
 }
 
-interface ConfigFile {
-  github?: {
-    token?: string;
-  };
-}
+const ConfigFileSchema = v.object({
+  github: v.optional(
+    v.object({
+      token: v.optional(v.string()),
+    }),
+  ),
+});
+
+type ConfigFile = v.InferOutput<typeof ConfigFileSchema>;
 
 /**
  * Get the config directory for jj-stack
@@ -84,7 +89,7 @@ async function loadConfigFile(): Promise<ConfigFile | null> {
     }
 
     const configContent = await readFile(configPath, "utf-8");
-    return JSON.parse(configContent) as ConfigFile;
+    return v.parse(ConfigFileSchema, JSON.parse(configContent));
   } catch {
     return null;
   }
