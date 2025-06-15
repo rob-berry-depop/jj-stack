@@ -7,7 +7,13 @@ function buildChangeGraph(prim) {
   return JjUtilsJs.buildChangeGraph();
 }
 
+function gitFetch(prim) {
+  return JjUtilsJs.gitFetch();
+}
+
 async function analyzeCommand() {
+  console.log("Fetching from remote...");
+  await JjUtilsJs.gitFetch();
   console.log("Building change graph from user bookmarks...");
   var changeGraph = await JjUtilsJs.buildChangeGraph();
   console.log("\n=== CHANGE GRAPH RESULTS ===");
@@ -50,6 +56,7 @@ async function analyzeCommand() {
 
 export {
   buildChangeGraph ,
+  gitFetch ,
   analyzeCommand ,
 }
 /* ../lib/jjUtils.js Not a pure module */

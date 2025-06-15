@@ -1,7 +1,12 @@
 @module("../lib/jjUtils.js")
 external buildChangeGraph: unit => promise<JJTypes.changeGraph> = "buildChangeGraph"
+@module("../lib/jjUtils.js")
+external gitFetch: unit => promise<unit> = "gitFetch"
 
 let analyzeCommand = async () => {
+  Console.log("Fetching from remote...")
+  await gitFetch()
+
   Console.log("Building change graph from user bookmarks...")
   let changeGraph = await buildChangeGraph()
 
