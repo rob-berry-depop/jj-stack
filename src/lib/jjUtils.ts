@@ -12,8 +12,7 @@ const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
 // Types for dependency injection
 export type JjFunctions = {
   getMyBookmarks: () => Promise<Bookmark[]>;
-  findCommonAncestor: (bookmarkName: string) => Promise<LogEntry>;
-  getChangesBetween: (
+  getBranchChangesPaginated: (
     from: string,
     to: string,
     lastSeenCommit?: string,
@@ -69,75 +68,11 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
 }
 
 /**
- * Find the common ancestor between a bookmark and trunk
+ * Get changes that are ancestors of `to` that are not ancestors of `trunk`. The result
+ * will include `to` itself, but not `trunk`.
  */
-export function findCommonAncestor(bookmarkName: string): Promise<LogEntry> {
-  return new Promise((resolve, reject) => {
-    const jjTemplate = `'{ "commitId":' ++ commit_id.short().escape_json() ++ ', ' ++ '"changeId":' 
-++ change_id.short().escape_json() ++ ', ' ++ '"authorName":' ++ author.name().escape_json() ++ 
-', ' ++ '"authorEmail":' ++ stringify(author.email().local() ++ '@' ++
-author.email().domain()).escape_json() ++ ', ' ++ '"descriptionFirstLine":' ++ 
-description.first_line().trim().escape_json() ++ ', ' ++ '"parents": [' ++ parents.map(|p| 
-p.commit_id().short().escape_json()).join(",") ++ '], ' ++ '"localBookmarks": [' ++ 
-local_bookmarks.map(|b| b.name().escape_json()).join(",") ++ '], ' ++ '"remoteBookmarks": [' ++
-remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json()).join(",") ++ 
-'], ' ++ '"isCurrentWorkingCopy":' ++ current_working_copy ++ ' }\n'`;
-
-    execFile(
-      JJ_BINARY,
-      [
-        "log",
-        "--revisions",
-        `ancestors(${bookmarkName}) & ancestors(trunk())`,
-        "--no-graph",
-        "-n",
-        "1",
-        "--template",
-        jjTemplate,
-      ],
-      (error, stdout, stderr) => {
-        if (error) {
-          console.error(
-            `Failed to find common ancestor for ${bookmarkName}: ${(error as Error).toString()}`,
-          );
-          return reject(
-            new Error(
-              `No common ancestor found between ${bookmarkName} and trunk()`,
-            ),
-          );
-        }
-        if (stderr) {
-          console.error(`stderr: ${stderr}`);
-        }
-
-        const lines = stdout.trim().split("\n");
-        if (lines.length === 0 || lines[0] === "") {
-          return reject(
-            new Error(
-              `No common ancestor found between ${bookmarkName} and trunk()`,
-            ),
-          );
-        }
-
-        try {
-          const ancestor = JSON.parse(lines[0]) as LogEntry;
-          resolve(ancestor);
-        } catch (parseError) {
-          reject(
-            new Error(`Failed to parse common ancestor: ${String(parseError)}`),
-          );
-        }
-      },
-    );
-  });
-}
-
-/**
- * Get changes between two commits with pagination. The result is ordered from `to` to `from`.
- * `from` should be an ancestor of `to`.
- */
-export function getChangesBetween(
-  from: string,
+export function getBranchChangesPaginated(
+  trunk: string,
   to: string,
   lastSeenCommit?: string,
 ): Promise<LogEntry[]> {
@@ -152,10 +87,10 @@ local_bookmarks.map(|b| b.name().escape_json()).join(",") ++ '], ' ++ '"remoteBo
 remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json()).join(",") ++ 
 '], ' ++ '"isCurrentWorkingCopy":' ++ current_working_copy ++ ' }\n'`;
 
-    // Build revset: from..to but exclude already seen commits
+    // Build revset: trunk..to but exclude already seen commits
     const revset = lastSeenCommit
-      ? `(${from}..${to}) ~ ${lastSeenCommit}::`
-      : `${from}..${to}`;
+      ? `(${trunk}..${to}) ~ ${lastSeenCommit}::`
+      : `${trunk}..${to}`;
 
     execFile(
       JJ_BINARY,
@@ -172,7 +107,7 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
       (error, stdout, stderr) => {
         if (error) {
           console.error(
-            `Failed to get changes between ${from} and ${to}: ${(error as Error).toString()}`,
+            `Failed to get changes (trunk ${trunk}, to ${to}): ${(error as Error).toString()}`,
           );
           return reject(error as Error);
         }
@@ -203,7 +138,7 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
  */
 async function traverseAndDiscoverSegments(
   bookmark: Bookmark,
-  commonAncestor: LogEntry,
+  trunkRev: string,
   fullyCollectedBookmarks: Set<string>,
   bookmarkToCommitId: Map<string, string>,
   jj: JjFunctions,
@@ -218,8 +153,8 @@ async function traverseAndDiscoverSegments(
   let baseBookmark: string | undefined;
 
   while (true) {
-    const changes = await jj.getChangesBetween(
-      commonAncestor.commitId,
+    const changes = await jj.getBranchChangesPaginated(
+      trunkRev,
       bookmark.commitId,
       lastSeenCommit,
     );
@@ -436,8 +371,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
   // Use default implementations if no jj functions provided
   const jjFunctions = jj || {
     getMyBookmarks,
-    findCommonAncestor,
-    getChangesBetween,
+    getBranchChangesPaginated,
   };
 
   console.log("Discovering user bookmarks...");
@@ -478,15 +412,12 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
     console.log(`Processing bookmark: ${bookmark.name}`);
 
     try {
-      // Find common ancestor with trunk (like before)
-      const commonAncestor = await jjFunctions.findCommonAncestor(
-        bookmark.name,
-      );
+      const trunkRev = "trunk()";
 
       // Use optimized collection that can stop early when hitting fully-collected bookmarks
       const result = await traverseAndDiscoverSegments(
         bookmark,
-        commonAncestor,
+        trunkRev,
         fullyCollectedBookmarks,
         bookmarkToCommitId,
         jjFunctions,
@@ -574,6 +505,5 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
 // Default implementations
 export const defaultJjFunctions: JjFunctions = {
   getMyBookmarks,
-  findCommonAncestor,
-  getChangesBetween,
+  getBranchChangesPaginated,
 };

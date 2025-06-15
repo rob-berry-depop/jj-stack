@@ -63,12 +63,7 @@ export async function testBranchingScenario() {
   const mockJj: JjFunctions = {
     getMyBookmarks: () => Promise.resolve(mockBookmarks),
 
-    findCommonAncestor: () => {
-      // All bookmarks have common ancestor at commit_a (trunk)
-      return Promise.resolve(mockLogEntries[0]); // commit_a
-    },
-
-    getChangesBetween: (_from: string, to: string) => {
+    getBranchChangesPaginated: (_from: string, to: string) => {
       // Return changes between trunk (commit_a) and target commit
       if (to === "commit_c") {
         // bookmark1: changes from trunk to C = [C, B] (newest first)
@@ -316,12 +311,7 @@ export async function testComplexBranchingScenario() {
   const mockJj: JjFunctions = {
     getMyBookmarks: () => Promise.resolve(mockBookmarks),
 
-    findCommonAncestor: () => {
-      // All bookmarks have common ancestor at commit_a (trunk)
-      return Promise.resolve(mockLogEntries[0]); // commit_a
-    },
-
-    getChangesBetween: (_from: string, to: string) => {
+    getBranchChangesPaginated: (_from: string, to: string) => {
       // Return changes between trunk (commit_a) and target commit
       if (to === "commit_b") {
         // bookmark1: [B]
