@@ -129,14 +129,14 @@ suite("stack detection", () => {
 
     // Both stacks should start with bookmark3 as the first segment
     assert.strictEqual(
-      result.stacks[0].segments[0].bookmark.name,
+      result.stacks[0].segments[0].bookmarks[0].name,
       "bookmark3",
-      `Expected stack 0 first segment to be bookmark3, got ${result.stacks[0].segments[0].bookmark.name}`,
+      `Expected stack 0 first segment to be bookmark3, got ${result.stacks[0].segments[0].bookmarks[0].name}`,
     );
     assert.strictEqual(
-      result.stacks[1].segments[0].bookmark.name,
+      result.stacks[1].segments[0].bookmarks[0].name,
       "bookmark3",
-      `Expected stack 1 first segment to be bookmark3, got ${result.stacks[1].segments[0].bookmark.name}`,
+      `Expected stack 1 first segment to be bookmark3, got ${result.stacks[1].segments[0].bookmarks[0].name}`,
     );
 
     // The bookmark3 segments should contain change B
@@ -156,8 +156,8 @@ suite("stack detection", () => {
     const stack2LastSegment = result.stacks[1].segments[1];
 
     const endBookmarks = [
-      stack1LastSegment.bookmark.name,
-      stack2LastSegment.bookmark.name,
+      stack1LastSegment.bookmarks[0].name,
+      stack2LastSegment.bookmarks[0].name,
     ];
     assert.ok(
       endBookmarks.includes("bookmark1") && endBookmarks.includes("bookmark2"),
@@ -165,7 +165,7 @@ suite("stack detection", () => {
     );
 
     // The tip segments should contain the correct changes
-    if (stack1LastSegment.bookmark.name === "bookmark1") {
+    if (stack1LastSegment.bookmarks[0].name === "bookmark1") {
       assert.ok(
         stack1LastSegment.changes.length === 1 &&
           stack1LastSegment.changes[0].changeId === "change_c",
@@ -416,7 +416,7 @@ suite("stack detection", () => {
 
     // Verify that all leaf bookmarks are represented as the tip of exactly one stack
     const stackTips = result.stacks.map(
-      (stack) => stack.segments[stack.segments.length - 1].bookmark.name,
+      (stack) => stack.segments[stack.segments.length - 1].bookmarks[0].name,
     );
     const expectedTips = ["bookmark3", "bookmark5", "bookmark6"];
 
@@ -429,7 +429,8 @@ suite("stack detection", () => {
 
     // Verify that each stack has the correct structure
     for (const stack of result.stacks) {
-      const stackTip = stack.segments[stack.segments.length - 1].bookmark.name;
+      const stackTip =
+        stack.segments[stack.segments.length - 1].bookmarks[0].name;
 
       if (stackTip === "bookmark3") {
         // Should be: bookmark1 -> bookmark2 -> bookmark3
@@ -439,10 +440,10 @@ suite("stack detection", () => {
           `Stack ending with bookmark3 should have 3 segments, got ${stack.segments.length}`,
         );
         assert.ok(
-          stack.segments[0].bookmark.name === "bookmark1" &&
-            stack.segments[1].bookmark.name === "bookmark2" &&
-            stack.segments[2].bookmark.name === "bookmark3",
-          `Stack ending with bookmark3 has wrong structure: ${stack.segments.map((s) => s.bookmark.name).join(" -> ")}`,
+          stack.segments[0].bookmarks[0].name === "bookmark1" &&
+            stack.segments[1].bookmarks[0].name === "bookmark2" &&
+            stack.segments[2].bookmarks[0].name === "bookmark3",
+          `Stack ending with bookmark3 has wrong structure: ${stack.segments.map((s) => s.bookmarks[0].name).join(" -> ")}`,
         );
       } else if (stackTip === "bookmark5") {
         // Should be: bookmark1 -> bookmark2 -> bookmark4 -> bookmark5
@@ -452,11 +453,11 @@ suite("stack detection", () => {
           `Stack ending with bookmark5 should have 4 segments, got ${stack.segments.length}`,
         );
         assert.ok(
-          stack.segments[0].bookmark.name === "bookmark1" &&
-            stack.segments[1].bookmark.name === "bookmark2" &&
-            stack.segments[2].bookmark.name === "bookmark4" &&
-            stack.segments[3].bookmark.name === "bookmark5",
-          `Stack ending with bookmark5 has wrong structure: ${stack.segments.map((s) => s.bookmark.name).join(" -> ")}`,
+          stack.segments[0].bookmarks[0].name === "bookmark1" &&
+            stack.segments[1].bookmarks[0].name === "bookmark2" &&
+            stack.segments[2].bookmarks[0].name === "bookmark4" &&
+            stack.segments[3].bookmarks[0].name === "bookmark5",
+          `Stack ending with bookmark5 has wrong structure: ${stack.segments.map((s) => s.bookmarks[0].name).join(" -> ")}`,
         );
       } else if (stackTip === "bookmark6") {
         // Should be: bookmark1 -> bookmark2 -> bookmark4 -> bookmark6
@@ -466,11 +467,11 @@ suite("stack detection", () => {
           `Stack ending with bookmark6 should have 4 segments, got ${stack.segments.length}`,
         );
         assert.ok(
-          stack.segments[0].bookmark.name === "bookmark1" &&
-            stack.segments[1].bookmark.name === "bookmark2" &&
-            stack.segments[2].bookmark.name === "bookmark4" &&
-            stack.segments[3].bookmark.name === "bookmark6",
-          `Stack ending with bookmark6 has wrong structure: ${stack.segments.map((s) => s.bookmark.name).join(" -> ")}`,
+          stack.segments[0].bookmarks[0].name === "bookmark1" &&
+            stack.segments[1].bookmarks[0].name === "bookmark2" &&
+            stack.segments[2].bookmarks[0].name === "bookmark4" &&
+            stack.segments[3].bookmarks[0].name === "bookmark6",
+          `Stack ending with bookmark6 has wrong structure: ${stack.segments.map((s) => s.bookmarks[0].name).join(" -> ")}`,
         );
       }
     }

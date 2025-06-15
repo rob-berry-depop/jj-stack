@@ -13,9 +13,10 @@ let analyzeCommand = async () => {
     Console.log("\n=== BOOKMARK STACKS ===")
     changeGraph.stacks->Array.forEachWithIndex((stack, i) => {
       Console.log(`\nStack ${(i + 1)->Belt.Int.toString}:`)
-      Console.log(`  Base commit: ${stack.baseCommit}`)
       Console.log(
-        `  Bookmarks: ${stack.segments->Array.map(s => s.bookmark.name)->Array.join(", ")}`,
+        `  Bookmarks: ${stack.segments
+          ->Array.flatMap(s => s.bookmarks->Array.map(b => b.name))
+          ->Array.join(", ")}`,
       )
 
       // Calculate total changes across all segments

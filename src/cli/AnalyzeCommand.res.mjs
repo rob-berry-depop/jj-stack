@@ -17,9 +17,10 @@ async function analyzeCommand() {
     console.log("\n=== BOOKMARK STACKS ===");
     changeGraph.stacks.forEach(function (stack, i) {
           console.log("\nStack " + String(i + 1 | 0) + ":");
-          console.log("  Base commit: " + stack.baseCommit);
-          console.log("  Bookmarks: " + stack.segments.map(function (s) {
-                      return s.bookmark.name;
+          console.log("  Bookmarks: " + stack.segments.flatMap(function (s) {
+                      return s.bookmarks.map(function (b) {
+                                  return b.name;
+                                });
                     }).join(", "));
           var totalChanges = Core__Array.reduce(stack.segments, 0, (function (sum, segment) {
                   return sum + segment.changes.length | 0;

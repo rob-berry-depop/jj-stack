@@ -4,7 +4,7 @@ type prContent = {title: string}
 
 type bookmarkNeedingPR = {
   bookmark: JJTypes.bookmark,
-  baseBranch: string,
+  baseBranchOptions: array<string>,
   prContent: prContent,
 }
 
@@ -30,7 +30,7 @@ type pullRequest = {
 type bookmarkNeedingPRBaseUpdate = {
   bookmark: JJTypes.bookmark,
   currentBaseBranch: string,
-  expectedBaseBranch: string,
+  expectedBaseBranchOptions: array<string>,
   pr: pullRequest,
 }
 
@@ -167,7 +167,9 @@ let createSubmissionCallbacks = (~dryRun: bool): submissionCallbacks => {
             )
             plan.bookmarksNeedingPR->Array.forEach(create => {
               Console.log(
-                `   • ${create.bookmark.name}: "${create.prContent.title}" (base: ${create.baseBranch})`,
+                `   • ${create.bookmark.name}: "${create.prContent.title}" (base: ${create.baseBranchOptions[0]->Option.getExn(
+                    ~message="Should always have at least one base option",
+                  )})`,
               )
             })
           }
@@ -180,7 +182,9 @@ let createSubmissionCallbacks = (~dryRun: bool): submissionCallbacks => {
             )
             plan.bookmarksNeedingPRBaseUpdate->Array.forEach(update => {
               Console.log(
-                `   • ${update.bookmark.name}: from ${update.currentBaseBranch} to ${update.expectedBaseBranch}`,
+                `   • ${update.bookmark.name}: from ${update.currentBaseBranch} to ${update.expectedBaseBranchOptions[0]->Option.getExn(
+                    ~message="Should always have at least one expected base option",
+                  )}`,
               )
             })
           }

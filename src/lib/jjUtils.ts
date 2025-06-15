@@ -302,7 +302,7 @@ async function traverseAndDiscoverSegments(
  */
 function groupSegmentsIntoStacks(
   bookmarks: Bookmark[],
-  stackingRelationships: Map<string, string>,
+  stackingRelationships: Map<string, string[]>,
   segmentChanges: Map<string, LogEntry[]>,
 ): BranchStack[] {
   const stacks: BranchStack[] = [];
@@ -310,8 +310,8 @@ function groupSegmentsIntoStacks(
   // Helper function to find all children of a given bookmark
   function findAllChildren(bookmark: string): string[] {
     const children: string[] = [];
-    for (const [child, parent] of stackingRelationships.entries()) {
-      if (parent === bookmark) {
+    for (const [child, parents] of stackingRelationships.entries()) {
+      if (parents.includes(bookmark)) {
         children.push(child);
       }
     }
@@ -334,15 +334,15 @@ function groupSegmentsIntoStacks(
   }
 
   // Helper function to build a path from a leaf bookmark back to the root
-  function buildPathToRoot(leafBookmark: string): string[] {
-    const path: string[] = [leafBookmark];
+  function buildPathToRoot(leafBookmark: string): string[][] {
+    const path: string[][] = [[leafBookmark]];
     let current = leafBookmark;
 
     // Walk backwards through the stacking relationships to build the full path
     while (stackingRelationships.has(current)) {
-      const parent = stackingRelationships.get(current)!;
-      path.unshift(parent); // Add parent at the beginning
-      current = parent;
+      const parents = stackingRelationships.get(current)!;
+      path.unshift(parents); // Add parent at the beginning
+      current = parents[0]; // It doesn't matter which parent we take
     }
 
     return path;
@@ -362,7 +362,6 @@ function groupSegmentsIntoStacks(
 
     stacks.push({
       segments,
-      baseCommit: segments.length > 0 ? segments[0].baseCommit : "trunk",
     });
   }
 
@@ -371,28 +370,22 @@ function groupSegmentsIntoStacks(
 
 // Helper function to build segments from a list of bookmark names
 function buildSegmentsFromBookmarks(
-  stackBookmarks: string[],
+  stackBookmarks: string[][],
   bookmarks: Bookmark[],
-  stackingRelationships: Map<string, string>,
+  stackingRelationships: Map<string, string[]>,
   segmentChanges: Map<string, LogEntry[]>,
 ): BookmarkSegment[] {
   const segments: BookmarkSegment[] = [];
 
-  for (const bookmarkName of stackBookmarks) {
-    const bookmarkObj = bookmarks.find((b) => b.name === bookmarkName)!;
-    const changes = segmentChanges.get(bookmarkName) || [];
-
-    // Determine base commit for this segment
-    const segmentBaseCommit = stackingRelationships.has(bookmarkName)
-      ? bookmarks.find(
-          (b) => b.name === stackingRelationships.get(bookmarkName)!,
-        )!.commitId
-      : "trunk";
+  for (const bookmarkNames of stackBookmarks) {
+    const bookmarkObjs = bookmarks.filter((b) =>
+      bookmarkNames.includes(b.name),
+    );
+    const changes = segmentChanges.get(bookmarkNames[0]) || [];
 
     segments.push({
-      bookmark: bookmarkObj,
+      bookmarks: bookmarkObjs,
       changes,
-      baseCommit: segmentBaseCommit,
     });
   }
 
@@ -428,7 +421,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
 
   // Data structures for the optimized algorithm
   const fullyCollectedBookmarks = new Set<string>();
-  const stackingRelationships = new Map<string, string>(); // child -> parent
+  const stackingRelationships = new Map<string, string[]>(); // child -> parent
   const segmentChanges = new Map<string, LogEntry[]>(); // bookmark name -> just its segment changes
   const stackRoots = new Set<string>(); // Track which bookmarks are stack roots
 
@@ -470,9 +463,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
         const childSegment = result.segments[i];
         const parentSegment = result.segments[i + 1];
         for (const childBookmark of childSegment.bookmarks) {
-          for (const parentBookmark of parentSegment.bookmarks) {
-            stackingRelationships.set(childBookmark, parentBookmark);
-          }
+          stackingRelationships.set(childBookmark, parentSegment.bookmarks);
         }
         console.log(
           `    Stacking: [${childSegment.bookmarks.join(", ")}] -> [${parentSegment.bookmarks.join(", ")}]`,
@@ -483,9 +474,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
       if (result.baseBookmarks && result.segments.length > 0) {
         const rootSegment = result.segments[result.segments.length - 1];
         for (const bookmark of rootSegment.bookmarks) {
-          for (const baseBookmark of result.baseBookmarks) {
-            stackingRelationships.set(bookmark, baseBookmark);
-          }
+          stackingRelationships.set(bookmark, result.baseBookmarks);
         }
         console.log(
           `    Stacking: [${rootSegment.bookmarks.join(", ")}] -> [${result.baseBookmarks.join(", ")}]`,
@@ -510,8 +499,8 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
 
   // Debug: log the stacking relationships we discovered
   console.log("=== STACKING RELATIONSHIPS ===");
-  for (const [child, parent] of stackingRelationships.entries()) {
-    console.log(`${child} -> ${parent}`);
+  for (const [child, parents] of stackingRelationships.entries()) {
+    console.log(`${child} -> [${parents.join(", ")}]`);
   }
   if (stackingRelationships.size === 0) {
     console.log("No stacking relationships found");

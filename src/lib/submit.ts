@@ -28,13 +28,13 @@ export interface SubmissionPlan {
   bookmarksNeedingPush: Bookmark[];
   bookmarksNeedingPR: {
     bookmark: Bookmark;
-    baseBranch: string;
+    baseBranchOptions: string[];
     prContent: { title: string };
   }[];
   bookmarksNeedingPRBaseUpdate: {
     bookmark: Bookmark;
     currentBaseBranch: string;
-    expectedBaseBranch: string;
+    expectedBaseBranchOptions: string[];
     pr: PullRequestListItem;
   }[];
   repoInfo: { owner: string; repo: string };
@@ -92,15 +92,15 @@ export function getStackBookmarksToSubmit(
 ): Bookmark[] {
   // Find which stack contains the target bookmark
   for (const stack of changeGraph.stacks) {
-    const targetIndex = stack.segments.findIndex(
-      (segment) => segment.bookmark.name === bookmarkName,
+    const targetIndex = stack.segments.findIndex((segment) =>
+      segment.bookmarks.map((b) => b.name).includes(bookmarkName),
     );
 
     if (targetIndex !== -1) {
       // Return all bookmarks from root up to and including the target
       return stack.segments
         .slice(0, targetIndex + 1)
-        .map((segment) => segment.bookmark);
+        .flatMap((segment) => segment.bookmarks);
     }
   }
 
@@ -249,33 +249,30 @@ export async function getDefaultBranch(): Promise<string> {
 /**
  * Get the base branch for a bookmark based on what it's stacked on
  */
-export async function getBaseBranch(
+export async function getBaseBranchOptions(
   bookmarkName: string,
   changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
-): Promise<string> {
-  try {
-    // Find the bookmark in our change graph
-    for (const stack of changeGraph.stacks) {
-      for (let i = 0; i < stack.segments.length; i++) {
-        const segment = stack.segments[i];
-        if (segment.bookmark.name === bookmarkName) {
-          // If this is the first segment in the stack, it's based on the default branch
-          if (i === 0) {
-            return await getDefaultBranch();
-          }
-
-          // Otherwise, it's based on the previous segment's bookmark
-          const previousSegment = stack.segments[i - 1];
-          return previousSegment.bookmark.name;
+): Promise<string[]> {
+  // Find the bookmark in our change graph
+  for (const stack of changeGraph.stacks) {
+    for (let i = 0; i < stack.segments.length; i++) {
+      const segment = stack.segments[i];
+      if (segment.bookmarks.map((b) => b.name).includes(bookmarkName)) {
+        // If this is the first segment in the stack, it's based on the default branch
+        if (i === 0) {
+          return [await getDefaultBranch()];
         }
+
+        // Otherwise, it's based on the previous segment's bookmark
+        const previousSegment = stack.segments[i - 1];
+        return previousSegment.bookmarks.map((b) => b.name);
       }
     }
-
-    // If not found in stacks, it's a standalone bookmark - use default branch
-    return await getDefaultBranch();
-  } catch {
-    return "main";
   }
+
+  throw new Error(
+    `Bookmark '${bookmarkName}' not found in any stack to determine base branch`,
+  );
 }
 
 /**
@@ -464,14 +461,14 @@ export async function validatePRBases(
   {
     bookmark: Bookmark;
     currentBaseBranch: string;
-    expectedBaseBranch: string;
+    expectedBaseBranchOptions: string[];
     pr: PullRequestListItem;
   }[]
 > {
   const mismatches: {
     bookmark: Bookmark;
     currentBaseBranch: string;
-    expectedBaseBranch: string;
+    expectedBaseBranchOptions: string[];
     pr: PullRequestListItem;
   }[] = [];
 
@@ -479,17 +476,17 @@ export async function validatePRBases(
     const existingPR = existingPRs.get(bookmark.name);
 
     if (existingPR) {
-      const expectedBaseBranch = await getBaseBranch(
+      const expectedBaseBranchOptions = await getBaseBranchOptions(
         bookmark.name,
         changeGraph,
       );
       const currentBaseBranch = existingPR.base.ref;
 
-      if (currentBaseBranch !== expectedBaseBranch) {
+      if (!expectedBaseBranchOptions.includes(currentBaseBranch)) {
         mismatches.push({
           bookmark,
           currentBaseBranch,
-          expectedBaseBranch,
+          expectedBaseBranchOptions,
           pr: existingPR,
         });
       }
@@ -547,23 +544,22 @@ export async function analyzeSubmissionPlan(
 
     // 7. Determine what actions are needed
     const bookmarksNeedingPush: Bookmark[] = [];
-    const bookmarksNeedingPR: {
-      bookmark: Bookmark;
-      baseBranch: string;
-      prContent: { title: string };
-    }[] = [];
+    const bookmarksNeedingPR: SubmissionPlan["bookmarksNeedingPR"] = [];
 
     for (const bookmark of bookmarksToSubmit) {
       const hasExistingPR = existingPRs.get(bookmark.name);
 
-      if (!bookmark.hasRemote) {
+      if (!bookmark.hasRemote || !bookmark.isSynced) {
         bookmarksNeedingPush.push(bookmark);
       }
 
       if (!hasExistingPR) {
         bookmarksNeedingPR.push({
           bookmark,
-          baseBranch: await getBaseBranch(bookmark.name, changeGraph),
+          baseBranchOptions: await getBaseBranchOptions(
+            bookmark.name,
+            changeGraph,
+          ),
           prContent: { title: generatePRTitle(bookmark.name, changeGraph) },
         });
       }
@@ -624,14 +620,20 @@ export async function executeSubmissionPlan(
     for (const {
       bookmark,
       currentBaseBranch,
-      expectedBaseBranch,
+      expectedBaseBranchOptions,
       pr,
     } of plan.bookmarksNeedingPRBaseUpdate) {
       try {
+        if (expectedBaseBranchOptions.length !== 1) {
+          throw new Error(
+            `Expected exactly one base branch option for ${bookmark.name}, but got ${expectedBaseBranchOptions.length}`,
+          );
+        }
+
         callbacks?.onPRBaseUpdateStarted?.(
           bookmark,
           currentBaseBranch,
-          expectedBaseBranch,
+          expectedBaseBranchOptions[0],
         );
 
         const updatedPR = await updatePRBase(
@@ -639,7 +641,7 @@ export async function executeSubmissionPlan(
           githubConfig.owner,
           githubConfig.repo,
           pr.number,
-          expectedBaseBranch,
+          expectedBaseBranchOptions[0],
         );
 
         callbacks?.onPRBaseUpdateCompleted?.(bookmark, updatedPR);
@@ -656,16 +658,30 @@ export async function executeSubmissionPlan(
     }
 
     // Then create PRs for bookmarks that need them (in order from bottom to top)
-    for (const { bookmark, baseBranch, prContent } of plan.bookmarksNeedingPR) {
+    for (const {
+      bookmark,
+      baseBranchOptions,
+      prContent,
+    } of plan.bookmarksNeedingPR) {
       try {
-        callbacks?.onPRStarted?.(bookmark, prContent.title, baseBranch);
+        if (baseBranchOptions.length !== 1) {
+          throw new Error(
+            `Expected exactly one base branch option for ${bookmark.name}, but got ${baseBranchOptions.length}`,
+          );
+        }
+
+        callbacks?.onPRStarted?.(
+          bookmark,
+          prContent.title,
+          baseBranchOptions[0],
+        );
 
         const pr = await createPR(
           githubConfig.octokit,
           githubConfig.owner,
           githubConfig.repo,
           bookmark.name,
-          baseBranch,
+          baseBranchOptions[0],
           prContent.title,
         );
 

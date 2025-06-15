@@ -19,15 +19,11 @@ type bookmark = {
 }
 
 type bookmarkSegment = {
-  bookmark: bookmark,
+  bookmarks: array<bookmark>,
   changes: array<logEntry>,
-  baseCommit: string,
 }
 
-type branchStack = {
-  segments: array<bookmarkSegment>,
-  baseCommit: string,
-}
+type branchStack = {segments: array<bookmarkSegment>}
 
 type changeGraph = {
   bookmarks: array<bookmark>,

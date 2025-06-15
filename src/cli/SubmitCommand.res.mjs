@@ -58,13 +58,13 @@ function createSubmissionCallbacks(dryRun) {
                 if (plan.bookmarksNeedingPR.length > 0) {
                   console.log("\n📝 Would create " + plan.bookmarksNeedingPR.length.toString() + " PRs:");
                   plan.bookmarksNeedingPR.forEach(function (create) {
-                        console.log("   • " + create.bookmark.name + ": \"" + create.prContent.title + "\" (base: " + create.baseBranch + ")");
+                        console.log("   • " + create.bookmark.name + ": \"" + create.prContent.title + "\" (base: " + Core__Option.getExn(create.baseBranchOptions[0], "Should always have at least one base option") + ")");
                       });
                 }
                 if (plan.bookmarksNeedingPRBaseUpdate.length > 0) {
                   console.log("\n🔄 Would update " + plan.bookmarksNeedingPRBaseUpdate.length.toString() + " PR bases:");
                   plan.bookmarksNeedingPRBaseUpdate.forEach(function (update) {
-                        console.log("   • " + update.bookmark.name + ": from " + update.currentBaseBranch + " to " + update.expectedBaseBranch);
+                        console.log("   • " + update.bookmark.name + ": from " + update.currentBaseBranch + " to " + Core__Option.getExn(update.expectedBaseBranchOptions[0], "Should always have at least one expected base option"));
                       });
                   return ;
                 } else {
