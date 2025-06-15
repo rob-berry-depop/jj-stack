@@ -16,11 +16,10 @@ function getGitHubConfig(prim) {
   return SubmitJs.getGitHubConfig();
 }
 
-function formatBookmarkStatus(bookmark, remoteBookmarks, existingPRs) {
-  var hasRemote = remoteBookmarks.get(bookmark);
-  var hasExistingPR = existingPRs.get(bookmark);
-  return "📋 " + bookmark + ": " + (
-          Core__Option.isSome(hasRemote) ? "has remote" : "needs push"
+function formatBookmarkStatus(bookmark, existingPRs) {
+  var hasExistingPR = existingPRs.get(bookmark.name);
+  return "📋 " + bookmark.name + ": " + (
+          bookmark.hasRemote ? "has remote" : "needs push"
         ) + ", " + (
           Core__Option.isSome(hasExistingPR) ? "has PR" : "needs PR"
         );
@@ -35,10 +34,9 @@ function createSubmissionCallbacks(dryRun) {
               console.log("🔍 Finding all bookmarks in stack for " + targetBookmark + "...");
             }),
           onStackFound: (function (bookmarks) {
-              console.log("📚 Found stack bookmarks to submit: " + bookmarks.join(" -> "));
-            }),
-          onCheckingRemotes: (function (bookmarks) {
-              console.log("\n🔍 Checking status of " + bookmarks.length.toString() + " bookmarks...");
+              console.log("📚 Found stack bookmarks to submit: " + bookmarks.map(function (b) {
+                          return b.name;
+                        }).join(" -> "));
             }),
           onCheckingPRs: (function (_bookmarks) {
               
@@ -46,7 +44,7 @@ function createSubmissionCallbacks(dryRun) {
           onPlanReady: (function (plan) {
               console.log("📍 GitHub repository: " + plan.repoInfo.owner + "/" + plan.repoInfo.repo);
               plan.bookmarksToSubmit.forEach(function (bookmark) {
-                    console.log(formatBookmarkStatus(bookmark, plan.remoteBookmarks, plan.existingPRs));
+                    console.log(formatBookmarkStatus(bookmark, plan.existingPRs));
                   });
               if (dryRun) {
                 console.log("\n🧪 DRY RUN - Simulating all operations:");
@@ -54,19 +52,19 @@ function createSubmissionCallbacks(dryRun) {
                 if (plan.bookmarksNeedingPush.length > 0) {
                   console.log("\n🛜 Would push " + plan.bookmarksNeedingPush.length.toString() + " bookmarks to remote:");
                   plan.bookmarksNeedingPush.forEach(function (bookmark) {
-                        console.log("   • " + bookmark);
+                        console.log("   • " + bookmark.name);
                       });
                 }
                 if (plan.bookmarksNeedingPR.length > 0) {
                   console.log("\n📝 Would create " + plan.bookmarksNeedingPR.length.toString() + " PRs:");
-                  plan.bookmarksNeedingPR.forEach(function (bookmark) {
-                        console.log("   • " + bookmark.bookmark + ": \"" + bookmark.prContent.title + "\" (base: " + bookmark.baseBranch + ")");
+                  plan.bookmarksNeedingPR.forEach(function (create) {
+                        console.log("   • " + create.bookmark.name + ": \"" + create.prContent.title + "\" (base: " + create.baseBranch + ")");
                       });
                 }
                 if (plan.bookmarksNeedingPRBaseUpdate.length > 0) {
                   console.log("\n🔄 Would update " + plan.bookmarksNeedingPRBaseUpdate.length.toString() + " PR bases:");
                   plan.bookmarksNeedingPRBaseUpdate.forEach(function (update) {
-                        console.log("   • " + update.bookmark + ": from " + update.currentBaseBranch + " to " + update.expectedBaseBranch);
+                        console.log("   • " + update.bookmark.name + ": from " + update.currentBaseBranch + " to " + update.expectedBaseBranch);
                       });
                   return ;
                 } else {
@@ -85,25 +83,25 @@ function createSubmissionCallbacks(dryRun) {
               }
             }),
           onPushStarted: (function (bookmark, remote) {
-              console.log("Pushing " + bookmark + " to " + remote + "...");
+              console.log("Pushing " + bookmark.name + " to " + remote + "...");
             }),
           onPushCompleted: (function (bookmark, remote) {
-              console.log("✅ Successfully pushed " + bookmark + " to " + remote);
+              console.log("✅ Successfully pushed " + bookmark.name + " to " + remote);
             }),
           onPRStarted: (function (bookmark, title, base) {
-              console.log("Creating PR: " + bookmark + " -> " + base);
+              console.log("Creating PR: " + bookmark.name + " -> " + base);
               console.log("   Title: \"" + title + "\"");
             }),
           onPRCompleted: (function (bookmark, pr) {
-              console.log("✅ Created PR for " + bookmark + ": " + pr.html_url);
+              console.log("✅ Created PR for " + bookmark.name + ": " + pr.html_url);
               console.log("   Title: " + pr.title);
               console.log("   Base: " + pr.base.ref + " <- Head: " + pr.head.ref);
             }),
           onPRBaseUpdateStarted: (function (bookmark, currentBase, expectedBase) {
-              console.log("Updating PR base for " + bookmark + " from " + currentBase + " to " + expectedBase + "...");
+              console.log("Updating PR base for " + bookmark.name + " from " + currentBase + " to " + expectedBase + "...");
             }),
           onPRBaseUpdateCompleted: (function (bookmark, pr) {
-              console.log("✅ Updated PR base for " + bookmark + ": " + pr.html_url);
+              console.log("✅ Updated PR base for " + bookmark.name + ": " + pr.html_url);
               console.log("   New Base: " + pr.base.ref + " <- Head: " + pr.head.ref);
             }),
           onError: (function (error, context) {
@@ -133,15 +131,23 @@ async function submitCommand(bookmarkName, options) {
   if (result.success) {
     console.log("\n🎉 Successfully submitted stack up to " + bookmarkName + "!");
     if (result.pushedBookmarks.length > 0) {
-      console.log("   📤 Pushed: " + result.pushedBookmarks.join(", "));
+      console.log("   📤 Pushed: " + result.pushedBookmarks.map(function (b) {
+                  return b.name;
+                }).join(", "));
     }
-    if (result.createdPRs.length <= 0) {
+    if (result.createdPRs.length > 0) {
+      var createdPrBookmarks = result.createdPRs.map(function (pr) {
+            return pr.bookmark.name;
+          });
+      console.log("   📝 Created PRs: " + createdPrBookmarks.join(", "));
+    }
+    if (result.updatedPRs.length <= 0) {
       return ;
     }
-    var createdPrBookmarks = result.createdPRs.map(function (pr) {
-          return pr.bookmark;
+    var updatedPrBookmarks = result.updatedPRs.map(function (pr) {
+          return pr.bookmark.name;
         });
-    console.log("   📝 Created PRs: " + createdPrBookmarks.join(", "));
+    console.log("   🔄 Updated PRs: " + updatedPrBookmarks.join(", "));
     return ;
   }
   console.error("\n❌ Submission completed with errors:");

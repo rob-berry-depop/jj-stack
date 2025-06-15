@@ -3,6 +3,7 @@ import { promisify } from "util";
 import { Octokit } from "octokit";
 import { buildChangeGraph, gitFetch } from "./jjUtils.js";
 import { getGitHubAuth } from "./auth.js";
+import { Bookmark } from "./jjTypes.js";
 
 const execFileAsync = promisify(execFile);
 const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
@@ -15,12 +16,6 @@ type PullRequestListItem = Awaited<
   ReturnType<Octokit["rest"]["pulls"]["list"]>
 >["data"][0];
 
-export interface RemoteBookmark {
-  name: string;
-  remote: string;
-  commitId: string;
-}
-
 export interface GitHubConfig {
   owner: string;
   repo: string;
@@ -29,49 +24,47 @@ export interface GitHubConfig {
 
 export interface SubmissionPlan {
   targetBookmark: string;
-  bookmarksToSubmit: string[];
-  bookmarksNeedingPush: string[];
+  bookmarksToSubmit: Bookmark[];
+  bookmarksNeedingPush: Bookmark[];
   bookmarksNeedingPR: {
-    bookmark: string;
+    bookmark: Bookmark;
     baseBranch: string;
     prContent: { title: string };
   }[];
   bookmarksNeedingPRBaseUpdate: {
-    bookmark: string;
+    bookmark: Bookmark;
     currentBaseBranch: string;
     expectedBaseBranch: string;
     pr: PullRequestListItem;
   }[];
   repoInfo: { owner: string; repo: string };
   existingPRs: Map<string, PullRequestListItem | null>;
-  remoteBookmarks: Map<string, RemoteBookmark | null>;
 }
 
 export interface SubmissionCallbacks {
   onBookmarkValidated?: (bookmark: string) => void;
   onAnalyzingStack?: (targetBookmark: string) => void;
-  onStackFound?: (bookmarks: string[]) => void;
-  onCheckingRemotes?: (bookmarks: string[]) => void;
-  onCheckingPRs?: (bookmarks: string[]) => void;
+  onStackFound?: (bookmarks: Bookmark[]) => void;
+  onCheckingPRs?: (bookmarks: Bookmark[]) => void;
   onPlanReady?: (plan: SubmissionPlan) => void;
-  onPushStarted?: (bookmark: string, remote: string) => void;
-  onPushCompleted?: (bookmark: string, remote: string) => void;
-  onPRStarted?: (bookmark: string, title: string, base: string) => void;
-  onPRCompleted?: (bookmark: string, pr: PullRequest) => void;
+  onPushStarted?: (bookmark: Bookmark, remote: string) => void;
+  onPushCompleted?: (bookmark: Bookmark, remote: string) => void;
+  onPRStarted?: (bookmark: Bookmark, title: string, base: string) => void;
+  onPRCompleted?: (bookmark: Bookmark, pr: PullRequest) => void;
   onPRBaseUpdateStarted?: (
-    bookmark: string,
+    bookmark: Bookmark,
     currentBase: string,
     newBase: string,
   ) => void;
-  onPRBaseUpdateCompleted?: (bookmark: string, pr: PullRequest) => void;
+  onPRBaseUpdateCompleted?: (bookmark: Bookmark, pr: PullRequest) => void;
   onError?: (error: Error, context: string) => void;
 }
 
 export interface SubmissionResult {
   success: boolean;
-  pushedBookmarks: string[];
-  createdPRs: Array<{ bookmark: string; pr: PullRequest }>;
-  updatedPRs: Array<{ bookmark: string; pr: PullRequest }>;
+  pushedBookmarks: Bookmark[];
+  createdPRs: Array<{ bookmark: Bookmark; pr: PullRequest }>;
+  updatedPRs: Array<{ bookmark: Bookmark; pr: PullRequest }>;
   errors: Array<{ error: Error; context: string }>;
 }
 
@@ -96,7 +89,7 @@ export async function validateBookmark(bookmarkName: string): Promise<void> {
 export function getStackBookmarksToSubmit(
   bookmarkName: string,
   changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
-): string[] {
+): Bookmark[] {
   // Find which stack contains the target bookmark
   for (const stack of changeGraph.stacks) {
     const targetIndex = stack.segments.findIndex(
@@ -107,58 +100,11 @@ export function getStackBookmarksToSubmit(
       // Return all bookmarks from root up to and including the target
       return stack.segments
         .slice(0, targetIndex + 1)
-        .map((segment) => segment.bookmark.name);
+        .map((segment) => segment.bookmark);
     }
   }
 
-  // If not found in any stack, it's a standalone bookmark
-  return [bookmarkName];
-}
-
-/**
- * Check if a bookmark has a corresponding remote bookmark
- */
-export async function checkRemoteBookmark(
-  bookmarkName: string,
-): Promise<RemoteBookmark | null> {
-  try {
-    const result = await execFileAsync(JJ_BINARY, [
-      "bookmark",
-      "list",
-      "--all-remotes",
-      bookmarkName,
-    ]);
-
-    // Parse the output to find remote bookmarks
-    const lines = result.stdout.trim().split("\n");
-    for (const line of lines) {
-      // Try multiple patterns to match remote bookmarks
-      // Pattern 1: bookmark@remote: commit_id
-      let remoteMatch = line.match(/(\w+)@(\w+):\s*([a-f0-9]+)/);
-
-      // Pattern 2: bookmark@remote commit_id (space separated)
-      if (!remoteMatch) {
-        remoteMatch = line.match(/(\w+)@(\w+)\s+([a-f0-9]+)/);
-      }
-
-      // Pattern 3: More flexible - any bookmark@remote pattern
-      if (!remoteMatch) {
-        remoteMatch = line.match(/(\w+)@(\w+).*?([a-f0-9]{7,})/);
-      }
-
-      if (remoteMatch && remoteMatch[1] === bookmarkName) {
-        return {
-          name: remoteMatch[1],
-          remote: remoteMatch[2],
-          commitId: remoteMatch[3],
-        };
-      }
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
+  throw new Error(`Bookmark '${bookmarkName}' not found in any stack`);
 }
 
 /**
@@ -422,13 +368,15 @@ export async function createOrUpdateStackComment(
   repo: string,
   prNumber: number,
   bookmarkName: string,
-  stackPRs: Array<{ bookmark: string; prNumber: number; prUrl: string }>,
+  stackPRs: Array<{ bookmarkName: string; prNumber: number; prUrl: string }>,
 ): Promise<void> {
   const stackFooter =
     "*Created with [jj-stack](https://github.com/your-org/jj-stack)*";
 
   // Generate the stack comment content
-  const currentIndex = stackPRs.findIndex((pr) => pr.bookmark === bookmarkName);
+  const currentIndex = stackPRs.findIndex(
+    (pr) => pr.bookmarkName === bookmarkName,
+  );
   let commentBody = `### 📚 Stack Information\n\n`;
 
   if (stackPRs.length === 1) {
@@ -443,8 +391,8 @@ export async function createOrUpdateStackComment(
     const marker = isCurrent ? "**→ " : "   ";
     const suffix = isCurrent ? " (this PR)**" : "";
     const link = isCurrent
-      ? stackPR.bookmark
-      : `[${stackPR.bookmark}](${stackPR.prUrl})`;
+      ? stackPR.bookmarkName
+      : `[${stackPR.bookmarkName}](${stackPR.prUrl})`;
     commentBody += `${marker}${i + 1}. ${link}${suffix}\n`;
   }
 
@@ -484,33 +432,22 @@ export async function createOrUpdateStackComment(
 /**
  * Check for existing PRs for all bookmarks
  */
-export async function checkExistingPRs(
+export async function getExistingPRs(
   octokit: Octokit,
   owner: string,
   repo: string,
-  bookmarkNames: string[],
+  bookmarks: Bookmark[],
 ): Promise<Map<string, PullRequestListItem | null>> {
   const results = new Map<string, PullRequestListItem | null>();
 
-  for (const bookmarkName of bookmarkNames) {
-    const existingPR = await findExistingPR(octokit, owner, repo, bookmarkName);
-    results.set(bookmarkName, existingPR);
-  }
-
-  return results;
-}
-
-/**
- * Check remote bookmarks for all bookmarks in the list
- */
-export async function checkRemoteBookmarks(
-  bookmarkNames: string[],
-): Promise<Map<string, RemoteBookmark | null>> {
-  const results = new Map<string, RemoteBookmark | null>();
-
-  for (const bookmarkName of bookmarkNames) {
-    const remoteBookmark = await checkRemoteBookmark(bookmarkName);
-    results.set(bookmarkName, remoteBookmark);
+  for (const bookmark of bookmarks) {
+    const existingPR = await findExistingPR(
+      octokit,
+      owner,
+      repo,
+      bookmark.name,
+    );
+    results.set(bookmark.name, existingPR);
   }
 
   return results;
@@ -520,29 +457,32 @@ export async function checkRemoteBookmarks(
  * Validate existing PRs against expected base branches and identify mismatches
  */
 export async function validatePRBases(
-  bookmarkNames: string[],
+  bookmarks: Bookmark[],
   existingPRs: Map<string, PullRequestListItem | null>,
   changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
 ): Promise<
   {
-    bookmark: string;
+    bookmark: Bookmark;
     currentBaseBranch: string;
     expectedBaseBranch: string;
     pr: PullRequestListItem;
   }[]
 > {
   const mismatches: {
-    bookmark: string;
+    bookmark: Bookmark;
     currentBaseBranch: string;
     expectedBaseBranch: string;
     pr: PullRequestListItem;
   }[] = [];
 
-  for (const bookmark of bookmarkNames) {
-    const existingPR = existingPRs.get(bookmark);
+  for (const bookmark of bookmarks) {
+    const existingPR = existingPRs.get(bookmark.name);
 
     if (existingPR) {
-      const expectedBaseBranch = await getBaseBranch(bookmark, changeGraph);
+      const expectedBaseBranch = await getBaseBranch(
+        bookmark.name,
+        changeGraph,
+      );
       const currentBaseBranch = existingPR.base.ref;
 
       if (currentBaseBranch !== expectedBaseBranch) {
@@ -590,12 +530,8 @@ export async function analyzeSubmissionPlan(
     // 4. Get GitHub configuration for Octokit instance
     const githubConfig = await getGitHubConfig();
 
-    // 5. Check status of all bookmarks
-    callbacks?.onCheckingRemotes?.(bookmarksToSubmit);
-    const remoteBookmarks = await checkRemoteBookmarks(bookmarksToSubmit);
-
     callbacks?.onCheckingPRs?.(bookmarksToSubmit);
-    const existingPRs = await checkExistingPRs(
+    const existingPRs = await getExistingPRs(
       githubConfig.octokit,
       githubConfig.owner,
       githubConfig.repo,
@@ -610,26 +546,25 @@ export async function analyzeSubmissionPlan(
     );
 
     // 7. Determine what actions are needed
-    const bookmarksNeedingPush: string[] = [];
+    const bookmarksNeedingPush: Bookmark[] = [];
     const bookmarksNeedingPR: {
-      bookmark: string;
+      bookmark: Bookmark;
       baseBranch: string;
       prContent: { title: string };
     }[] = [];
 
     for (const bookmark of bookmarksToSubmit) {
-      const hasRemote = remoteBookmarks.get(bookmark);
-      const hasExistingPR = existingPRs.get(bookmark);
+      const hasExistingPR = existingPRs.get(bookmark.name);
 
-      if (!hasRemote) {
+      if (!bookmark.hasRemote) {
         bookmarksNeedingPush.push(bookmark);
       }
 
       if (!hasExistingPR) {
         bookmarksNeedingPR.push({
           bookmark,
-          baseBranch: await getBaseBranch(bookmark, changeGraph),
-          prContent: { title: generatePRTitle(bookmark, changeGraph) },
+          baseBranch: await getBaseBranch(bookmark.name, changeGraph),
+          prContent: { title: generatePRTitle(bookmark.name, changeGraph) },
         });
       }
     }
@@ -642,7 +577,6 @@ export async function analyzeSubmissionPlan(
       bookmarksNeedingPRBaseUpdate,
       repoInfo,
       existingPRs,
-      remoteBookmarks,
     };
 
     callbacks?.onPlanReady?.(plan);
@@ -675,13 +609,13 @@ export async function executeSubmissionPlan(
     for (const bookmark of plan.bookmarksNeedingPush) {
       try {
         callbacks?.onPushStarted?.(bookmark, "origin");
-        await pushBookmark(bookmark, "origin");
+        await pushBookmark(bookmark.name, "origin");
         callbacks?.onPushCompleted?.(bookmark, "origin");
         result.pushedBookmarks.push(bookmark);
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
-        result.errors.push({ error: err, context: `pushing ${bookmark}` });
-        callbacks?.onError?.(err, `pushing ${bookmark}`);
+        result.errors.push({ error: err, context: `pushing ${bookmark.name}` });
+        callbacks?.onError?.(err, `pushing ${bookmark.name}`);
         result.success = false;
       }
     }
@@ -714,9 +648,9 @@ export async function executeSubmissionPlan(
         const err = error instanceof Error ? error : new Error(String(error));
         result.errors.push({
           error: err,
-          context: `updating PR base for ${bookmark}`,
+          context: `updating PR base for ${bookmark.name}`,
         });
-        callbacks?.onError?.(err, `updating PR base for ${bookmark}`);
+        callbacks?.onError?.(err, `updating PR base for ${bookmark.name}`);
         result.success = false;
       }
     }
@@ -730,7 +664,7 @@ export async function executeSubmissionPlan(
           githubConfig.octokit,
           githubConfig.owner,
           githubConfig.repo,
-          bookmark,
+          bookmark.name,
           baseBranch,
           prContent.title,
         );
@@ -741,16 +675,16 @@ export async function executeSubmissionPlan(
         const err = error instanceof Error ? error : new Error(String(error));
         result.errors.push({
           error: err,
-          context: `creating PR for ${bookmark}`,
+          context: `creating PR for ${bookmark.name}`,
         });
-        callbacks?.onError?.(err, `creating PR for ${bookmark}`);
+        callbacks?.onError?.(err, `creating PR for ${bookmark.name}`);
         result.success = false;
       }
     }
 
     // Create stack comments for all PRs in the stack (both new and existing)
     const allStackPRs: Array<{
-      bookmark: string;
+      bookmarkName: string;
       prNumber: number;
       prUrl: string;
     }> = [];
@@ -758,7 +692,7 @@ export async function executeSubmissionPlan(
     // Add newly created PRs
     for (const { bookmark, pr } of result.createdPRs) {
       allStackPRs.push({
-        bookmark,
+        bookmarkName: bookmark.name,
         prNumber: pr.number,
         prUrl: pr.html_url,
       });
@@ -766,10 +700,13 @@ export async function executeSubmissionPlan(
 
     // Add existing PRs
     for (const bookmark of plan.bookmarksToSubmit) {
-      const existingPR = plan.existingPRs.get(bookmark);
-      if (existingPR && !allStackPRs.some((pr) => pr.bookmark === bookmark)) {
+      const existingPR = plan.existingPRs.get(bookmark.name);
+      if (
+        existingPR &&
+        !allStackPRs.some((pr) => pr.bookmarkName === bookmark.name)
+      ) {
         allStackPRs.push({
-          bookmark,
+          bookmarkName: bookmark.name,
           prNumber: existingPR.number,
           prUrl: existingPR.html_url,
         });
@@ -778,9 +715,11 @@ export async function executeSubmissionPlan(
 
     // Add updated PRs
     for (const { bookmark, pr } of result.updatedPRs) {
-      if (!allStackPRs.some((stackPR) => stackPR.bookmark === bookmark)) {
+      if (
+        !allStackPRs.some((stackPR) => stackPR.bookmarkName === bookmark.name)
+      ) {
         allStackPRs.push({
-          bookmark,
+          bookmarkName: bookmark.name,
           prNumber: pr.number,
           prUrl: pr.html_url,
         });
@@ -791,8 +730,12 @@ export async function executeSubmissionPlan(
     if (allStackPRs.length > 0) {
       // Sort stack PRs by the order they appear in bookmarksToSubmit
       allStackPRs.sort((a, b) => {
-        const indexA = plan.bookmarksToSubmit.indexOf(a.bookmark);
-        const indexB = plan.bookmarksToSubmit.indexOf(b.bookmark);
+        const indexA = plan.bookmarksToSubmit.findIndex(
+          (bookmark) => bookmark.name === a.bookmarkName,
+        );
+        const indexB = plan.bookmarksToSubmit.findIndex(
+          (bookmark) => bookmark.name === b.bookmarkName,
+        );
         return indexA - indexB;
       });
 
@@ -804,18 +747,18 @@ export async function executeSubmissionPlan(
             githubConfig.owner,
             githubConfig.repo,
             stackPR.prNumber,
-            stackPR.bookmark,
+            stackPR.bookmarkName,
             allStackPRs,
           );
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
           result.errors.push({
             error: err,
-            context: `creating stack comment for ${stackPR.bookmark}`,
+            context: `creating stack comment for ${stackPR.bookmarkName}`,
           });
           callbacks?.onError?.(
             err,
-            `creating stack comment for ${stackPR.bookmark}`,
+            `creating stack comment for ${stackPR.bookmarkName}`,
           );
           // Don't mark as failed for comment errors
         }

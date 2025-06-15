@@ -1,12 +1,9 @@
 @module("process") external exit: int => unit = "exit"
 
-type prContent = {
-  title: string,
-  body: string,
-}
+type prContent = {title: string}
 
 type bookmarkNeedingPR = {
-  bookmark: string,
+  bookmark: JJTypes.bookmark,
   baseBranch: string,
   prContent: prContent,
 }
@@ -31,47 +28,39 @@ type pullRequest = {
 }
 
 type bookmarkNeedingPRBaseUpdate = {
-  bookmark: string,
+  bookmark: JJTypes.bookmark,
   currentBaseBranch: string,
   expectedBaseBranch: string,
   pr: pullRequest,
 }
 
-type remoteBookmark = {
-  name: string,
-  remote: string,
-  commitId: string,
-}
-
 type submissionPlan = {
   targetBookmark: string,
-  bookmarksToSubmit: array<string>,
-  bookmarksNeedingPush: array<string>,
+  bookmarksToSubmit: array<JJTypes.bookmark>,
+  bookmarksNeedingPush: array<JJTypes.bookmark>,
   bookmarksNeedingPR: array<bookmarkNeedingPR>,
   bookmarksNeedingPRBaseUpdate: array<bookmarkNeedingPRBaseUpdate>,
   repoInfo: repoInfo,
   existingPRs: Map.t<string, option<pullRequest>>,
-  remoteBookmarks: Map.t<string, option<remoteBookmark>>,
 }
 
 type submissionCallbacks = {
   onBookmarkValidated: option<string => unit>,
   onAnalyzingStack: option<string => unit>,
-  onStackFound: option<array<string> => unit>,
-  onCheckingRemotes: option<array<string> => unit>,
-  onCheckingPRs: option<array<string> => unit>,
+  onStackFound: option<array<JJTypes.bookmark> => unit>,
+  onCheckingPRs: option<array<JJTypes.bookmark> => unit>,
   onPlanReady: option<submissionPlan => unit>,
-  onPushStarted: option<(string, string) => unit>,
-  onPushCompleted: option<(string, string) => unit>,
-  onPRStarted: option<(string, string, string) => unit>,
-  onPRCompleted: option<(string, pullRequest) => unit>,
-  onPRBaseUpdateStarted: option<(string, string, string) => unit>,
-  onPRBaseUpdateCompleted: option<(string, pullRequest) => unit>,
+  onPushStarted: option<(JJTypes.bookmark, string) => unit>,
+  onPushCompleted: option<(JJTypes.bookmark, string) => unit>,
+  onPRStarted: option<(JJTypes.bookmark, string, string) => unit>,
+  onPRCompleted: option<(JJTypes.bookmark, pullRequest) => unit>,
+  onPRBaseUpdateStarted: option<(JJTypes.bookmark, string, string) => unit>,
+  onPRBaseUpdateCompleted: option<(JJTypes.bookmark, pullRequest) => unit>,
   onError: option<(Exn.t, string) => unit>,
 }
 
-type createdPr = {
-  bookmark: string,
+type createdOrUpdatedPr = {
+  bookmark: JJTypes.bookmark,
   pr: pullRequest,
 }
 
@@ -82,8 +71,9 @@ type errorWithContext = {
 
 type submissionResult = {
   success: bool,
-  pushedBookmarks: array<string>,
-  createdPRs: array<createdPr>,
+  pushedBookmarks: array<JJTypes.bookmark>,
+  createdPRs: array<createdOrUpdatedPr>,
+  updatedPRs: array<createdOrUpdatedPr>,
   errors: array<errorWithContext>,
 }
 
@@ -107,14 +97,12 @@ type submitOptions = {dryRun?: bool}
  * Format bookmark status for display
  */
 let formatBookmarkStatus = (
-  bookmark: string,
-  remoteBookmarks: Map.t<string, option<remoteBookmark>>,
+  bookmark: JJTypes.bookmark,
   existingPRs: Map.t<string, option<pullRequest>>,
 ): string => {
-  let hasRemote = Map.get(remoteBookmarks, bookmark)
-  let hasExistingPR = Map.get(existingPRs, bookmark)
+  let hasExistingPR = Map.get(existingPRs, bookmark.name)
 
-  `📋 ${bookmark}: ${hasRemote->Option.isSome
+  `📋 ${bookmark.name}: ${bookmark.hasRemote
       ? "has remote"
       : "needs push"}, ${hasExistingPR->Option.isSome ? "has PR" : "needs PR"}`
 }
@@ -135,19 +123,16 @@ let createSubmissionCallbacks = (~dryRun: bool): submissionCallbacks => {
       },
     ),
     onStackFound: Some(
-      (bookmarks: array<string>) => {
-        Console.log(`📚 Found stack bookmarks to submit: ${bookmarks->Array.join(" -> ")}`)
-      },
-    ),
-    onCheckingRemotes: Some(
-      (bookmarks: array<string>) => {
+      (bookmarks: array<JJTypes.bookmark>) => {
         Console.log(
-          `\n🔍 Checking status of ${bookmarks->Array.length->Int.toString} bookmarks...`,
+          `📚 Found stack bookmarks to submit: ${bookmarks
+            ->Array.map(b => b.name)
+            ->Array.join(" -> ")}`,
         )
       },
     ),
     onCheckingPRs: Some(
-      (_bookmarks: array<string>) => {
+      (_bookmarks: array<JJTypes.bookmark>) => {
         // This happens as part of checking status, no need for separate message
         ()
       },
@@ -158,7 +143,7 @@ let createSubmissionCallbacks = (~dryRun: bool): submissionCallbacks => {
 
         // Show status of all bookmarks
         plan.bookmarksToSubmit->Array.forEach(bookmark => {
-          Console.log(formatBookmarkStatus(bookmark, plan.remoteBookmarks, plan.existingPRs))
+          Console.log(formatBookmarkStatus(bookmark, plan.existingPRs))
         })
 
         if dryRun {
@@ -172,7 +157,7 @@ let createSubmissionCallbacks = (~dryRun: bool): submissionCallbacks => {
                 ->Int.toString} bookmarks to remote:`,
             )
             plan.bookmarksNeedingPush->Array.forEach(bookmark => {
-              Console.log(`   • ${bookmark}`)
+              Console.log(`   • ${bookmark.name}`)
             })
           }
 
@@ -180,9 +165,9 @@ let createSubmissionCallbacks = (~dryRun: bool): submissionCallbacks => {
             Console.log(
               `\n📝 Would create ${plan.bookmarksNeedingPR->Array.length->Int.toString} PRs:`,
             )
-            plan.bookmarksNeedingPR->Array.forEach(bookmark => {
+            plan.bookmarksNeedingPR->Array.forEach(create => {
               Console.log(
-                `   • ${bookmark.bookmark}: "${bookmark.prContent.title}" (base: ${bookmark.baseBranch})`,
+                `   • ${create.bookmark.name}: "${create.prContent.title}" (base: ${create.baseBranch})`,
               )
             })
           }
@@ -195,7 +180,7 @@ let createSubmissionCallbacks = (~dryRun: bool): submissionCallbacks => {
             )
             plan.bookmarksNeedingPRBaseUpdate->Array.forEach(update => {
               Console.log(
-                `   • ${update.bookmark}: from ${update.currentBaseBranch} to ${update.expectedBaseBranch}`,
+                `   • ${update.bookmark.name}: from ${update.currentBaseBranch} to ${update.expectedBaseBranch}`,
               )
             })
           }
@@ -216,36 +201,38 @@ let createSubmissionCallbacks = (~dryRun: bool): submissionCallbacks => {
       },
     ),
     onPushStarted: Some(
-      (bookmark: string, remote: string) => {
-        Console.log(`Pushing ${bookmark} to ${remote}...`)
+      (bookmark: JJTypes.bookmark, remote: string) => {
+        Console.log(`Pushing ${bookmark.name} to ${remote}...`)
       },
     ),
     onPushCompleted: Some(
-      (bookmark: string, remote: string) => {
-        Console.log(`✅ Successfully pushed ${bookmark} to ${remote}`)
+      (bookmark: JJTypes.bookmark, remote: string) => {
+        Console.log(`✅ Successfully pushed ${bookmark.name} to ${remote}`)
       },
     ),
     onPRStarted: Some(
-      (bookmark: string, title: string, base: string) => {
-        Console.log(`Creating PR: ${bookmark} -> ${base}`)
+      (bookmark: JJTypes.bookmark, title: string, base: string) => {
+        Console.log(`Creating PR: ${bookmark.name} -> ${base}`)
         Console.log(`   Title: "${title}"`)
       },
     ),
     onPRCompleted: Some(
-      (bookmark: string, pr: pullRequest) => {
-        Console.log(`✅ Created PR for ${bookmark}: ${pr.html_url}`)
+      (bookmark: JJTypes.bookmark, pr: pullRequest) => {
+        Console.log(`✅ Created PR for ${bookmark.name}: ${pr.html_url}`)
         Console.log(`   Title: ${pr.title}`)
         Console.log(`   Base: ${pr.base.ref} <- Head: ${pr.head.ref}`)
       },
     ),
     onPRBaseUpdateStarted: Some(
-      (bookmark: string, currentBase: string, expectedBase: string) => {
-        Console.log(`Updating PR base for ${bookmark} from ${currentBase} to ${expectedBase}...`)
+      (bookmark: JJTypes.bookmark, currentBase: string, expectedBase: string) => {
+        Console.log(
+          `Updating PR base for ${bookmark.name} from ${currentBase} to ${expectedBase}...`,
+        )
       },
     ),
     onPRBaseUpdateCompleted: Some(
-      (bookmark: string, pr: pullRequest) => {
-        Console.log(`✅ Updated PR base for ${bookmark}: ${pr.html_url}`)
+      (bookmark: JJTypes.bookmark, pr: pullRequest) => {
+        Console.log(`✅ Updated PR base for ${bookmark.name}: ${pr.html_url}`)
         Console.log(`   New Base: ${pr.base.ref} <- Head: ${pr.head.ref}`)
       },
     ),
@@ -295,12 +282,19 @@ let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>
       Console.log(`\n🎉 Successfully submitted stack up to ${bookmarkName}!`)
 
       if result.pushedBookmarks->Array.length > 0 {
-        Console.log(`   📤 Pushed: ${result.pushedBookmarks->Array.join(", ")}`)
+        Console.log(
+          `   📤 Pushed: ${result.pushedBookmarks->Array.map(b => b.name)->Array.join(", ")}`,
+        )
       }
 
       if result.createdPRs->Array.length > 0 {
-        let createdPrBookmarks = result.createdPRs->Array.map(pr => pr.bookmark)
+        let createdPrBookmarks = result.createdPRs->Array.map(pr => pr.bookmark.name)
         Console.log(`   📝 Created PRs: ${createdPrBookmarks->Array.join(", ")}`)
+      }
+
+      if result.updatedPRs->Array.length > 0 {
+        let updatedPrBookmarks = result.updatedPRs->Array.map(pr => pr.bookmark.name)
+        Console.log(`   🔄 Updated PRs: ${updatedPrBookmarks->Array.join(", ")}`)
       }
     } else {
       Console.error(`\n❌ Submission completed with errors:`)
