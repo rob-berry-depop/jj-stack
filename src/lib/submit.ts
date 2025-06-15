@@ -185,19 +185,15 @@ export async function findExistingPR(
   repo: string,
   headBranch: string,
 ): Promise<PullRequestListItem | null> {
-  try {
-    const result = await octokit.rest.pulls.list({
-      owner,
-      repo,
-      head: `${owner}:${headBranch}`,
-      state: "open",
-    });
+  const result = await octokit.rest.pulls.list({
+    owner,
+    repo,
+    head: `${owner}:${headBranch}`,
+    state: "open",
+  });
 
-    const pulls = result.data;
-    return pulls.length > 0 ? pulls[0] : null;
-  } catch {
-    return null;
-  }
+  const pulls = result.data;
+  return pulls.length > 0 ? pulls[0] : null;
 }
 
 /**
@@ -434,8 +430,8 @@ export async function getExistingPRs(
   owner: string,
   repo: string,
   bookmarks: Bookmark[],
-): Promise<Map<string, PullRequestListItem | null>> {
-  const results = new Map<string, PullRequestListItem | null>();
+): Promise<Map<string, PullRequestListItem>> {
+  const results = new Map<string, PullRequestListItem>();
 
   for (const bookmark of bookmarks) {
     const existingPR = await findExistingPR(
@@ -444,7 +440,9 @@ export async function getExistingPRs(
       repo,
       bookmark.name,
     );
-    results.set(bookmark.name, existingPR);
+    if (existingPR) {
+      results.set(bookmark.name, existingPR);
+    }
   }
 
   return results;

@@ -1,6 +1,5 @@
 @scope("process") @val external argv: array<string> = "argv"
 @scope("process") @val external exit: int => unit = "exit"
-@module("ink") external render: React.element => unit = "render"
 
 let help = `🔧 jj-stack - Jujutsu Git workflow automation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -80,9 +79,4 @@ let main = async () => {
       exit(1)
     }
   }
-
-  render(<Counter />)
-
-  await Utils.sleep(1000)
-  exit(0)
 }

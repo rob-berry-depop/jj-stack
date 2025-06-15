@@ -412,6 +412,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
       bookmarks: [],
       stacks: [],
       segmentChanges: new Map(),
+      stackingRelationships: new Map(),
     };
   }
 
@@ -524,8 +525,9 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
 
   return {
     bookmarks,
-    stacks,
+    stackingRelationships,
     segmentChanges,
+    stacks,
   };
 }
 
