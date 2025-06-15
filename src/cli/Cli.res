@@ -9,8 +9,6 @@ USAGE:
   jj-stack [COMMAND] [OPTIONS]
 
 COMMANDS:
-  analyze               Analyze the current change graph
-
   submit <bookmark>     Submit a bookmark (and its stack) as PRs
     --dry-run           Show what would be done without making changes
 
@@ -21,7 +19,8 @@ COMMANDS:
   help, --help, -h      Show this help message
 
 DEFAULT BEHAVIOR:
-  Running jj-stack without arguments shows the current change graph
+  Running jj-stack without arguments analyzes and displays the current
+  graph of stacked bookmarks.
 
 EXAMPLES:
   jj-stack                        # Show change graph
@@ -55,7 +54,6 @@ let main = async () => {
           exit(1)
         }
       }
-    | Some("analyze") => await AnalyzeCommand.analyzeCommand()
     | Some("help") | Some("--help") | Some("-h") => Console.log(help)
     | Some(unknownCommand) => {
         Console.error(
@@ -63,7 +61,7 @@ let main = async () => {
         )
         exit(1)
       }
-    | _ => Console.log(help)
+    | _ => await AnalyzeCommand.analyzeCommand()
     }
   } catch {
   | Exn.Error(error) =>

@@ -10,7 +10,7 @@ import * as AnalyzeCommand from "./AnalyzeCommand.res.mjs";
 import * as JsxRuntime from "react/jsx-runtime";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
-var help = "🔧 jj-stack - Jujutsu Git workflow automation\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nUSAGE:\n  jj-stack [COMMAND] [OPTIONS]\n\nCOMMANDS:\n  analyze               Analyze the current change graph\n\n  submit <bookmark>     Submit a bookmark (and its stack) as PRs\n    --dry-run           Show what would be done without making changes\n\n  auth test             Test GitHub authentication\n  auth logout           Clear saved authentication\n  auth help             Show authentication help\n\n  help, --help, -h      Show this help message\n\nDEFAULT BEHAVIOR:\n  Running jj-stack without arguments shows the current change graph\n\nEXAMPLES:\n  jj-stack                        # Show change graph\n  jj-stack submit feature-branch  # Submit feature-branch as PR\n  jj-stack submit feature-branch --dry-run  # Preview what would be done\n  jj-stack auth test              # Test GitHub authentication\n\nFor more information, visit: https://github.com/your-org/jj-stack\n";
+var help = "🔧 jj-stack - Jujutsu Git workflow automation\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nUSAGE:\n  jj-stack [COMMAND] [OPTIONS]\n\nCOMMANDS:\n  submit <bookmark>     Submit a bookmark (and its stack) as PRs\n    --dry-run           Show what would be done without making changes\n\n  auth test             Test GitHub authentication\n  auth logout           Clear saved authentication\n  auth help             Show authentication help\n\n  help, --help, -h      Show this help message\n\nDEFAULT BEHAVIOR:\n  Running jj-stack without arguments analyzes and displays the current\n  graph of stacked bookmarks.\n\nEXAMPLES:\n  jj-stack                        # Show change graph\n  jj-stack submit feature-branch  # Submit feature-branch as PR\n  jj-stack submit feature-branch --dry-run  # Preview what would be done\n  jj-stack auth test              # Test GitHub authentication\n\nFor more information, visit: https://github.com/your-org/jj-stack\n";
 
 async function main() {
   try {
@@ -18,9 +18,6 @@ async function main() {
     var command = args[0];
     if (command !== undefined) {
       switch (command) {
-        case "analyze" :
-            await AnalyzeCommand.analyzeCommand();
-            break;
         case "auth" :
             var match = args[1];
             if (match !== undefined) {
@@ -60,7 +57,7 @@ async function main() {
           process.exit(1);
       }
     } else {
-      console.log(help);
+      await AnalyzeCommand.analyzeCommand();
     }
   }
   catch (raw_error){
