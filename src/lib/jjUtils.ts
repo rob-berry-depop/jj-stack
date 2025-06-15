@@ -71,7 +71,7 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
         "bookmark",
         "list",
         "--revisions",
-        "mine()",
+        "mine() ~ trunk()",
         "--template",
         bookmarkTemplate,
       ],
