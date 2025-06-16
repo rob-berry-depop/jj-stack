@@ -370,23 +370,16 @@ export async function createOrUpdateStackComment(
   const currentIndex = stackPRs.findIndex(
     (pr) => pr.bookmarkName === bookmarkName,
   );
-  let commentBody = `### 📚 Stack Information\n\n`;
-
-  if (stackPRs.length === 1) {
-    commentBody += `This PR contains 1 bookmark:\n\n`;
-  } else {
-    commentBody += `This PR is part of a stack of ${stackPRs.length} bookmarks:\n\n`;
-  }
+  let commentBody = `This PR is part of a stack of ${stackPRs.length} bookmark${stackPRs.length === 1 ? "" : "s"}:\n\n`;
 
   for (let i = 0; i < stackPRs.length; i++) {
     const stackPR = stackPRs[i];
     const isCurrent = i === currentIndex;
-    const marker = isCurrent ? "**→ " : "   ";
-    const suffix = isCurrent ? " (this PR)**" : "";
-    const link = isCurrent
-      ? stackPR.bookmarkName
-      : `[${stackPR.bookmarkName}](${stackPR.prUrl})`;
-    commentBody += `${marker}${i + 1}. ${link}${suffix}\n`;
+    if (isCurrent) {
+      commentBody += `${i + 1}. **${stackPR.bookmarkName} ← this PR**\n`;
+    } else {
+      commentBody += `${i + 1}. [${stackPR.bookmarkName}](${stackPR.prUrl})\n`;
+    }
   }
 
   commentBody += `\n---\n${stackFooter}`;
