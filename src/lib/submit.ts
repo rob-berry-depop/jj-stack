@@ -364,7 +364,7 @@ export async function createOrUpdateStackComment(
   stackPRs: Array<{ bookmarkName: string; prNumber: number; prUrl: string }>,
 ): Promise<void> {
   const stackFooter =
-    "*Created with [jj-stack](https://github.com/your-org/jj-stack)*";
+    "*Created with [jj-stack](https://github.com/keanemind/jj-stack)*";
 
   // Generate the stack comment content
   const currentIndex = stackPRs.findIndex(

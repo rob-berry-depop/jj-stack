@@ -27,7 +27,7 @@ EXAMPLES:
   jj-stack submit feature-branch --dry-run  # Preview what would be done
   jj-stack auth test              # Test GitHub authentication
 
-For more information, visit: https://github.com/your-org/jj-stack
+For more information, visit: https://github.com/keanemind/jj-stack
 `
 
 @genType
