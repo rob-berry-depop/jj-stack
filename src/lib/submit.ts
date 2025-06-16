@@ -4,6 +4,7 @@ import { Octokit } from "octokit";
 import { buildChangeGraph, gitFetch } from "./jjUtils.js";
 import { getGitHubAuth } from "./auth.js";
 import { Bookmark } from "./jjTypes.js";
+import * as v from "valibot";
 
 const execFileAsync = promisify(execFile);
 const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
@@ -196,59 +197,52 @@ export async function findExistingPR(
   return pulls.length > 0 ? pulls[0] : null;
 }
 
+const RemoteBookmarksSchema = v.array(v.string());
 /**
  * Get the default branch name for the repository by finding what trunk() resolves to
  */
 export async function getDefaultBranch(): Promise<string> {
+  const template = `'[ ' ++ remote_bookmarks.map(|b| b.name().escape_json()).join(",") ++ ']\n'`;
+  const result = await execFileAsync(JJ_BINARY, [
+    "log",
+    "--revisions",
+    "trunk()",
+    "--no-graph",
+    "--limit",
+    "1",
+    "--template",
+    template,
+  ]);
+
+  let remoteBookmarks: string[];
   try {
-    // List all remote bookmarks and look for common default branch names
-    const bookmarkResult = await execFileAsync(JJ_BINARY, [
-      "bookmark",
-      "list",
-      "--all-remotes",
-    ]);
-
-    const lines = bookmarkResult.stdout
-      .trim()
-      .split("\n")
-      .filter((line) => line.trim());
-
-    // Look for common trunk bookmark names in the results
-    for (const line of lines) {
-      const bookmarkName = line.trim();
-
-      // Look for bookmark@remote pattern
-      const match = bookmarkName.match(/^([^@\s:]+)@(\w+)/);
-      if (match) {
-        const name = match[1];
-        if (name === "main" || name === "master" || name === "trunk") {
-          return name;
-        }
-      }
-    }
-
-    // If no common names found, try to use the first remote bookmark
-    for (const line of lines) {
-      const match = line.match(/^([^@\s:]+)@(\w+)/);
-      if (match) {
-        return match[1];
-      }
-    }
-
-    // Final fallback
-    return "main";
-  } catch {
-    return "main";
+    remoteBookmarks = v.parse(RemoteBookmarksSchema, JSON.parse(result.stdout));
+  } catch (e) {
+    throw new Error(
+      `Failed to parse remote bookmarks from jj log output: ${String(e)}`,
+    );
   }
+
+  const candidates = ["main", "master", "trunk"];
+  for (const candidate of candidates) {
+    if (remoteBookmarks.includes(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(
+    `Could not find a remote bookmark for default branch (main, master, or trunk) in: ${JSON.stringify(remoteBookmarks)}`,
+  );
 }
 
 /**
  * Get the base branch for a bookmark based on what it's stacked on
  */
-export async function getBaseBranchOptions(
+export function getBaseBranchOptions(
   bookmarkName: string,
   changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
-): Promise<string[]> {
+  defaultBranch: string,
+): string[] {
   // Find the bookmark in our change graph
   for (const stack of changeGraph.stacks) {
     for (let i = 0; i < stack.segments.length; i++) {
@@ -256,7 +250,7 @@ export async function getBaseBranchOptions(
       if (segment.bookmarks.map((b) => b.name).includes(bookmarkName)) {
         // If this is the first segment in the stack, it's based on the default branch
         if (i === 0) {
-          return [await getDefaultBranch()];
+          return [defaultBranch];
         }
 
         // Otherwise, it's based on the previous segment's bookmark
@@ -444,18 +438,17 @@ export async function getExistingPRs(
 /**
  * Validate existing PRs against expected base branches and identify mismatches
  */
-export async function validatePRBases(
+export function validatePRBases(
   bookmarks: Bookmark[],
   existingPRs: Map<string, PullRequestListItem | null>,
   changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
-): Promise<
-  {
-    bookmark: Bookmark;
-    currentBaseBranch: string;
-    expectedBaseBranchOptions: string[];
-    pr: PullRequestListItem;
-  }[]
-> {
+  defaultBranch: string,
+): {
+  bookmark: Bookmark;
+  currentBaseBranch: string;
+  expectedBaseBranchOptions: string[];
+  pr: PullRequestListItem;
+}[] {
   const mismatches: {
     bookmark: Bookmark;
     currentBaseBranch: string;
@@ -467,9 +460,10 @@ export async function validatePRBases(
     const existingPR = existingPRs.get(bookmark.name);
 
     if (existingPR) {
-      const expectedBaseBranchOptions = await getBaseBranchOptions(
+      const expectedBaseBranchOptions = getBaseBranchOptions(
         bookmark.name,
         changeGraph,
+        defaultBranch,
       );
       const currentBaseBranch = existingPR.base.ref;
 
@@ -526,11 +520,14 @@ export async function analyzeSubmissionPlan(
       bookmarksToSubmit,
     );
 
+    const defaultBranch = await getDefaultBranch();
+
     // 6. Validate existing PRs against expected base branches
-    const bookmarksNeedingPRBaseUpdate = await validatePRBases(
+    const bookmarksNeedingPRBaseUpdate = validatePRBases(
       bookmarksToSubmit,
       existingPRs,
       changeGraph,
+      defaultBranch,
     );
 
     // 7. Determine what actions are needed
@@ -547,9 +544,10 @@ export async function analyzeSubmissionPlan(
       if (!hasExistingPR) {
         bookmarksNeedingPR.push({
           bookmark,
-          baseBranchOptions: await getBaseBranchOptions(
+          baseBranchOptions: getBaseBranchOptions(
             bookmark.name,
             changeGraph,
+            defaultBranch,
           ),
           prContent: { title: generatePRTitle(bookmark.name, changeGraph) },
         });
