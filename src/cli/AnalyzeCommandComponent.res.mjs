@@ -9,7 +9,7 @@ var $$Text = {};
 
 function AnalyzeCommandComponent(props) {
   var prStatusMap = props.prStatusMap;
-  var isDataActionable = props.changeGraph.bookmarks.some(function (bookmark) {
+  var isDataActionable = Array.from(props.changeGraph.bookmarks.values()).some(function (bookmark) {
         if (!bookmark.hasRemote || !bookmark.isSynced) {
           return true;
         } else {

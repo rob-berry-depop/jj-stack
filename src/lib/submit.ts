@@ -3,7 +3,7 @@ import { promisify } from "util";
 import { Octokit } from "octokit";
 import { buildChangeGraph, gitFetch } from "./jjUtils.js";
 import { getGitHubAuth } from "./auth.js";
-import { Bookmark } from "./jjTypes.js";
+import type { Bookmark, ChangeGraph } from "./jjTypes.js";
 import * as v from "valibot";
 
 const execFileAsync = promisify(execFile);
@@ -89,7 +89,7 @@ export async function validateBookmark(bookmarkName: string): Promise<void> {
  */
 export function getStackBookmarksToSubmit(
   bookmarkName: string,
-  changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
+  changeGraph: ChangeGraph,
 ): Bookmark[] {
   // Find which stack contains the target bookmark
   for (const stack of changeGraph.stacks) {
@@ -240,7 +240,7 @@ export async function getDefaultBranch(): Promise<string> {
  */
 export function getBaseBranchOptions(
   bookmarkName: string,
-  changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
+  changeGraph: ChangeGraph,
   defaultBranch: string,
 ): string[] {
   // Find the bookmark in our change graph
@@ -270,20 +270,19 @@ export function getBaseBranchOptions(
  */
 export function generatePRTitle(
   bookmarkName: string,
-  changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
+  changeGraph: ChangeGraph,
 ): string {
-  try {
-    const segmentChanges = changeGraph.segmentChanges.get(bookmarkName);
-
-    if (!segmentChanges || segmentChanges.length === 0) {
-      return `Add ${bookmarkName}`;
-    }
-
-    // Use the latest commit's description as the title
-    return segmentChanges[0].descriptionFirstLine || `Add ${bookmarkName}`;
-  } catch {
-    return `Add ${bookmarkName}`;
+  const changeId = changeGraph.bookmarkToChangeId.get(bookmarkName);
+  if (!changeId) {
+    throw new Error(`Change not found for bookmark ${bookmarkName}`);
   }
+  const segmentChanges = changeGraph.bookmarkedChangeIdToSegment.get(changeId);
+  if (!segmentChanges || segmentChanges.length === 0) {
+    throw new Error(`Segment not found or invalid for change id ${changeId}`);
+  }
+
+  // Use the latest commit's description as the title
+  return segmentChanges[0].descriptionFirstLine || bookmarkName;
 }
 
 /**
@@ -441,7 +440,7 @@ export async function getExistingPRs(
 export function validatePRBases(
   bookmarks: Bookmark[],
   existingPRs: Map<string, PullRequestListItem | null>,
-  changeGraph: Awaited<ReturnType<typeof buildChangeGraph>>,
+  changeGraph: ChangeGraph,
   defaultBranch: string,
 ): {
   bookmark: Bookmark;

@@ -45,7 +45,7 @@ let analyzeCommand = async () => {
       githubConfig.octokit,
       githubConfig.owner,
       githubConfig.repo,
-      changeGraph.bookmarks->Array.map(b => b.name),
+      changeGraph.bookmarks->Map.values->Array.fromIterator->Array.map(b => b.name),
     )
   } catch {
   | Exn.Error(error) =>
@@ -56,7 +56,7 @@ let analyzeCommand = async () => {
   render(<AnalyzeCommandComponent changeGraph prStatusMap />)
 
   Console.log("\n=== CHANGE GRAPH RESULTS ===")
-  Console.log(`Total bookmarks: ${changeGraph.bookmarks->Array.length->Belt.Int.toString}`)
+  Console.log(`Total bookmarks: ${changeGraph.bookmarks->Map.size->Belt.Int.toString}`)
   Console.log(`Total stacks: ${changeGraph.stacks->Array.length->Belt.Int.toString}`)
 
   if changeGraph.stacks->Array.length > 0 {
@@ -80,9 +80,10 @@ let analyzeCommand = async () => {
     })
   }
 
-  Console.log("\n=== INDIVIDUAL BOOKMARK DETAILS ===")
-  changeGraph.segmentChanges->Map.forEachWithKey((segmentChanges, bookmarkName) => {
-    Console.log(`\n${bookmarkName}:`)
+  Console.log("\n=== SEGMENT DETAILS ===")
+  changeGraph.bookmarkedChangeIdToSegment->Map.forEachWithKey((segmentChanges, changeId) => {
+    let logEntry = Option.getExn(segmentChanges[0])
+    Console.log(`\n${changeId} (${logEntry.localBookmarks->Array.join(", ")}):`)
     Console.log(`  Segment changes: ${segmentChanges->Array.length->Belt.Int.toString}`)
     switch (segmentChanges->Array.at(0), segmentChanges->Array.last) {
     | (Some(first), Some(last)) => {

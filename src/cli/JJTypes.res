@@ -26,8 +26,11 @@ type bookmarkSegment = {
 type branchStack = {segments: array<bookmarkSegment>}
 
 type changeGraph = {
-  bookmarks: array<bookmark>,
-  stackingRelationships: Map.t<string, array<string>>,
-  segmentChanges: Map.t<string, array<logEntry>>,
+  bookmarks: Map.t<string, bookmark>,
+  bookmarkToChangeId: Map.t<string, string>,
+  bookmarkedChangeAdjacencyList: Map.t<string, string>,
+  bookmarkedChangeIdToSegment: Map.t<string, array<logEntry>>,
+  stackLeafs: Set.t<string>,
+  stackRoots: Set.t<string>,
   stacks: array<branchStack>,
 }

@@ -46,7 +46,7 @@ async function analyzeCommand() {
     console.log("Getting GitHub configuration...");
     var githubConfig = await SubmitJs.getGitHubConfig();
     console.log("Fetching existing pull requests...");
-    prStatusMap = await getExistingPRs(githubConfig.octokit, githubConfig.owner, githubConfig.repo, changeGraph.bookmarks.map(function (b) {
+    prStatusMap = await getExistingPRs(githubConfig.octokit, githubConfig.owner, githubConfig.repo, Array.from(changeGraph.bookmarks.values()).map(function (b) {
               return b.name;
             }));
   }
@@ -64,7 +64,7 @@ async function analyzeCommand() {
             prStatusMap: prStatusMap
           }));
   console.log("\n=== CHANGE GRAPH RESULTS ===");
-  console.log("Total bookmarks: " + String(changeGraph.bookmarks.length));
+  console.log("Total bookmarks: " + String(changeGraph.bookmarks.size));
   console.log("Total stacks: " + String(changeGraph.stacks.length));
   if (changeGraph.stacks.length > 0) {
     console.log("\n=== BOOKMARK STACKS ===");
@@ -86,9 +86,10 @@ async function analyzeCommand() {
           
         });
   }
-  console.log("\n=== INDIVIDUAL BOOKMARK DETAILS ===");
-  changeGraph.segmentChanges.forEach(function (segmentChanges, bookmarkName) {
-        console.log("\n" + bookmarkName + ":");
+  console.log("\n=== SEGMENT DETAILS ===");
+  changeGraph.bookmarkedChangeIdToSegment.forEach(function (segmentChanges, changeId) {
+        var logEntry = Core__Option.getExn(segmentChanges[0], undefined);
+        console.log("\n" + changeId + " (" + logEntry.localBookmarks.join(", ") + "):");
         console.log("  Segment changes: " + String(segmentChanges.length));
         var match = segmentChanges.at(0);
         var match$1 = Core__Array.last(segmentChanges);

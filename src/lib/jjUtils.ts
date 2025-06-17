@@ -217,13 +217,13 @@ async function traverseAndDiscoverSegments(
   jj: JjFunctions,
 ): Promise<{
   segments: Array<{ bookmarks: string[]; changes: LogEntry[] }>;
-  baseBookmarks?: string[]; // if we hit a fully-collected bookmark
+  alreadySeenChangeId?: string; // if we hit a fully-collected bookmark
 }> {
   const segments: Array<{ bookmarks: string[]; changes: LogEntry[] }> = [];
   let currentSegment: { bookmarks: string[]; changes: LogEntry[] } | undefined =
     undefined;
   let lastSeenCommit: string | undefined;
-  let baseBookmarks: string[] | undefined;
+  let alreadySeenChangeId: string | undefined;
 
   pageLoop: while (true) {
     const changes = await jj.getBranchChangesPaginated(
@@ -255,7 +255,7 @@ async function traverseAndDiscoverSegments(
           console.log(
             `    Found fully-collected bookmark at ${change.commitId}`,
           );
-          baseBookmarks = change.localBookmarks;
+          alreadySeenChangeId = change.changeId;
           currentSegment = undefined; // So it doesn't get re-added at the end
           break pageLoop;
         } else {
@@ -292,7 +292,7 @@ async function traverseAndDiscoverSegments(
 
   return {
     segments,
-    baseBookmarks,
+    alreadySeenChangeId,
   };
 }
 
@@ -301,64 +301,50 @@ async function traverseAndDiscoverSegments(
  * Creates one stack per leaf bookmark, with each stack representing the full path from trunk to that leaf
  */
 function groupSegmentsIntoStacks(
-  bookmarks: Bookmark[],
-  stackingRelationships: Map<string, string[]>,
-  segmentChanges: Map<string, LogEntry[]>,
+  bookmarks: Map<string, Bookmark>,
+  stackLeafs: Set<string>,
+  bookmarkedChangeAdjacencyList: Map<string, string>,
+  bookmarkedChangeIdToSegment: Map<string, LogEntry[]>,
 ): BranchStack[] {
   const stacks: BranchStack[] = [];
 
-  // Helper function to find all children of a given bookmark
-  function findAllChildren(bookmark: string): string[] {
-    const children: string[] = [];
-    for (const [child, parents] of stackingRelationships.entries()) {
-      if (parents.includes(bookmark)) {
-        children.push(child);
-      }
-    }
-    return children;
-  }
-
-  // Helper function to find all leaf bookmarks (bookmarks with no children)
-  function findLeafBookmarks(): string[] {
-    const allBookmarkNames = bookmarks.map((b) => b.name);
-    const leafBookmarks: string[] = [];
-
-    for (const bookmarkName of allBookmarkNames) {
-      const children = findAllChildren(bookmarkName);
-      if (children.length === 0) {
-        leafBookmarks.push(bookmarkName);
-      }
-    }
-
-    return leafBookmarks;
-  }
-
   // Helper function to build a path from a leaf bookmark back to the root
-  function buildPathToRoot(leafBookmark: string): string[][] {
-    const path: string[][] = [[leafBookmark]];
-    let current = leafBookmark;
+  function buildPathToRoot(leafChangeId: string): string[] {
+    const path: string[] = [leafChangeId];
+    let current = leafChangeId;
 
     // Walk backwards through the stacking relationships to build the full path
-    while (stackingRelationships.has(current)) {
-      const parents = stackingRelationships.get(current)!;
-      path.unshift(parents); // Add parent at the beginning
-      current = parents[0]; // It doesn't matter which parent we take
+    while (bookmarkedChangeAdjacencyList.has(current)) {
+      const parent = bookmarkedChangeAdjacencyList.get(current)!;
+      path.push(parent);
+      current = parent;
     }
 
-    return path;
+    return path.reverse();
+  }
+
+  // Helper function to build segments from a list of bookmark names
+  function buildSegments(stackChangeIds: string[]): BookmarkSegment[] {
+    const segments: BookmarkSegment[] = [];
+
+    for (const changeId of stackChangeIds) {
+      const segment = bookmarkedChangeIdToSegment.get(changeId)!;
+
+      segments.push({
+        bookmarks: segment[0].localBookmarks.map(
+          (bookmarkName) => bookmarks.get(bookmarkName)!,
+        ),
+        changes: segment,
+      });
+    }
+
+    return segments;
   }
 
   // Find all leaf bookmarks and create a stack for each
-  const leafBookmarks = findLeafBookmarks();
-
-  for (const leafBookmark of leafBookmarks) {
-    const stackBookmarks = buildPathToRoot(leafBookmark);
-    const segments = buildSegmentsFromBookmarks(
-      stackBookmarks,
-      bookmarks,
-      stackingRelationships,
-      segmentChanges,
-    );
+  for (const leafChangeId of stackLeafs) {
+    const stackChangeIds = buildPathToRoot(leafChangeId);
+    const segments = buildSegments(stackChangeIds);
 
     stacks.push({
       segments,
@@ -366,30 +352,6 @@ function groupSegmentsIntoStacks(
   }
 
   return stacks;
-}
-
-// Helper function to build segments from a list of bookmark names
-function buildSegmentsFromBookmarks(
-  stackBookmarks: string[][],
-  bookmarks: Bookmark[],
-  stackingRelationships: Map<string, string[]>,
-  segmentChanges: Map<string, LogEntry[]>,
-): BookmarkSegment[] {
-  const segments: BookmarkSegment[] = [];
-
-  for (const bookmarkNames of stackBookmarks) {
-    const bookmarkObjs = bookmarks.filter((b) =>
-      bookmarkNames.includes(b.name),
-    );
-    const changes = segmentChanges.get(bookmarkNames[0]) || [];
-
-    segments.push({
-      bookmarks: bookmarkObjs,
-      changes,
-    });
-  }
-
-  return segments;
 }
 
 /**
@@ -406,25 +368,20 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
   console.log("Discovering user bookmarks...");
   const bookmarks = await jjFunctions.getMyBookmarks();
 
-  if (bookmarks.length === 0) {
-    console.log("No user bookmarks found.");
-    return {
-      bookmarks: [],
-      stacks: [],
-      segmentChanges: new Map(),
-      stackingRelationships: new Map(),
-    };
-  }
-
   console.log(
     `Found ${bookmarks.length} bookmarks: ${bookmarks.map((b) => b.name).join(", ")}`,
   );
 
+  const bookmarksByName = new Map<string, Bookmark>(
+    bookmarks.map((b) => [b.name, b]),
+  );
+
   // Data structures for the optimized algorithm
   const fullyCollectedBookmarks = new Set<string>();
-  const stackingRelationships = new Map<string, string[]>(); // child -> parent
-  const segmentChanges = new Map<string, LogEntry[]>(); // bookmark name -> just its segment changes
-  const stackRoots = new Set<string>(); // Track which bookmarks are stack roots
+  const bookmarkToChangeId = new Map<string, string>(); // bookmarkName -> changeId
+  const bookmarkedChangeAdjacencyList = new Map<string, string>(); // child (changeId) -> parent (changeId)
+  const bookmarkedChangeIdToSegment = new Map<string, LogEntry[]>(); // changeId -> all LogEntrys in that segment
+  const stackRoots = new Set<string>(); // changeIds that are the lowest bookmark in a stack excluding trunk() ancestors
 
   // Process each bookmark to collect segment changes
   for (const bookmark of bookmarks) {
@@ -448,11 +405,14 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
 
       // Store segment changes for all bookmarks found in the result
       for (const segment of result.segments) {
+        bookmarkedChangeIdToSegment.set(
+          segment.changes[0].changeId,
+          segment.changes,
+        );
         for (const bookmark of segment.bookmarks) {
-          segmentChanges.set(bookmark, segment.changes);
+          bookmarkToChangeId.set(bookmark, segment.changes[0].changeId);
           fullyCollectedBookmarks.add(bookmark);
         }
-
         console.log(
           `    Found segment for [${segment.bookmarks.join(", ")}]: ${segment.changes.length} changes`,
         );
@@ -463,30 +423,35 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
       for (let i = 0; i < result.segments.length - 1; i++) {
         const childSegment = result.segments[i];
         const parentSegment = result.segments[i + 1];
-        for (const childBookmark of childSegment.bookmarks) {
-          stackingRelationships.set(childBookmark, parentSegment.bookmarks);
-        }
+        bookmarkedChangeAdjacencyList.set(
+          childSegment.changes[0].changeId,
+          parentSegment.changes[0].changeId,
+        );
         console.log(
           `    Stacking: [${childSegment.bookmarks.join(", ")}] -> [${parentSegment.bookmarks.join(", ")}]`,
         );
       }
 
       // If we hit a fully-collected bookmark, establish relationship to it
-      if (result.baseBookmarks && result.segments.length > 0) {
+      if (result.alreadySeenChangeId && result.segments.length > 0) {
         const rootSegment = result.segments[result.segments.length - 1];
-        for (const bookmark of rootSegment.bookmarks) {
-          stackingRelationships.set(bookmark, result.baseBookmarks);
-        }
+        bookmarkedChangeAdjacencyList.set(
+          rootSegment.changes[0].changeId,
+          result.alreadySeenChangeId,
+        );
         console.log(
-          `    Stacking: [${rootSegment.bookmarks.join(", ")}] -> [${result.baseBookmarks.join(", ")}]`,
+          `    Stacking: [${rootSegment.bookmarks.join(", ")}] -> [${bookmarkedChangeIdToSegment.get(result.alreadySeenChangeId)![0].localBookmarks.join(", ")}]`,
         );
       } else if (result.segments.length > 0) {
         // We reached trunk, so the last segment is a root
         const rootSegment = result.segments[result.segments.length - 1];
+        stackRoots.add(rootSegment.changes[0].changeId);
         for (const bookmark of rootSegment.bookmarks) {
-          stackRoots.add(bookmark);
           console.log(`    Root bookmark identified: ${bookmark}`);
         }
+      } else {
+        // No segments were found, meaning the bookmark is on an ancestor of trunk()
+        // Note: a given change is an ancestor of itself, so the bookmark may have been on the same change as trunk()
       }
 
       console.log(
@@ -498,35 +463,44 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
     }
   }
 
+  const changeIdsWithChildren = new Set(bookmarkedChangeAdjacencyList.values());
+  const stackLeafs = new Set(
+    [...bookmarkedChangeIdToSegment.keys()].filter(
+      (changeId) => !changeIdsWithChildren.has(changeId),
+    ),
+  ); // changeIds that are leafs in the stack (no children, in-degree 0)
+
   // Debug: log the stacking relationships we discovered
   console.log("=== STACKING RELATIONSHIPS ===");
-  for (const [child, parents] of stackingRelationships.entries()) {
-    console.log(`${child} -> [${parents.join(", ")}]`);
+  for (const [child, parent] of bookmarkedChangeAdjacencyList.entries()) {
+    console.log(
+      `[${bookmarkedChangeIdToSegment.get(child)![0].localBookmarks.join(", ")}] -> [${bookmarkedChangeIdToSegment.get(parent)![0].localBookmarks.join(", ")}]`,
+    );
   }
-  if (stackingRelationships.size === 0) {
+  for (const changeId of stackRoots) {
+    console.log(
+      `[${bookmarkedChangeIdToSegment.get(changeId)![0].localBookmarks.join(", ")}] -> trunk()`,
+    );
+  }
+  if (bookmarkedChangeIdToSegment.size === 0 && stackRoots.size === 0) {
     console.log("No stacking relationships found");
-  }
-
-  // Debug: log the stack roots we identified
-  console.log("=== STACK ROOTS ===");
-  for (const root of stackRoots) {
-    console.log(`Root: ${root}`);
-  }
-  if (stackRoots.size === 0) {
-    console.log("No stack roots found");
   }
 
   // Group segments into stacks based on relationships
   const stacks = groupSegmentsIntoStacks(
-    bookmarks,
-    stackingRelationships,
-    segmentChanges,
+    bookmarksByName,
+    stackLeafs,
+    bookmarkedChangeAdjacencyList,
+    bookmarkedChangeIdToSegment,
   );
 
   return {
-    bookmarks,
-    stackingRelationships,
-    segmentChanges,
+    bookmarks: bookmarksByName,
+    bookmarkToChangeId,
+    bookmarkedChangeAdjacencyList,
+    bookmarkedChangeIdToSegment,
+    stackLeafs,
+    stackRoots,
     stacks,
   };
 }

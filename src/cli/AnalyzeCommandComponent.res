@@ -10,7 +10,10 @@ let make = (
   ~prStatusMap: Map.t<string, SubmitCommand.pullRequest>,
 ) => {
   let isDataActionable =
-    changeGraph.bookmarks->Array.some(bookmark =>
+    changeGraph.bookmarks
+    ->Map.values
+    ->Array.fromIterator
+    ->Array.some(bookmark =>
       !bookmark.hasRemote || !bookmark.isSynced || prStatusMap->Map.get(bookmark.name) == None
     )
 

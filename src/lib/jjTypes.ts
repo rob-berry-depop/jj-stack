@@ -28,8 +28,11 @@ export interface BranchStack {
 }
 
 export interface ChangeGraph {
-  bookmarks: Bookmark[];
-  stackingRelationships: Map<string, string[]>; // bookmark name -> list of parent bookmark names
-  segmentChanges: Map<string, LogEntry[]>; // bookmark name -> just its segment changes
+  bookmarks: Map<string, Bookmark>;
+  bookmarkToChangeId: Map<string, string>;
+  bookmarkedChangeAdjacencyList: Map<string, string>;
+  bookmarkedChangeIdToSegment: Map<string, LogEntry[]>;
+  stackLeafs: Set<string>;
+  stackRoots: Set<string>;
   stacks: BranchStack[];
 }

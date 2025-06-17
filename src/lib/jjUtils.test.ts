@@ -190,9 +190,15 @@ suite("stack detection", () => {
     }
 
     // Verify segmentChanges map
-    const bookmark1Changes = result.segmentChanges.get("bookmark1");
-    const bookmark2Changes = result.segmentChanges.get("bookmark2");
-    const bookmark3Changes = result.segmentChanges.get("bookmark3");
+    const bookmark1Changes = result.bookmarkedChangeIdToSegment.get(
+      result.bookmarkToChangeId.get("bookmark1")!,
+    );
+    const bookmark2Changes = result.bookmarkedChangeIdToSegment.get(
+      result.bookmarkToChangeId.get("bookmark2")!,
+    );
+    const bookmark3Changes = result.bookmarkedChangeIdToSegment.get(
+      result.bookmarkToChangeId.get("bookmark3")!,
+    );
 
     assert.ok(
       bookmark1Changes &&
@@ -477,12 +483,24 @@ suite("stack detection", () => {
     }
 
     // Verify segmentChanges map contains the right individual changes for each bookmark
-    const bookmark1Changes = result.segmentChanges.get("bookmark1");
-    const bookmark2Changes = result.segmentChanges.get("bookmark2");
-    const bookmark3Changes = result.segmentChanges.get("bookmark3");
-    const bookmark4Changes = result.segmentChanges.get("bookmark4");
-    const bookmark5Changes = result.segmentChanges.get("bookmark5");
-    const bookmark6Changes = result.segmentChanges.get("bookmark6");
+    const bookmark1Changes = result.bookmarkedChangeIdToSegment.get(
+      result.bookmarkToChangeId.get("bookmark1")!,
+    );
+    const bookmark2Changes = result.bookmarkedChangeIdToSegment.get(
+      result.bookmarkToChangeId.get("bookmark2")!,
+    );
+    const bookmark3Changes = result.bookmarkedChangeIdToSegment.get(
+      result.bookmarkToChangeId.get("bookmark3")!,
+    );
+    const bookmark4Changes = result.bookmarkedChangeIdToSegment.get(
+      result.bookmarkToChangeId.get("bookmark4")!,
+    );
+    const bookmark5Changes = result.bookmarkedChangeIdToSegment.get(
+      result.bookmarkToChangeId.get("bookmark5")!,
+    );
+    const bookmark6Changes = result.bookmarkedChangeIdToSegment.get(
+      result.bookmarkToChangeId.get("bookmark6")!,
+    );
 
     assert.ok(
       bookmark1Changes &&
