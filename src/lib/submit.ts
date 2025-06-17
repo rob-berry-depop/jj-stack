@@ -347,6 +347,8 @@ export async function updatePRBase(
 
 /**
  * Create or update a stack information comment on a PR
+ * TODO: fix this to support multiple stacks stacked on top of current PR
+ * TODO: fix this to not remove the downstack PRs when updating the comment after a merge into trunk
  */
 export async function createOrUpdateStackComment(
   octokit: Octokit,
