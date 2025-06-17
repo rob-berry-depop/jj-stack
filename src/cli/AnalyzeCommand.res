@@ -22,6 +22,11 @@ external getGitHubConfig: unit => promise<gitHubConfig> = "getGitHubConfig"
 
 @module("ink") external render: React.element => unit = "render"
 
+type outputRow = {
+  chars: array<string>,
+  changeId: string,
+}
+
 let analyzeCommand = async () => {
   Console.log("Fetching from remote...")
   try {
@@ -36,22 +41,177 @@ let analyzeCommand = async () => {
   Console.log("Building change graph from user bookmarks...")
   let changeGraph = await buildChangeGraph()
 
-  let prStatusMap = try {
-    Console.log("Getting GitHub configuration...")
-    let githubConfig = await getGitHubConfig()
+  // let prStatusMap = try {
+  //   Console.log("Getting GitHub configuration...")
+  //   let githubConfig = await getGitHubConfig()
 
-    Console.log("Fetching existing pull requests...")
-    await getExistingPRs(
-      githubConfig.octokit,
-      githubConfig.owner,
-      githubConfig.repo,
-      changeGraph.bookmarks->Map.values->Array.fromIterator->Array.map(b => b.name),
-    )
-  } catch {
-  | Exn.Error(error) =>
-    Console.error("Error getting GitHub PRs: " ++ error->Exn.message->Option.getOr("Unknown error"))
-    Map.make()
+  //   Console.log("Fetching existing pull requests...")
+  //   await getExistingPRs(
+  //     githubConfig.octokit,
+  //     githubConfig.owner,
+  //     githubConfig.repo,
+  //     changeGraph.bookmarks->Map.values->Array.fromIterator->Array.map(b => b.name),
+  //   )
+  // } catch {
+  // | Exn.Error(error) =>
+  //   Console.error("Error getting GitHub PRs: " ++ error->Exn.message->Option.getOr("Unknown error"))
+  //   Map.make()
+  // }
+  let prStatusMap = Map.make()
+
+  let inDegrees = Map.make()
+  changeGraph.bookmarkedChangeAdjacencyList->Map.forEach(parentChangeId => {
+    inDegrees->Map.set(parentChangeId, inDegrees->Map.get(parentChangeId)->Option.getOr(0) + 1)
+  })
+
+  let queue = changeGraph.stackLeafs->Set.toArray
+  let topSort = []
+  while queue->Array.length > 0 {
+    let changeId = queue->Array.shift->Option.getExn
+    topSort->Array.push(changeId)
+    let parent = changeGraph.bookmarkedChangeAdjacencyList->Map.get(changeId)
+    switch parent {
+    | Some(parentChangeId) => {
+        let newParentInDegrees = inDegrees->Map.get(parentChangeId)->Option.getExn - 1
+        if newParentInDegrees > 0 {
+          inDegrees->Map.set(parentChangeId, newParentInDegrees)
+        } else {
+          queue->Array.unshift(parentChangeId)
+        }
+      }
+    | _ => ()
+    }
   }
+
+  Console.log(topSort)
+
+  let output = []
+  let columns = []
+  topSort->Array.forEach(changeId => {
+    let prefColumnIdx = columns->Array.findIndex(v => v === changeId)
+    if prefColumnIdx == -1 {
+      columns->Array.push(changeId)
+    }
+    let changeColumnIdx = prefColumnIdx == -1 ? columns->Array.length - 1 : prefColumnIdx
+
+    let nextRow = []
+    for _ in 0 to changeColumnIdx - 1 {
+      nextRow->Array.push(" │")
+    }
+    nextRow->Array.push(" ○")
+    for _ in changeColumnIdx + 1 to columns->Array.length - 1 {
+      nextRow->Array.push(" │")
+    }
+    output->Array.push({chars: nextRow, changeId})
+
+    let parent = changeGraph.bookmarkedChangeAdjacencyList->Map.get(changeId)
+    switch parent {
+    | Some(parentChangeId) => {
+        let parentColumnIdx = columns->Array.findIndex(id => id == parentChangeId)
+        if parentColumnIdx != -1 && parentColumnIdx < changeColumnIdx {
+          // Collapse the column to its left
+          columns->Array.splice(~start=changeColumnIdx, ~remove=1, ~insert=[])
+
+          let nextRow = []
+          for _ in 0 to parentColumnIdx - 1 {
+            nextRow->Array.push(" │")
+          }
+          nextRow->Array.push(" ├")
+          for _ in parentColumnIdx + 1 to changeColumnIdx - 1 {
+            nextRow->Array.push("─│")
+          }
+          nextRow->Array.push("─╯")
+          for _ in changeColumnIdx + 1 to columns->Array.length - 1 {
+            nextRow->Array.push(" │")
+          }
+
+          output->Array.push({chars: nextRow, changeId: ""})
+        } else {
+          columns[changeColumnIdx] = parentChangeId
+
+          output->Array.push({
+            chars: " │"->String.repeat(columns->Array.length)->String.split(""),
+            changeId: "",
+          })
+        }
+      }
+    | None =>
+      // This means its parent is actually trunk, which I want to always be in column 0
+      if changeColumnIdx > 0 {
+        let nextRow = []
+        nextRow->Array.push(" ├")
+        for _ in 1 to changeColumnIdx - 1 {
+          nextRow->Array.push("─│")
+        }
+        for _ in changeColumnIdx to columns->Array.length - 1 {
+          nextRow->Array.push("─╯")
+        }
+
+        columns->Array.splice(~start=changeColumnIdx, ~remove=1, ~insert=[])
+
+        output->Array.push({chars: nextRow, changeId: ""})
+      } else {
+        output->Array.push({
+          chars: " │"->String.repeat(columns->Array.length)->String.split(""),
+          changeId: "",
+        })
+      }
+    }
+  })
+  output->Array.push({chars: [" ○"], changeId: "trunk()"})
+  output->Array.forEach(line => {
+    let bookmarksStr =
+      line.changeId != "" && line.changeId != "trunk()"
+        ? " (" ++
+          (
+            (
+              changeGraph.bookmarkedChangeIdToSegment->Map.get(line.changeId)->Option.getExn
+            )[0]->Option.getExn
+          ).localBookmarks->Array.join(", ") ++ ")"
+        : ""
+    Console.log(`${line.chars->Array.join("")} ${line.changeId}${bookmarksStr}`)
+  })
+
+  // output (I think it's working!?):
+  // *
+  // |*
+  // ||*
+  // |*|
+  // ||*
+  // |*|
+  // |//
+  // |*
+  // |/
+
+  // new output:
+  // * stkpqymzptot
+  // |* uxwurwlzqkwy
+  // |* pvsrsrmypmqk
+  // |* kuzvuzknutyk
+  // |/
+  // |* qxvtxrkwlntp
+  // |* zysownlrrwor
+  // |* zpkmkmkmxmws
+  // |/
+
+  // new output, bugged:
+  //  ○ stkpqymzptot
+  //  │
+  //  │ ○ uxwurwlzqkwy
+  //  │ │
+  //  │ ○ pvsrsrmypmqk
+  //  │ │
+  //  │ ○ kuzvuzknutyk
+  //  ├─╯
+  //  │ ○ pxtukxlusrws
+  //  │ │
+  //  │ │ ○ qxvtxrkwlntp
+  //  │ │ │
+  //  │ ○ │ zysownlrrwor <- qxv's line should have curved here
+  //  │ │ │
+  //  │ ○ │ zpkmkmkmxmws
+  //  ├─╯─╯
+  //  ○ trunk()
 
   render(<AnalyzeCommandComponent changeGraph prStatusMap />)
 

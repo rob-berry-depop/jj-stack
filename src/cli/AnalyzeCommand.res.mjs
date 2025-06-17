@@ -41,24 +41,111 @@ async function analyzeCommand() {
   }
   console.log("Building change graph from user bookmarks...");
   var changeGraph = await JjUtilsJs.buildChangeGraph();
-  var prStatusMap;
-  try {
-    console.log("Getting GitHub configuration...");
-    var githubConfig = await SubmitJs.getGitHubConfig();
-    console.log("Fetching existing pull requests...");
-    prStatusMap = await getExistingPRs(githubConfig.octokit, githubConfig.owner, githubConfig.repo, Array.from(changeGraph.bookmarks.values()).map(function (b) {
-              return b.name;
-            }));
-  }
-  catch (raw_error$1){
-    var error$1 = Caml_js_exceptions.internalToOCamlException(raw_error$1);
-    if (error$1.RE_EXN_ID === Js_exn.$$Error) {
-      console.error("Error getting GitHub PRs: " + Core__Option.getOr(error$1._1.message, "Unknown error"));
-      prStatusMap = new Map();
-    } else {
-      throw error$1;
+  var prStatusMap = new Map();
+  var inDegrees = new Map();
+  changeGraph.bookmarkedChangeAdjacencyList.forEach(function (parentChangeId) {
+        inDegrees.set(parentChangeId, Core__Option.getOr(inDegrees.get(parentChangeId), 0) + 1 | 0);
+      });
+  var queue = Array.from(changeGraph.stackLeafs);
+  var topSort = [];
+  while(queue.length > 0) {
+    var changeId = Core__Option.getExn(queue.shift(), undefined);
+    topSort.push(changeId);
+    var parent = changeGraph.bookmarkedChangeAdjacencyList.get(changeId);
+    if (parent !== undefined) {
+      var newParentInDegrees = Core__Option.getExn(inDegrees.get(parent), undefined) - 1 | 0;
+      if (newParentInDegrees > 0) {
+        inDegrees.set(parent, newParentInDegrees);
+      } else {
+        queue.unshift(parent);
+      }
     }
-  }
+    
+  };
+  console.log(topSort);
+  var output = [];
+  var columns = [];
+  topSort.forEach(function (changeId) {
+        var prefColumnIdx = columns.findIndex(function (v) {
+              return v === changeId;
+            });
+        if (prefColumnIdx === -1) {
+          columns.push(changeId);
+        }
+        var changeColumnIdx = prefColumnIdx === -1 ? columns.length - 1 | 0 : prefColumnIdx;
+        var nextRow = [];
+        for(var _for = 0; _for < changeColumnIdx; ++_for){
+          nextRow.push(" │");
+        }
+        nextRow.push(" ○");
+        for(var _for$1 = changeColumnIdx + 1 | 0 ,_for_finish = columns.length; _for$1 < _for_finish; ++_for$1){
+          nextRow.push(" │");
+        }
+        output.push({
+              chars: nextRow,
+              changeId: changeId
+            });
+        var parent = changeGraph.bookmarkedChangeAdjacencyList.get(changeId);
+        if (parent !== undefined) {
+          var parentColumnIdx = columns.findIndex(function (id) {
+                return id === parent;
+              });
+          if (parentColumnIdx !== -1 && parentColumnIdx < changeColumnIdx) {
+            columns.splice(changeColumnIdx, 1);
+            var nextRow$1 = [];
+            for(var _for$2 = 0; _for$2 < parentColumnIdx; ++_for$2){
+              nextRow$1.push(" │");
+            }
+            nextRow$1.push(" ├");
+            for(var _for$3 = parentColumnIdx + 1 | 0; _for$3 < changeColumnIdx; ++_for$3){
+              nextRow$1.push("─│");
+            }
+            nextRow$1.push("─╯");
+            for(var _for$4 = changeColumnIdx + 1 | 0 ,_for_finish$1 = columns.length; _for$4 < _for_finish$1; ++_for$4){
+              nextRow$1.push(" │");
+            }
+            output.push({
+                  chars: nextRow$1,
+                  changeId: ""
+                });
+            return ;
+          }
+          columns[changeColumnIdx] = parent;
+          output.push({
+                chars: " │".repeat(columns.length).split(""),
+                changeId: ""
+              });
+          return ;
+        }
+        if (changeColumnIdx > 0) {
+          var nextRow$2 = [];
+          nextRow$2.push(" ├");
+          for(var _for$5 = 1; _for$5 < changeColumnIdx; ++_for$5){
+            nextRow$2.push("─│");
+          }
+          for(var _for$6 = changeColumnIdx ,_for_finish$2 = columns.length; _for$6 < _for_finish$2; ++_for$6){
+            nextRow$2.push("─╯");
+          }
+          columns.splice(changeColumnIdx, 1);
+          output.push({
+                chars: nextRow$2,
+                changeId: ""
+              });
+          return ;
+        }
+        output.push({
+              chars: " │".repeat(columns.length).split(""),
+              changeId: ""
+            });
+      });
+  output.push({
+        chars: [" ○"],
+        changeId: "trunk()"
+      });
+  output.forEach(function (line) {
+        var bookmarksStr = line.changeId !== "" && line.changeId !== "trunk()" ? " (" + Core__Option.getExn(Core__Option.getExn(changeGraph.bookmarkedChangeIdToSegment.get(line.changeId), undefined)[0], undefined).localBookmarks.join(", ") + ")" : "";
+        console.log(line.chars.join("") + " " + line.changeId + bookmarksStr);
+      });
   $$Ink.render(JsxRuntime.jsx(AnalyzeCommandComponent.make, {
             changeGraph: changeGraph,
             prStatusMap: prStatusMap

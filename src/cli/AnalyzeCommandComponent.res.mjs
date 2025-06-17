@@ -23,7 +23,7 @@ function AnalyzeCommandComponent(props) {
           
         }), []);
   return JsxRuntime.jsx($$Ink.Text, {
-              children: "Hello world!"
+              children: "isDataActionable: " + String(isDataActionable)
             });
 }
 

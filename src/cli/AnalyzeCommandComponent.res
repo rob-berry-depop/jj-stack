@@ -24,5 +24,5 @@ let make = (
     None
   }, [])
 
-  <Text> {React.string("Hello world!")} </Text>
+  <Text> {React.string(`isDataActionable: ${isDataActionable->String.make}`)} </Text>
 }
