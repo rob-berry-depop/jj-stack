@@ -1,7 +1,7 @@
 @module("process") external exit: int => unit = "exit"
 module Text = {
   @module("ink") @react.component
-  external make: (~children: React.element) => React.element = "Text"
+  external make: (~children: React.element, ~color: string=?) => React.element = "Text"
 }
 
 type inkKey = {
@@ -82,23 +82,24 @@ let make = (
   | None => ()
   }
 
-  let str =
-    output
-    ->Array.map(line => {
-      let bookmarksStr =
-        line.changeId != ""
-          ? " (" ++
-            Utils.changeIdToLogEntry(changeGraph, line.changeId).localBookmarks->Array.join(
-              ", ",
-            ) ++ ")"
-          : ""
-      `${line.chars->Array.join("")} ${line.changeId}${selectedChangeIdAncestors->Set.has(
-          line.changeId,
-        )
-          ? "!"
-          : ""}${bookmarksStr}`
-    })
-    ->Array.join("\n") ++ "\n ○ trunk()\n"
-
-  <Text> {React.string(str)} </Text>
+  <React.Fragment>
+    {React.array(
+      output->Array.map(line => {
+        let bookmarksStr =
+          line.changeId != ""
+            ? " (" ++
+              Utils.changeIdToLogEntry(changeGraph, line.changeId).localBookmarks->Array.join(
+                ", ",
+              ) ++ ")"
+            : ""
+        <Text>
+          <Text> {React.string(`${line.chars->Array.join("")}`)} </Text>
+          <Text color=?{selectedChangeIdAncestors->Set.has(line.changeId) ? Some("red") : None}>
+            {React.string(` ${line.changeId}${bookmarksStr}`)}
+          </Text>
+        </Text>
+      }),
+    )}
+    <Text> {React.string("\n ○ trunk()\n")} </Text>
+  </React.Fragment>
 }

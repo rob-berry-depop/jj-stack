@@ -72,14 +72,26 @@ function AnalyzeCommandComponent(props) {
       cur = parentChangeId;
     };
   }
-  var str = output.map(function (line) {
-          var bookmarksStr = line.changeId !== "" ? " (" + Utils.changeIdToLogEntry(changeGraph, line.changeId).localBookmarks.join(", ") + ")" : "";
-          return line.chars.join("") + " " + line.changeId + (
-                  selectedChangeIdAncestors.has(line.changeId) ? "!" : ""
-                ) + bookmarksStr;
-        }).join("\n") + "\n ○ trunk()\n";
-  return JsxRuntime.jsx($$Ink.Text, {
-              children: str
+  return JsxRuntime.jsxs(React.Fragment, {
+              children: [
+                output.map(function (line) {
+                      var bookmarksStr = line.changeId !== "" ? " (" + Utils.changeIdToLogEntry(changeGraph, line.changeId).localBookmarks.join(", ") + ")" : "";
+                      return JsxRuntime.jsxs($$Ink.Text, {
+                                  children: [
+                                    JsxRuntime.jsx($$Ink.Text, {
+                                          children: line.chars.join("")
+                                        }),
+                                    JsxRuntime.jsx($$Ink.Text, {
+                                          children: " " + line.changeId + bookmarksStr,
+                                          color: selectedChangeIdAncestors.has(line.changeId) ? "red" : undefined
+                                        })
+                                  ]
+                                });
+                    }),
+                JsxRuntime.jsx($$Ink.Text, {
+                      children: "\n ○ trunk()\n"
+                    })
+              ]
             });
 }
 
