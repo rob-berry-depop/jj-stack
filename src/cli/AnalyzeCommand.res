@@ -22,11 +22,6 @@ external getGitHubConfig: unit => promise<gitHubConfig> = "getGitHubConfig"
 
 @module("ink") external render: React.element => unit = "render"
 
-type outputRow = {
-  chars: array<string>,
-  changeId: string,
-}
-
 let analyzeCommand = async () => {
   Console.log("Fetching from remote...")
   try {
@@ -92,7 +87,7 @@ let analyzeCommand = async () => {
 
   Console.log(topSort)
 
-  let output = []
+  let output: array<AnalyzeCommandComponent.outputRow> = []
   let columns = []
   topSort->Array.forEach(changeId => {
     let prefColumnIdx = columns->Array.findIndex(v => v === changeId)
@@ -165,18 +160,7 @@ let analyzeCommand = async () => {
       }
     }
   })
-  output->Array.push({chars: [" ○"], changeId: "trunk()"})
 
-  output->Array.forEach(line => {
-    let bookmarksStr =
-      line.changeId != "" && line.changeId != "trunk()"
-        ? " (" ++
-          Utils.changeIdToLogEntry(changeGraph, line.changeId).localBookmarks->Array.join(
-            ", ",
-          ) ++ ")"
-        : ""
-    Console.log(`${line.chars->Array.join("")} ${line.changeId}${bookmarksStr}`)
-  })
   // output:
   //  ○ pxtukxlusrws (branchy)
   //  │
@@ -196,7 +180,7 @@ let analyzeCommand = async () => {
   //  ├─╯
   //  ○ trunk()
 
-  render(<AnalyzeCommandComponent changeGraph prStatusMap />)
+  render(<AnalyzeCommandComponent changeGraph prStatusMap output />)
 
   Console.log("\n=== CHANGE GRAPH RESULTS ===")
   Console.log(`Total bookmarks: ${changeGraph.bookmarks->Map.size->Belt.Int.toString}`)

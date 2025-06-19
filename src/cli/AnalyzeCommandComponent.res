@@ -4,10 +4,16 @@ module Text = {
   external make: (~children: React.element) => React.element = "Text"
 }
 
+type outputRow = {
+  chars: array<string>,
+  changeId: string,
+}
+
 @react.component
 let make = (
   ~changeGraph: JJTypes.changeGraph,
   ~prStatusMap: Map.t<string, SubmitCommand.pullRequest>,
+  ~output: array<outputRow>,
 ) => {
   let isDataActionable =
     changeGraph.bookmarks
@@ -24,5 +30,39 @@ let make = (
     None
   }, [])
 
-  <Text> {React.string(`isDataActionable: ${isDataActionable->String.make}`)} </Text>
+  let (selectedChangeId, setSelectedChangeId) = React.useState(() =>
+    output[0]->Option.mapOr(None, outputRow => Some(outputRow.changeId))
+  )
+
+  let selectedChangeIdAncestors = Set.make()
+  switch selectedChangeId {
+  | Some(selectedChangeId) => {
+      selectedChangeIdAncestors->Set.add(selectedChangeId)
+      let cur = ref(selectedChangeId)
+      while changeGraph.bookmarkedChangeAdjacencyList->Map.has(cur.contents) {
+        let parentChangeId =
+          changeGraph.bookmarkedChangeAdjacencyList->Map.get(cur.contents)->Option.getExn
+        selectedChangeIdAncestors->Set.add(parentChangeId)
+        cur.contents = parentChangeId
+      }
+      ()
+    }
+  | None => ()
+  }
+
+  let str =
+    output
+    ->Array.map(line => {
+      let bookmarksStr =
+        line.changeId != ""
+          ? " (" ++
+            Utils.changeIdToLogEntry(changeGraph, line.changeId).localBookmarks->Array.join(
+              ", ",
+            ) ++ ")"
+          : ""
+      `${line.chars->Array.join("")} ${line.changeId}${bookmarksStr}`
+    })
+    ->Array.join("\n") ++ "\n ○ trunk()\n"
+
+  <Text> {React.string(str)} </Text>
 }

@@ -143,17 +143,10 @@ async function analyzeCommand() {
               changeId: ""
             });
       });
-  output.push({
-        chars: [" ○"],
-        changeId: "trunk()"
-      });
-  output.forEach(function (line) {
-        var bookmarksStr = line.changeId !== "" && line.changeId !== "trunk()" ? " (" + Utils.changeIdToLogEntry(changeGraph, line.changeId).localBookmarks.join(", ") + ")" : "";
-        console.log(line.chars.join("") + " " + line.changeId + bookmarksStr);
-      });
   $$Ink.render(JsxRuntime.jsx(AnalyzeCommandComponent.make, {
             changeGraph: changeGraph,
-            prStatusMap: prStatusMap
+            prStatusMap: prStatusMap,
+            output: output
           }));
   console.log("\n=== CHANGE GRAPH RESULTS ===");
   console.log("Total bookmarks: " + String(changeGraph.bookmarks.size));
