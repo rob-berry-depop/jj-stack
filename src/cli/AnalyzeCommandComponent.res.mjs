@@ -4,6 +4,7 @@ import * as $$Ink from "ink";
 import * as Utils from "./Utils.res.mjs";
 import * as React from "react";
 import * as Process from "process";
+import * as Caml_obj from "rescript/lib/es6/caml_obj.js";
 import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 import * as JsxRuntime from "react/jsx-runtime";
@@ -79,9 +80,14 @@ function AnalyzeCommandComponent(props) {
                       var tmp;
                       if (changeId !== undefined) {
                         var bookmarksStr = " (" + Utils.changeIdToLogEntry(changeGraph, changeId).localBookmarks.join(", ") + ")";
-                        tmp = JsxRuntime.jsx($$Ink.Text, {
-                              children: " " + changeId + bookmarksStr,
-                              color: selectedChangeIdAncestors.has(changeId) ? "red" : undefined
+                        tmp = JsxRuntime.jsxs($$Ink.Text, {
+                              children: [
+                                JsxRuntime.jsx($$Ink.Text, {
+                                      children: " " + changeId + bookmarksStr,
+                                      color: selectedChangeIdAncestors.has(changeId) ? "red" : undefined
+                                    }),
+                                Caml_obj.equal(line.changeId, selectedChangeId) ? " ← press enter to select this stack" : null
+                              ]
                             });
                       } else {
                         tmp = null;
@@ -96,7 +102,7 @@ function AnalyzeCommandComponent(props) {
                                 });
                     }),
                 JsxRuntime.jsx($$Ink.Text, {
-                      children: "\n ○ trunk()\n"
+                      children: " ○ trunk()\n"
                     })
               ]
             });

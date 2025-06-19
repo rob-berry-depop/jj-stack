@@ -94,8 +94,13 @@ let make = (
                 Utils.changeIdToLogEntry(changeGraph, changeId).localBookmarks->Array.join(
                   ", ",
                 ) ++ ")"
-              <Text color=?{selectedChangeIdAncestors->Set.has(changeId) ? Some("red") : None}>
-                {React.string(` ${changeId}${bookmarksStr}`)}
+              <Text>
+                <Text color=?{selectedChangeIdAncestors->Set.has(changeId) ? Some("red") : None}>
+                  {React.string(` ${changeId}${bookmarksStr}`)}
+                </Text>
+                {line.changeId == selectedChangeId
+                  ? React.string(" ← press enter to select this stack")
+                  : React.null}
               </Text>
             }
           | None => React.null
@@ -103,6 +108,6 @@ let make = (
         </Text>
       }),
     )}
-    <Text> {React.string("\n ○ trunk()\n")} </Text>
+    <Text> {React.string(" ○ trunk()\n")} </Text>
   </React.Fragment>
 }
