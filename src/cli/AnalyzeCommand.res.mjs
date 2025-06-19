@@ -111,14 +111,14 @@ async function analyzeCommand() {
             }
             output.push({
                   chars: nextRow$1,
-                  changeId: ""
+                  changeId: undefined
                 });
             return ;
           }
           columns[changeColumnIdx] = parent;
           output.push({
                 chars: " │".repeat(columns.length).split(""),
-                changeId: ""
+                changeId: undefined
               });
           return ;
         }
@@ -134,13 +134,13 @@ async function analyzeCommand() {
           columns.splice(changeColumnIdx, 1);
           output.push({
                 chars: nextRow$2,
-                changeId: ""
+                changeId: undefined
               });
           return ;
         }
         output.push({
               chars: " │".repeat(columns.length).split(""),
-              changeId: ""
+              changeId: undefined
             });
       });
   $$Ink.render(JsxRuntime.jsx(AnalyzeCommandComponent.make, {

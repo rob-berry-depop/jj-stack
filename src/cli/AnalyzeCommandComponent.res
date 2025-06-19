@@ -16,7 +16,7 @@ external useInput: ((string, inkKey) => unit, option<inkUseInputOptions>) => uni
 
 type outputRow = {
   chars: array<string>,
-  changeId: string,
+  changeId: option<string>,
 }
 
 @react.component
@@ -42,7 +42,7 @@ let make = (
   }, [])
 
   let (selectedChangeId, setSelectedChangeId) = React.useState(() =>
-    output[0]->Option.mapOr(None, outputRow => Some(outputRow.changeId))
+    output[0]->Option.mapOr(None, outputRow => outputRow.changeId)
   )
 
   useInput((_, key) => {
@@ -85,18 +85,21 @@ let make = (
   <React.Fragment>
     {React.array(
       output->Array.map(line => {
-        let bookmarksStr =
-          line.changeId != ""
-            ? " (" ++
-              Utils.changeIdToLogEntry(changeGraph, line.changeId).localBookmarks->Array.join(
-                ", ",
-              ) ++ ")"
-            : ""
         <Text>
           <Text> {React.string(`${line.chars->Array.join("")}`)} </Text>
-          <Text color=?{selectedChangeIdAncestors->Set.has(line.changeId) ? Some("red") : None}>
-            {React.string(` ${line.changeId}${bookmarksStr}`)}
-          </Text>
+          {switch line.changeId {
+          | Some(changeId) => {
+              let bookmarksStr =
+                " (" ++
+                Utils.changeIdToLogEntry(changeGraph, changeId).localBookmarks->Array.join(
+                  ", ",
+                ) ++ ")"
+              <Text color=?{selectedChangeIdAncestors->Set.has(changeId) ? Some("red") : None}>
+                {React.string(` ${changeId}${bookmarksStr}`)}
+              </Text>
+            }
+          | None => React.null
+          }}
         </Text>
       }),
     )}

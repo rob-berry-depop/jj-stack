@@ -75,16 +75,23 @@ function AnalyzeCommandComponent(props) {
   return JsxRuntime.jsxs(React.Fragment, {
               children: [
                 output.map(function (line) {
-                      var bookmarksStr = line.changeId !== "" ? " (" + Utils.changeIdToLogEntry(changeGraph, line.changeId).localBookmarks.join(", ") + ")" : "";
+                      var changeId = line.changeId;
+                      var tmp;
+                      if (changeId !== undefined) {
+                        var bookmarksStr = " (" + Utils.changeIdToLogEntry(changeGraph, changeId).localBookmarks.join(", ") + ")";
+                        tmp = JsxRuntime.jsx($$Ink.Text, {
+                              children: " " + changeId + bookmarksStr,
+                              color: selectedChangeIdAncestors.has(changeId) ? "red" : undefined
+                            });
+                      } else {
+                        tmp = null;
+                      }
                       return JsxRuntime.jsxs($$Ink.Text, {
                                   children: [
                                     JsxRuntime.jsx($$Ink.Text, {
                                           children: line.chars.join("")
                                         }),
-                                    JsxRuntime.jsx($$Ink.Text, {
-                                          children: " " + line.changeId + bookmarksStr,
-                                          color: selectedChangeIdAncestors.has(line.changeId) ? "red" : undefined
-                                        })
+                                    tmp
                                   ]
                                 });
                     }),

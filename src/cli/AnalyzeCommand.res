@@ -104,7 +104,7 @@ let analyzeCommand = async () => {
     for _ in changeColumnIdx + 1 to columns->Array.length - 1 {
       nextRow->Array.push(" │")
     }
-    output->Array.push({chars: nextRow, changeId})
+    output->Array.push({chars: nextRow, changeId: Some(changeId)})
 
     let parent = changeGraph.bookmarkedChangeAdjacencyList->Map.get(changeId)
     switch parent {
@@ -127,13 +127,13 @@ let analyzeCommand = async () => {
             nextRow->Array.push(" │")
           }
 
-          output->Array.push({chars: nextRow, changeId: ""})
+          output->Array.push({chars: nextRow, changeId: None})
         } else {
           columns[changeColumnIdx] = parentChangeId
 
           output->Array.push({
             chars: " │"->String.repeat(columns->Array.length)->String.split(""),
-            changeId: "",
+            changeId: None,
           })
         }
       }
@@ -151,11 +151,11 @@ let analyzeCommand = async () => {
 
         columns->Array.splice(~start=changeColumnIdx, ~remove=1, ~insert=[])
 
-        output->Array.push({chars: nextRow, changeId: ""})
+        output->Array.push({chars: nextRow, changeId: None})
       } else {
         output->Array.push({
           chars: " │"->String.repeat(columns->Array.length)->String.split(""),
-          changeId: "",
+          changeId: None,
         })
       }
     }
