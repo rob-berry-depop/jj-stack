@@ -7,8 +7,10 @@
     "jj-stack": "dist/cli/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "npm run res:build && npm run tsc:build",
     "test": "mocha 'src/**/*.test.ts'",
+    "tsc:build": "tsc",
+    "tsc:dev": "tsc --watch",
     "res:build": "rescript",
     "res:clean": "rescript clean",
     "res:dev": "rescript -w"
