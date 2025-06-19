@@ -59,11 +59,6 @@ let analyzeCommand = async () => {
   //   Map.make()
   // }
 
-  let changeIdToLogEntry = changeId => {
-    let segment = changeGraph.bookmarkedChangeIdToSegment->Map.get(changeId)->Option.getExn
-    segment[0]->Option.getExn
-  }
-
   let inDegrees = Map.make()
   changeGraph.bookmarkedChangeAdjacencyList->Map.forEach(parentChangeId => {
     inDegrees->Map.set(parentChangeId, inDegrees->Map.get(parentChangeId)->Option.getOr(0) + 1)
@@ -73,8 +68,8 @@ let analyzeCommand = async () => {
     changeGraph.stackLeafs
     ->Set.toArray
     ->Array.toSorted((a, b) => {
-      let logEntryA = changeIdToLogEntry(a)
-      let logEntryB = changeIdToLogEntry(b)
+      let logEntryA = Utils.changeIdToLogEntry(changeGraph, a)
+      let logEntryB = Utils.changeIdToLogEntry(changeGraph, b)
       logEntryB.committedAt->Date.getTime -. logEntryA.committedAt->Date.getTime
     })
   let topSort = []
@@ -171,53 +166,34 @@ let analyzeCommand = async () => {
     }
   })
   output->Array.push({chars: [" ○"], changeId: "trunk()"})
+
   output->Array.forEach(line => {
     let bookmarksStr =
       line.changeId != "" && line.changeId != "trunk()"
-        ? " (" ++ changeIdToLogEntry(line.changeId).localBookmarks->Array.join(", ") ++ ")"
+        ? " (" ++
+          Utils.changeIdToLogEntry(changeGraph, line.changeId).localBookmarks->Array.join(
+            ", ",
+          ) ++ ")"
         : ""
     Console.log(`${line.chars->Array.join("")} ${line.changeId}${bookmarksStr}`)
   })
-
-  // output (I think it's working!?):
-  // *
-  // |*
-  // ||*
-  // |*|
-  // ||*
-  // |*|
-  // |//
-  // |*
-  // |/
-
-  // new output:
-  // * stkpqymzptot
-  // |* uxwurwlzqkwy
-  // |* pvsrsrmypmqk
-  // |* kuzvuzknutyk
-  // |/
-  // |* qxvtxrkwlntp
-  // |* zysownlrrwor
-  // |* zpkmkmkmxmws
-  // |/
-
-  // new output, bugged:
-  //  ○ stkpqymzptot
+  // output:
+  //  ○ pxtukxlusrws (branchy)
   //  │
-  //  │ ○ uxwurwlzqkwy
-  //  │ │
-  //  │ ○ pvsrsrmypmqk
-  //  │ │
-  //  │ ○ kuzvuzknutyk
+  //  │ ○ qxvtxrkwlntp (morework2)
   //  ├─╯
-  //  │ ○ pxtukxlusrws
+  //  ○ zysownlrrwor (morework1)
+  //  │
+  //  ○ zpkmkmkmxmws (morework0, morework00)
+  //  │
+  //  │ ○ uxwurwlzqkwy (branch3)
   //  │ │
-  //  │ │ ○ qxvtxrkwlntp
-  //  │ │ │
-  //  │ ○ │ zysownlrrwor <- qxv's line should have curved here
-  //  │ │ │
-  //  │ ○ │ zpkmkmkmxmws
-  //  ├─╯─╯
+  //  │ ○ pvsrsrmypmqk (branch2)
+  //  │ │
+  //  │ ○ kuzvuzknutyk (branch1)
+  //  ├─╯
+  //  │ ○ stkpqymzptot (branch0)
+  //  ├─╯
   //  ○ trunk()
 
   render(<AnalyzeCommandComponent changeGraph prStatusMap />)
