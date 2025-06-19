@@ -42,11 +42,19 @@ async function analyzeCommand() {
   console.log("Building change graph from user bookmarks...");
   var changeGraph = await JjUtilsJs.buildChangeGraph();
   var prStatusMap = new Map();
+  var changeIdToLogEntry = function (changeId) {
+    var segment = Core__Option.getExn(changeGraph.bookmarkedChangeIdToSegment.get(changeId), undefined);
+    return Core__Option.getExn(segment[0], undefined);
+  };
   var inDegrees = new Map();
   changeGraph.bookmarkedChangeAdjacencyList.forEach(function (parentChangeId) {
         inDegrees.set(parentChangeId, Core__Option.getOr(inDegrees.get(parentChangeId), 0) + 1 | 0);
       });
-  var queue = Array.from(changeGraph.stackLeafs);
+  var queue = Array.from(changeGraph.stackLeafs).toSorted(function (a, b) {
+        changeIdToLogEntry(a);
+        changeIdToLogEntry(b);
+        return 1;
+      });
   var topSort = [];
   while(queue.length > 0) {
     var changeId = Core__Option.getExn(queue.shift(), undefined);
@@ -143,7 +151,7 @@ async function analyzeCommand() {
         changeId: "trunk()"
       });
   output.forEach(function (line) {
-        var bookmarksStr = line.changeId !== "" && line.changeId !== "trunk()" ? " (" + Core__Option.getExn(Core__Option.getExn(changeGraph.bookmarkedChangeIdToSegment.get(line.changeId), undefined)[0], undefined).localBookmarks.join(", ") + ")" : "";
+        var bookmarksStr = line.changeId !== "" && line.changeId !== "trunk()" ? " (" + changeIdToLogEntry(line.changeId).localBookmarks.join(", ") + ")" : "";
         console.log(line.chars.join("") + " " + line.changeId + bookmarksStr);
       });
   $$Ink.render(JsxRuntime.jsx(AnalyzeCommandComponent.make, {

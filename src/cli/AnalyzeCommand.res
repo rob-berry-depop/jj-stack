@@ -41,6 +41,7 @@ let analyzeCommand = async () => {
   Console.log("Building change graph from user bookmarks...")
   let changeGraph = await buildChangeGraph()
 
+  let prStatusMap = Map.make()
   // let prStatusMap = try {
   //   Console.log("Getting GitHub configuration...")
   //   let githubConfig = await getGitHubConfig()
@@ -57,14 +58,25 @@ let analyzeCommand = async () => {
   //   Console.error("Error getting GitHub PRs: " ++ error->Exn.message->Option.getOr("Unknown error"))
   //   Map.make()
   // }
-  let prStatusMap = Map.make()
+
+  let changeIdToLogEntry = changeId => {
+    let segment = changeGraph.bookmarkedChangeIdToSegment->Map.get(changeId)->Option.getExn
+    segment[0]->Option.getExn
+  }
 
   let inDegrees = Map.make()
   changeGraph.bookmarkedChangeAdjacencyList->Map.forEach(parentChangeId => {
     inDegrees->Map.set(parentChangeId, inDegrees->Map.get(parentChangeId)->Option.getOr(0) + 1)
   })
 
-  let queue = changeGraph.stackLeafs->Set.toArray
+  let queue =
+    changeGraph.stackLeafs
+    ->Set.toArray
+    ->Array.toSorted((a, b) => {
+      let logEntryA = changeIdToLogEntry(a)
+      let logEntryB = changeIdToLogEntry(b)
+      1. // todo keane
+    })
   let topSort = []
   while queue->Array.length > 0 {
     let changeId = queue->Array.shift->Option.getExn
@@ -162,12 +174,7 @@ let analyzeCommand = async () => {
   output->Array.forEach(line => {
     let bookmarksStr =
       line.changeId != "" && line.changeId != "trunk()"
-        ? " (" ++
-          (
-            (
-              changeGraph.bookmarkedChangeIdToSegment->Map.get(line.changeId)->Option.getExn
-            )[0]->Option.getExn
-          ).localBookmarks->Array.join(", ") ++ ")"
+        ? " (" ++ changeIdToLogEntry(line.changeId).localBookmarks->Array.join(", ") ++ ")"
         : ""
     Console.log(`${line.chars->Array.join("")} ${line.changeId}${bookmarksStr}`)
   })
