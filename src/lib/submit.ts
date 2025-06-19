@@ -9,8 +9,8 @@ import * as v from "valibot";
 const execFileAsync = promisify(execFile);
 const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
 
-// Use Octokit's built-in types
-export type PullRequest = Awaited<
+export type PullRequest = PullRequestItem | PullRequestListItem;
+type PullRequestItem = Awaited<
   ReturnType<Octokit["rest"]["pulls"]["get"]>
 >["data"];
 type PullRequestListItem = Awaited<
@@ -36,10 +36,10 @@ export interface SubmissionPlan {
     bookmark: Bookmark;
     currentBaseBranch: string;
     expectedBaseBranchOptions: string[];
-    pr: PullRequestListItem;
+    pr: PullRequest;
   }[];
   repoInfo: { owner: string; repo: string };
-  existingPRs: Map<string, PullRequestListItem | null>;
+  existingPRs: Map<string, PullRequest>;
 }
 
 export interface SubmissionCallbacks {
@@ -313,7 +313,7 @@ export async function createPR(
   bookmarkName: string,
   baseBranch: string,
   title: string,
-): Promise<PullRequest> {
+): Promise<PullRequestItem> {
   const result = await octokit.rest.pulls.create({
     owner,
     repo,
@@ -334,7 +334,7 @@ export async function updatePRBase(
   repo: string,
   prNumber: number,
   newBaseBranch: string,
-): Promise<PullRequest> {
+): Promise<PullRequestItem> {
   const result = await octokit.rest.pulls.update({
     owner,
     repo,
