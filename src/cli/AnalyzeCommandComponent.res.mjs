@@ -4,12 +4,14 @@ import * as $$Ink from "ink";
 import * as Utils from "./Utils.res.mjs";
 import * as React from "react";
 import * as Process from "process";
+import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 import * as JsxRuntime from "react/jsx-runtime";
 
 var $$Text = {};
 
 function AnalyzeCommandComponent(props) {
+  var topSort = props.topSort;
   var output = props.output;
   var prStatusMap = props.prStatusMap;
   var changeGraph = props.changeGraph;
@@ -31,7 +33,35 @@ function AnalyzeCommandComponent(props) {
                       return outputRow.changeId;
                     }));
       });
+  var setSelectedChangeId = match[1];
   var selectedChangeId = match[0];
+  $$Ink.useInput((function (param, key) {
+          if (selectedChangeId !== undefined) {
+            if (key.upArrow) {
+              var selectedChangeIdRowIdx = Core__Option.getExn(Core__Array.findIndexOpt(topSort, (function (changeId) {
+                          return changeId === selectedChangeId;
+                        })), undefined);
+              if (selectedChangeIdRowIdx > 0) {
+                setSelectedChangeId(function (param) {
+                      return Core__Option.getExn(topSort[selectedChangeIdRowIdx - 1 | 0], undefined);
+                    });
+              }
+              
+            } else if (key.downArrow) {
+              var selectedChangeIdRowIdx$1 = Core__Option.getExn(Core__Array.findIndexOpt(topSort, (function (changeId) {
+                          return changeId === selectedChangeId;
+                        })), undefined);
+              if (selectedChangeIdRowIdx$1 < (topSort.length - 1 | 0)) {
+                setSelectedChangeId(function (param) {
+                      return Core__Option.getExn(topSort[selectedChangeIdRowIdx$1 + 1 | 0], undefined);
+                    });
+              }
+              
+            }
+            
+          }
+          
+        }), undefined);
   var selectedChangeIdAncestors = new Set();
   if (selectedChangeId !== undefined) {
     selectedChangeIdAncestors.add(selectedChangeId);

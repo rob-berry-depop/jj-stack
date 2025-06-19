@@ -180,7 +180,7 @@ let analyzeCommand = async () => {
   //  ├─╯
   //  ○ trunk()
 
-  render(<AnalyzeCommandComponent changeGraph prStatusMap output />)
+  render(<AnalyzeCommandComponent changeGraph prStatusMap output topSort />)
 
   Console.log("\n=== CHANGE GRAPH RESULTS ===")
   Console.log(`Total bookmarks: ${changeGraph.bookmarks->Map.size->Belt.Int.toString}`)

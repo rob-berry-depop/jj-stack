@@ -146,7 +146,8 @@ async function analyzeCommand() {
   $$Ink.render(JsxRuntime.jsx(AnalyzeCommandComponent.make, {
             changeGraph: changeGraph,
             prStatusMap: prStatusMap,
-            output: output
+            output: output,
+            topSort: topSort
           }));
   console.log("\n=== CHANGE GRAPH RESULTS ===");
   console.log("Total bookmarks: " + String(changeGraph.bookmarks.size));
