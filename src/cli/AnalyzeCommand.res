@@ -75,7 +75,7 @@ let analyzeCommand = async () => {
     ->Array.toSorted((a, b) => {
       let logEntryA = changeIdToLogEntry(a)
       let logEntryB = changeIdToLogEntry(b)
-      1. // todo keane
+      logEntryB.committedAt->Date.getTime -. logEntryA.committedAt->Date.getTime
     })
   let topSort = []
   while queue->Array.length > 0 {

@@ -51,9 +51,9 @@ async function analyzeCommand() {
         inDegrees.set(parentChangeId, Core__Option.getOr(inDegrees.get(parentChangeId), 0) + 1 | 0);
       });
   var queue = Array.from(changeGraph.stackLeafs).toSorted(function (a, b) {
-        changeIdToLogEntry(a);
-        changeIdToLogEntry(b);
-        return 1;
+        var logEntryA = changeIdToLogEntry(a);
+        var logEntryB = changeIdToLogEntry(b);
+        return logEntryB.committedAt.getTime() - logEntryA.committedAt.getTime();
       });
   var topSort = [];
   while(queue.length > 0) {
