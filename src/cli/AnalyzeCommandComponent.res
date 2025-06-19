@@ -60,7 +60,11 @@ let make = (
               ", ",
             ) ++ ")"
           : ""
-      `${line.chars->Array.join("")} ${line.changeId}${bookmarksStr}`
+      `${line.chars->Array.join("")} ${line.changeId}${selectedChangeIdAncestors->Set.has(
+          line.changeId,
+        )
+          ? "!"
+          : ""}${bookmarksStr}`
     })
     ->Array.join("\n") ++ "\n ○ trunk()\n"
 

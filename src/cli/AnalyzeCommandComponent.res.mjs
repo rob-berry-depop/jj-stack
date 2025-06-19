@@ -44,7 +44,9 @@ function AnalyzeCommandComponent(props) {
   }
   var str = output.map(function (line) {
           var bookmarksStr = line.changeId !== "" ? " (" + Utils.changeIdToLogEntry(changeGraph, line.changeId).localBookmarks.join(", ") + ")" : "";
-          return line.chars.join("") + " " + line.changeId + bookmarksStr;
+          return line.chars.join("") + " " + line.changeId + (
+                  selectedChangeIdAncestors.has(line.changeId) ? "!" : ""
+                ) + bookmarksStr;
         }).join("\n") + "\n ○ trunk()\n";
   return JsxRuntime.jsx($$Ink.Text, {
               children: str
