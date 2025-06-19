@@ -44,6 +44,8 @@ suite("stack detection", () => {
         localBookmarks: [],
         remoteBookmarks: [],
         isCurrentWorkingCopy: false,
+        authoredAt: new Date(),
+        committedAt: new Date(),
       },
       {
         commitId: "commit_b",
@@ -55,6 +57,8 @@ suite("stack detection", () => {
         localBookmarks: ["bookmark3"],
         remoteBookmarks: [],
         isCurrentWorkingCopy: false,
+        authoredAt: new Date(),
+        committedAt: new Date(),
       },
       {
         commitId: "commit_c",
@@ -66,6 +70,8 @@ suite("stack detection", () => {
         localBookmarks: ["bookmark1"],
         remoteBookmarks: [],
         isCurrentWorkingCopy: false,
+        authoredAt: new Date(),
+        committedAt: new Date(),
       },
       {
         commitId: "commit_d",
@@ -77,6 +83,8 @@ suite("stack detection", () => {
         localBookmarks: ["bookmark2"],
         remoteBookmarks: [],
         isCurrentWorkingCopy: false,
+        authoredAt: new Date(),
+        committedAt: new Date(),
       },
     ];
 
@@ -288,6 +296,8 @@ suite("stack detection", () => {
         localBookmarks: [],
         remoteBookmarks: [],
         isCurrentWorkingCopy: false,
+        authoredAt: new Date(),
+        committedAt: new Date(),
       },
       {
         commitId: "commit_b",
@@ -299,6 +309,8 @@ suite("stack detection", () => {
         localBookmarks: ["bookmark1"],
         remoteBookmarks: [],
         isCurrentWorkingCopy: false,
+        authoredAt: new Date(),
+        committedAt: new Date(),
       },
       {
         commitId: "commit_c",
@@ -310,6 +322,8 @@ suite("stack detection", () => {
         localBookmarks: ["bookmark2"],
         remoteBookmarks: [],
         isCurrentWorkingCopy: false,
+        authoredAt: new Date(),
+        committedAt: new Date(),
       },
       {
         commitId: "commit_d",
@@ -321,6 +335,8 @@ suite("stack detection", () => {
         localBookmarks: ["bookmark3"],
         remoteBookmarks: [],
         isCurrentWorkingCopy: false,
+        authoredAt: new Date(),
+        committedAt: new Date(),
       },
       {
         commitId: "commit_e",
@@ -332,6 +348,8 @@ suite("stack detection", () => {
         localBookmarks: ["bookmark4"],
         remoteBookmarks: [],
         isCurrentWorkingCopy: false,
+        authoredAt: new Date(),
+        committedAt: new Date(),
       },
       {
         commitId: "commit_f",
@@ -343,6 +361,8 @@ suite("stack detection", () => {
         localBookmarks: ["bookmark5"],
         remoteBookmarks: [],
         isCurrentWorkingCopy: false,
+        authoredAt: new Date(),
+        committedAt: new Date(),
       },
       {
         commitId: "commit_g",
@@ -354,6 +374,8 @@ suite("stack detection", () => {
         localBookmarks: ["bookmark6"],
         remoteBookmarks: [],
         isCurrentWorkingCopy: false,
+        authoredAt: new Date(),
+        committedAt: new Date(),
       },
     ];
 

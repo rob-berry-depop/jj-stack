@@ -139,6 +139,8 @@ const LogEntrySchema = v.object({
   localBookmarks: v.array(v.string()),
   remoteBookmarks: v.array(v.string()),
   isCurrentWorkingCopy: v.boolean(),
+  authoredAt: v.pipe(v.string(), v.isoTimestamp()),
+  committedAt: v.pipe(v.string(), v.isoTimestamp()),
 });
 
 /**
@@ -159,7 +161,9 @@ description.first_line().trim().escape_json() ++ ', ' ++ '"parents": [' ++ paren
 p.commit_id().short().escape_json()).join(",") ++ '], ' ++ '"localBookmarks": [' ++ 
 local_bookmarks.map(|b| b.name().escape_json()).join(",") ++ '], ' ++ '"remoteBookmarks": [' ++
 remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json()).join(",") ++ 
-'], ' ++ '"isCurrentWorkingCopy":' ++ current_working_copy ++ ' }\n'`;
+'], ' ++ '"isCurrentWorkingCopy":' ++ current_working_copy ++ ', ' ++
+'"authoredAt":' ++ author.timestamp().format('%+').escape_json() ++ ', ' ++
+'"committedAt":' ++ committer.timestamp().format('%+').escape_json() ++ ' }\n'`;
 
     // Build revset: trunk..to but exclude already seen commits
     const revset = lastSeenCommit
@@ -195,7 +199,20 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
         for (const line of lines) {
           if (line.trim() === "") continue;
           try {
-            changes.push(v.parse(LogEntrySchema, JSON.parse(line)));
+            const rawChange = v.parse(LogEntrySchema, JSON.parse(line));
+            changes.push({
+              commitId: rawChange.commitId,
+              changeId: rawChange.changeId,
+              authorName: rawChange.authorName,
+              authorEmail: rawChange.authorEmail,
+              descriptionFirstLine: rawChange.descriptionFirstLine,
+              parents: rawChange.parents,
+              localBookmarks: rawChange.localBookmarks,
+              remoteBookmarks: rawChange.remoteBookmarks,
+              isCurrentWorkingCopy: rawChange.isCurrentWorkingCopy,
+              authoredAt: new Date(rawChange.authoredAt),
+              committedAt: new Date(rawChange.committedAt),
+            });
           } catch (parseError) {
             console.error(`Failed to parse line: ${line}`, parseError);
           }

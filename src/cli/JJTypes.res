@@ -8,6 +8,8 @@ type logEntry = {
   localBookmarks: array<string>,
   remoteBookmarks: array<string>,
   isCurrentWorkingCopy: bool,
+  authoredAt: Date.t,
+  committedAt: Date.t,
 }
 
 type bookmark = {

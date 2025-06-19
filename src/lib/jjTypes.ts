@@ -8,6 +8,8 @@ export interface LogEntry {
   localBookmarks: string[];
   remoteBookmarks: string[];
   isCurrentWorkingCopy: boolean;
+  authoredAt: Date;
+  committedAt: Date;
 }
 
 export interface Bookmark {
