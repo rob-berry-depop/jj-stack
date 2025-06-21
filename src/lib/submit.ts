@@ -584,9 +584,6 @@ export async function createSubmissionPlan(
   try {
     const targetBookmark = bookmarksToSubmit[bookmarksToSubmit.length - 1].name;
 
-    // Get GitHub repository info
-    const repoInfo = await getGitHubRepoInfo();
-
     // Get GitHub configuration for Octokit instance
     const githubConfig = await getGitHubConfig();
 
@@ -638,7 +635,10 @@ export async function createSubmissionPlan(
       bookmarksNeedingPush,
       bookmarksNeedingPR,
       bookmarksNeedingPRBaseUpdate,
-      repoInfo,
+      repoInfo: {
+        owner: githubConfig.owner,
+        repo: githubConfig.repo,
+      },
       existingPRs,
     };
 
