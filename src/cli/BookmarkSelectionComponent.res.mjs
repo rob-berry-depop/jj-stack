@@ -177,9 +177,9 @@ function BookmarkSelectionComponent(props) {
                         var bookmark = Core__Option.getExn(segment.bookmarks[0], undefined);
                         bookmarkDisplay = bookmark.name + " ✓";
                       } else {
-                        var selectedIndex = Core__Option.getOr(selectionState.selections.get(changeId), 0);
+                        var maybeSelectedIndex = selectionState.selections.get(changeId);
                         bookmarkDisplay = segment.bookmarks.map(function (bookmark, bookmarkIndex) {
-                                if (bookmarkIndex === selectedIndex) {
+                                if (maybeSelectedIndex !== undefined && bookmarkIndex === maybeSelectedIndex) {
                                   return "(" + bookmark.name + ")";
                                 } else {
                                   return bookmark.name;

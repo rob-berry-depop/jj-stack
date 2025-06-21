@@ -219,13 +219,12 @@ let make = (
           `${bookmark.name} ✓`
         } else {
           // Multiple bookmarks - show with selection indicators
-          let selectedIndex = selectionState.selections->Map.get(changeId)->Option.getOr(0)
+          let maybeSelectedIndex = selectionState.selections->Map.get(changeId)
           segment.bookmarks
           ->Array.mapWithIndex((bookmark, bookmarkIndex) => {
-            if bookmarkIndex == selectedIndex {
-              `(${bookmark.name})`
-            } else {
-              bookmark.name
+            switch maybeSelectedIndex {
+            | Some(selectedIndex) if bookmarkIndex == selectedIndex => `(${bookmark.name})`
+            | _ => bookmark.name
             }
           })
           ->Array.join(" ")
