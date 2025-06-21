@@ -10,9 +10,7 @@ let changeIdToLogEntry = (changeGraph: JJTypes.changeGraph, changeId) => {
   segment[0]->Option.getExn
 }
 
-// AIDEV-NOTE: CLI utilities for user interaction, specifically bookmark conflict resolution
-
-// AIDEV-NOTE: Phase 2 - Data preparation and UI integration helpers
+// AIDEV-NOTE: CLI utilities for user interaction, specifically bookmark selection
 
 // AIDEV-NOTE: Ink render function returns an instance with cleanup methods
 type inkInstance = {unmount: unit => unit}
