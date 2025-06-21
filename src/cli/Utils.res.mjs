@@ -47,7 +47,7 @@ async function resolveBookmarkSelectionsWithUI(analysis) {
                     contents: undefined
                   };
                   var component = JsxRuntime.jsx(BookmarkSelectionComponent.make, {
-                        segments: segments,
+                        segments: segments.slice().reverse(),
                         onComplete: (function (bookmarks) {
                             var instance = inkInstanceRef.contents;
                             if (instance !== undefined) {
@@ -60,7 +60,7 @@ async function resolveBookmarkSelectionsWithUI(analysis) {
                                           _1: "Selection count mismatch"
                                         });
                             } else {
-                              return resolve(bookmarks);
+                              return resolve(bookmarks.slice().reverse());
                             }
                           })
                       });

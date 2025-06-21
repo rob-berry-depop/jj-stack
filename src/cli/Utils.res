@@ -74,7 +74,7 @@ let resolveBookmarkSelectionsWithUI = async (analysis: JJTypes.submissionAnalysi
 
       let component =
         <BookmarkSelectionComponent
-          segments
+          segments={segments->Array.copy->Js.Array2.reverseInPlace} // AIDEV-NOTE: Reverse to show descendants first, ancestors last
           onComplete={bookmarks => {
             // Clean up the component first
             switch inkInstanceRef.contents {
@@ -91,7 +91,8 @@ let resolveBookmarkSelectionsWithUI = async (analysis: JJTypes.submissionAnalysi
               )
               reject(Failure("Selection count mismatch"))
             } else {
-              resolve(bookmarks)
+              // AIDEV-NOTE: Reverse bookmarks back to original trunk-to-leaf order
+              resolve(bookmarks->Array.copy->Js.Array2.reverseInPlace)
             }
           }}
         />
