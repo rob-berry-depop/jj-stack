@@ -3,7 +3,12 @@ import { promisify } from "util";
 import { Octokit } from "octokit";
 import { buildChangeGraph, gitFetch } from "./jjUtils.js";
 import { getGitHubAuth } from "./auth.js";
-import type { Bookmark, ChangeGraph, BookmarkSegment } from "./jjTypes.js";
+import type {
+  Bookmark,
+  ChangeGraph,
+  BookmarkSegment,
+  NarrowedBookmarkSegment,
+} from "./jjTypes.js";
 import * as v from "valibot";
 
 const execFileAsync = promisify(execFile);
@@ -294,28 +299,26 @@ export async function getDefaultBranch(): Promise<string> {
  */
 export function getBaseBranchOptions(
   bookmarkName: string,
-  changeGraph: ChangeGraph,
+  segments: NarrowedBookmarkSegment[],
   defaultBranch: string,
 ): string[] {
-  // Find the bookmark in our change graph
-  for (const stack of changeGraph.stacks) {
-    for (let i = 0; i < stack.segments.length; i++) {
-      const segment = stack.segments[i];
-      if (segment.bookmarks.map((b) => b.name).includes(bookmarkName)) {
-        // If this is the first segment in the stack, it's based on the default branch
-        if (i === 0) {
-          return [defaultBranch];
-        }
-
-        // Otherwise, it's based on the previous segment's bookmark
-        const previousSegment = stack.segments[i - 1];
-        return previousSegment.bookmarks.map((b) => b.name);
+  // Find the bookmark in the segments array
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    if (segment.bookmark.name === bookmarkName) {
+      // If this is the first segment in the stack, it's based on the default branch
+      if (i === 0) {
+        return [defaultBranch];
       }
+
+      // Otherwise, it's based on the previous segment's bookmark
+      const previousSegment = segments[i - 1];
+      return [previousSegment.bookmark.name];
     }
   }
 
   throw new Error(
-    `Bookmark '${bookmarkName}' not found in any stack to determine base branch`,
+    `Bookmark '${bookmarkName}' not found in any segment to determine base branch`,
   );
 }
 
@@ -324,19 +327,20 @@ export function getBaseBranchOptions(
  */
 export function generatePRTitle(
   bookmarkName: string,
-  changeGraph: ChangeGraph,
+  segments: NarrowedBookmarkSegment[],
 ): string {
-  const changeId = changeGraph.bookmarkToChangeId.get(bookmarkName);
-  if (!changeId) {
-    throw new Error(`Change not found for bookmark ${bookmarkName}`);
+  // Find the segment containing this bookmark
+  const segment = segments.find((s) => s.bookmark.name === bookmarkName);
+  if (!segment) {
+    throw new Error(`Segment not found for bookmark ${bookmarkName}`);
   }
-  const segmentChanges = changeGraph.bookmarkedChangeIdToSegment.get(changeId);
-  if (!segmentChanges || segmentChanges.length === 0) {
-    throw new Error(`Segment not found or invalid for change id ${changeId}`);
+
+  if (segment.changes.length === 0) {
+    throw new Error(`No changes found for bookmark ${bookmarkName}`);
   }
 
   // Use the latest commit's description as the title
-  return segmentChanges[0].descriptionFirstLine || bookmarkName;
+  return segment.changes[0].descriptionFirstLine || bookmarkName;
 }
 
 /**
@@ -532,7 +536,7 @@ export async function getExistingPRs(
 export function validatePRBases(
   bookmarks: Bookmark[],
   existingPRs: Map<string, PullRequestListItem | null>,
-  changeGraph: ChangeGraph,
+  segments: NarrowedBookmarkSegment[],
   defaultBranch: string,
 ): {
   bookmark: Bookmark;
@@ -553,7 +557,7 @@ export function validatePRBases(
     if (existingPR) {
       const expectedBaseBranchOptions = getBaseBranchOptions(
         bookmark.name,
-        changeGraph,
+        segments,
         defaultBranch,
       );
       const currentBaseBranch = existingPR.base.ref;
@@ -577,11 +581,11 @@ export function validatePRBases(
  * AIDEV-NOTE: Takes exactly one bookmark per segment (enforced by CLI)
  */
 export async function createSubmissionPlan(
-  bookmarksToSubmit: Bookmark[],
-  changeGraph: ChangeGraph,
+  segments: NarrowedBookmarkSegment[],
   callbacks?: PlanCallbacks,
 ): Promise<SubmissionPlan> {
   try {
+    const bookmarksToSubmit = segments.map((s) => s.bookmark);
     const targetBookmark = bookmarksToSubmit[bookmarksToSubmit.length - 1].name;
 
     // Get GitHub configuration for Octokit instance
@@ -601,7 +605,7 @@ export async function createSubmissionPlan(
     const bookmarksNeedingPRBaseUpdate = validatePRBases(
       bookmarksToSubmit,
       existingPRs,
-      changeGraph,
+      segments,
       defaultBranch,
     );
 
@@ -621,10 +625,10 @@ export async function createSubmissionPlan(
           bookmark,
           baseBranchOptions: getBaseBranchOptions(
             bookmark.name,
-            changeGraph,
+            segments,
             defaultBranch,
           ),
-          prContent: { title: generatePRTitle(bookmark.name, changeGraph) },
+          prContent: { title: generatePRTitle(bookmark.name, segments) },
         });
       }
     }
@@ -867,4 +871,33 @@ export async function executeSubmissionPlan(
     result.success = false;
     return result;
   }
+}
+
+/**
+ * Convert resolved bookmarks and analysis into narrowed bookmark segments
+ * AIDEV-NOTE: Helper function to bridge between CLI bookmark selection and submission planning
+ */
+export function createNarrowedSegments(
+  resolvedBookmarks: Bookmark[],
+  analysis: SubmissionAnalysis,
+): NarrowedBookmarkSegment[] {
+  const segments: NarrowedBookmarkSegment[] = [];
+
+  for (let i = 0; i < resolvedBookmarks.length; i++) {
+    const bookmark = resolvedBookmarks[i];
+    const correspondingSegment = analysis.relevantSegments[i];
+
+    if (!correspondingSegment) {
+      throw new Error(
+        `No segment found for bookmark ${bookmark.name} at index ${i}`,
+      );
+    }
+
+    segments.push({
+      bookmark,
+      changes: correspondingSegment.changes,
+    });
+  }
+
+  return segments;
 }

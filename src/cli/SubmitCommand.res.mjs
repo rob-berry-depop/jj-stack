@@ -10,8 +10,12 @@ function analyzeSubmissionGraph(prim) {
   return SubmitJs.analyzeSubmissionGraph(prim);
 }
 
-function createSubmissionPlan(prim0, prim1, prim2) {
-  return SubmitJs.createSubmissionPlan(prim0, prim1, prim2);
+function createSubmissionPlan(prim0, prim1) {
+  return SubmitJs.createSubmissionPlan(prim0, prim1);
+}
+
+function createNarrowedSegments(prim0, prim1) {
+  return SubmitJs.createNarrowedSegments(prim0, prim1);
 }
 
 function executeSubmissionPlan(prim0, prim1, prim2) {
@@ -74,7 +78,8 @@ async function submitCommand(bookmarkName, options) {
   console.log("✅ Found stack with " + analysis.relevantSegments.length.toString() + " segment(s)");
   var resolvedBookmarks = await Utils.resolveBookmarkSelections(analysis);
   console.log("📋 Creating submission plan...");
-  var plan = await SubmitJs.createSubmissionPlan(resolvedBookmarks, analysis.changeGraph, undefined);
+  var narrowedSegments = SubmitJs.createNarrowedSegments(resolvedBookmarks, analysis);
+  var plan = await SubmitJs.createSubmissionPlan(narrowedSegments, undefined);
   console.log("📍 GitHub repository: " + plan.repoInfo.owner + "/" + plan.repoInfo.repo);
   resolvedBookmarks.forEach(function (bookmark) {
         console.log(formatBookmarkStatus(bookmark, plan.existingPRs));
@@ -141,6 +146,7 @@ async function submitCommand(bookmarkName, options) {
 export {
   analyzeSubmissionGraph ,
   createSubmissionPlan ,
+  createNarrowedSegments ,
   executeSubmissionPlan ,
   getGitHubConfig ,
   formatBookmarkStatus ,

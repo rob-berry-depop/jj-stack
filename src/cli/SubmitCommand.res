@@ -85,10 +85,15 @@ external analyzeSubmissionGraph: string => promise<JJTypes.submissionAnalysis> =
 
 @module("../lib/submit.js")
 external createSubmissionPlan: (
-  array<JJTypes.bookmark>,
-  JJTypes.changeGraph,
+  array<JJTypes.narrowedBookmarkSegment>,
   option<'planCallbacks>,
 ) => promise<submissionPlan> = "createSubmissionPlan"
+
+@module("../lib/submit.js")
+external createNarrowedSegments: (
+  array<JJTypes.bookmark>,
+  JJTypes.submissionAnalysis,
+) => array<JJTypes.narrowedBookmarkSegment> = "createNarrowedSegments"
 
 @module("../lib/submit.js")
 external executeSubmissionPlan: (
@@ -193,7 +198,8 @@ let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>
   let resolvedBookmarks = await Utils.resolveBookmarkSelections(analysis)
 
   Console.log(`📋 Creating submission plan...`)
-  let plan = await createSubmissionPlan(resolvedBookmarks, analysis.changeGraph, None)
+  let narrowedSegments = createNarrowedSegments(resolvedBookmarks, analysis)
+  let plan = await createSubmissionPlan(narrowedSegments, None)
 
   // Display plan summary
   Console.log(`📍 GitHub repository: ${plan.repoInfo.owner}/${plan.repoInfo.repo}`)

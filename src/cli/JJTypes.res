@@ -25,6 +25,12 @@ type bookmarkSegment = {
   changes: array<logEntry>,
 }
 
+// AIDEV-NOTE: Narrowed segment type for submission planning
+type narrowedBookmarkSegment = {
+  bookmark: bookmark,
+  changes: array<logEntry>,
+}
+
 type branchStack = {segments: array<bookmarkSegment>}
 
 type changeGraph = {

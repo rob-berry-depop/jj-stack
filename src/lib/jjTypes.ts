@@ -25,6 +25,12 @@ export interface BookmarkSegment {
   changes: LogEntry[]; // Only the changes introduced by this specific bookmark
 }
 
+// AIDEV-NOTE: Narrowed segment type for submission planning
+export interface NarrowedBookmarkSegment {
+  bookmark: Bookmark; // The single selected bookmark for this segment
+  changes: LogEntry[]; // The changes in this segment (for PR title generation)
+}
+
 export interface BranchStack {
   segments: BookmarkSegment[]; // Ordered from base to top (trunk → intermediate → top)
 }
