@@ -22,20 +22,11 @@ type outputRow = {
 @react.component
 let make = (
   ~changeGraph: JJTypes.changeGraph,
-  ~prStatusMap: Map.t<string, SubmitCommand.pullRequest>,
   ~output: array<outputRow>,
   ~topSort: array<string>,
 ) => {
-  let isDataActionable =
-    changeGraph.bookmarks
-    ->Map.values
-    ->Array.fromIterator
-    ->Array.some(bookmark =>
-      !bookmark.hasRemote || !bookmark.isSynced || prStatusMap->Map.get(bookmark.name) == None
-    )
-
   React.useEffect(() => {
-    if !isDataActionable {
+    if changeGraph.stacks->Array.length == 0 {
       exit(0)
     }
     None

@@ -36,24 +36,6 @@ let analyzeCommand = async () => {
   Console.log("Building change graph from user bookmarks...")
   let changeGraph = await buildChangeGraph()
 
-  let prStatusMap = Map.make()
-  // let prStatusMap = try {
-  //   Console.log("Getting GitHub configuration...")
-  //   let githubConfig = await getGitHubConfig()
-
-  //   Console.log("Fetching existing pull requests...")
-  //   await getExistingPRs(
-  //     githubConfig.octokit,
-  //     githubConfig.owner,
-  //     githubConfig.repo,
-  //     changeGraph.bookmarks->Map.values->Array.fromIterator->Array.map(b => b.name),
-  //   )
-  // } catch {
-  // | Exn.Error(error) =>
-  //   Console.error("Error getting GitHub PRs: " ++ error->Exn.message->Option.getOr("Unknown error"))
-  //   Map.make()
-  // }
-
   let inDegrees = Map.make()
   changeGraph.bookmarkedChangeAdjacencyList->Map.forEach(parentChangeId => {
     inDegrees->Map.set(parentChangeId, inDegrees->Map.get(parentChangeId)->Option.getOr(0) + 1)
@@ -181,7 +163,7 @@ let analyzeCommand = async () => {
   //  ├─╯
   //  ○ trunk()
 
-  render(<AnalyzeCommandComponent changeGraph prStatusMap output topSort />)
+  render(<AnalyzeCommandComponent changeGraph output topSort />)
 
   Console.log("\n=== CHANGE GRAPH RESULTS ===")
   Console.log(`Total bookmarks: ${changeGraph.bookmarks->Map.size->Belt.Int.toString}`)

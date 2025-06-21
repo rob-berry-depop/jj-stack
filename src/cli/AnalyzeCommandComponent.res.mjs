@@ -14,17 +14,9 @@ var $$Text = {};
 function AnalyzeCommandComponent(props) {
   var topSort = props.topSort;
   var output = props.output;
-  var prStatusMap = props.prStatusMap;
   var changeGraph = props.changeGraph;
-  var isDataActionable = Array.from(changeGraph.bookmarks.values()).some(function (bookmark) {
-        if (!bookmark.hasRemote || !bookmark.isSynced) {
-          return true;
-        } else {
-          return prStatusMap.get(bookmark.name) === undefined;
-        }
-      });
   React.useEffect((function () {
-          if (!isDataActionable) {
+          if (changeGraph.stacks.length === 0) {
             Process.exit(0);
           }
           

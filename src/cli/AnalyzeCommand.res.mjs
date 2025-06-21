@@ -42,7 +42,6 @@ async function analyzeCommand() {
   }
   console.log("Building change graph from user bookmarks...");
   var changeGraph = await JjUtilsJs.buildChangeGraph();
-  var prStatusMap = new Map();
   var inDegrees = new Map();
   changeGraph.bookmarkedChangeAdjacencyList.forEach(function (parentChangeId) {
         inDegrees.set(parentChangeId, Core__Option.getOr(inDegrees.get(parentChangeId), 0) + 1 | 0);
@@ -145,7 +144,6 @@ async function analyzeCommand() {
       });
   $$Ink.render(JsxRuntime.jsx(AnalyzeCommandComponent.make, {
             changeGraph: changeGraph,
-            prStatusMap: prStatusMap,
             output: output,
             topSort: topSort
           }));
