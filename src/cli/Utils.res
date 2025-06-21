@@ -71,7 +71,7 @@ let resolveBookmarkSelectionsWithUI = async (analysis: JJTypes.submissionAnalysi
     // UI needed - render the interactive component
     Console.log(`🔀 Found changes with multiple bookmarks, opening interactive selector...`)
 
-    await Js.Promise.make((~resolve, ~reject) => {
+    await Promise.make((resolve, reject) => {
       let inkInstanceRef = ref(None)
 
       let component =
@@ -91,7 +91,7 @@ let resolveBookmarkSelectionsWithUI = async (analysis: JJTypes.submissionAnalysi
                   ->Array.length
                   ->Int.toString} bookmarks, got ${bookmarks->Array.length->Int.toString}`,
               )
-              reject(Exn.raiseError("Selection count mismatch"))
+              reject(Failure("Selection count mismatch"))
             } else {
               resolve(bookmarks)
             }

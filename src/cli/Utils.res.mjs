@@ -55,7 +55,10 @@ async function resolveBookmarkSelectionsWithUI(analysis) {
                             }
                             if (bookmarks.length !== segments.length) {
                               console.error("❌ Selection mismatch: expected " + segments.length.toString() + " bookmarks, got " + bookmarks.length.toString());
-                              return reject(Js_exn.raiseError("Selection count mismatch"));
+                              return reject({
+                                          RE_EXN_ID: "Failure",
+                                          _1: "Selection count mismatch"
+                                        });
                             } else {
                               return resolve(bookmarks);
                             }
