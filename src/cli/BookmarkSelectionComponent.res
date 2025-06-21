@@ -23,12 +23,10 @@ external useInput: ((string, inkKey) => unit, option<inkUseInputOptions>) => uni
 
 // AIDEV-NOTE: Internal state for tracking user selections and navigation
 type selectionState = {
-  // Index into selectableSegmentIndices array
-  focusedChangeIndex: int,
+  // Index into the selectableSegmentIndices array (derived via useMemo)
+  focusedSelectableIndex: int,
   // Map from changeId to selected bookmark index within that segment
   selections: Map.t<string, int>,
-  // Array of segment indices that have multiple bookmarks (derived)
-  selectableSegmentIndices: array<int>,
 }
 
 /**
@@ -123,14 +121,17 @@ let make = (
   ~segments: array<JJTypes.bookmarkSegment>,
   ~onComplete: array<JJTypes.bookmark> => unit,
 ) => {
-  // AIDEV-NOTE: Initialize state with default selections and selectable segments
+  // AIDEV-NOTE: Memoize derived data - segments that have multiple bookmarks
+  let selectableSegmentIndices = React.useMemo1(() => {
+    getSelectableSegmentIndices(segments)
+  }, [segments])
+
+  // AIDEV-NOTE: Initialize state with default selections only (no derived data)
   let (selectionState, setSelectionState) = React.useState(() => {
     let defaultSelections = applyDefaultSelections(segments)
-    let selectableIndices = getSelectableSegmentIndices(segments)
     {
-      focusedChangeIndex: 0,
+      focusedSelectableIndex: 0,
       selections: defaultSelections,
-      selectableSegmentIndices: selectableIndices,
     }
   })
 
@@ -145,8 +146,8 @@ let make = (
     } else if key.upArrow {
       // Move focus up (to previous selectable change)
       setSelectionState(state => {
-        if state.focusedChangeIndex > 0 {
-          {...state, focusedChangeIndex: state.focusedChangeIndex - 1}
+        if state.focusedSelectableIndex > 0 {
+          {...state, focusedSelectableIndex: state.focusedSelectableIndex - 1}
         } else {
           state
         }
@@ -154,8 +155,8 @@ let make = (
     } else if key.downArrow {
       // Move focus down (to next selectable change)
       setSelectionState(state => {
-        if state.focusedChangeIndex < state.selectableSegmentIndices->Array.length - 1 {
-          {...state, focusedChangeIndex: state.focusedChangeIndex + 1}
+        if state.focusedSelectableIndex < selectableSegmentIndices->Array.length - 1 {
+          {...state, focusedSelectableIndex: state.focusedSelectableIndex + 1}
         } else {
           state
         }
@@ -163,11 +164,11 @@ let make = (
     } else if key.leftArrow || key.rightArrow {
       // Cycle through bookmark options for focused change
       setSelectionState(state => {
-        if state.selectableSegmentIndices->Array.length == 0 {
+        if selectableSegmentIndices->Array.length == 0 {
           state
         } else {
           let focusedSegmentIndex =
-            state.selectableSegmentIndices[state.focusedChangeIndex]->Option.getExn
+            selectableSegmentIndices[state.focusedSelectableIndex]->Option.getExn
           let focusedSegment = segments[focusedSegmentIndex]->Option.getExn
           let changeId = (focusedSegment.bookmarks[0]->Option.getExn).changeId
           let currentSelection = state.selections->Map.get(changeId)->Option.getOr(0)
@@ -197,10 +198,9 @@ let make = (
         let changeId = (segment.bookmarks[0]->Option.getExn).changeId
         let isSelectable = segment.bookmarks->Array.length > 1
         let isFocused = if isSelectable {
-          let selectableIndex =
-            selectionState.selectableSegmentIndices->Array.findIndexOpt(i => i == segmentIndex)
+          let selectableIndex = selectableSegmentIndices->Array.findIndexOpt(i => i == segmentIndex)
           switch selectableIndex {
-          | Some(idx) => idx == selectionState.focusedChangeIndex
+          | Some(idx) => idx == selectionState.focusedSelectableIndex
           | None => false
           }
         } else {
@@ -238,7 +238,7 @@ let make = (
     <Text> {React.string("\n")} </Text>
     <Text> {React.string("Use ↑↓ to navigate changes, ←→ to select bookmark\n")} </Text>
     {if isComplete {
-      let selectableCount = selectionState.selectableSegmentIndices->Array.length
+      let selectableCount = selectableSegmentIndices->Array.length
       <React.Fragment>
         <Text>
           {React.string(
@@ -248,14 +248,14 @@ let make = (
       </React.Fragment>
     } else {
       let completedCount =
-        selectionState.selectableSegmentIndices
+        selectableSegmentIndices
         ->Array.filter(segmentIndex => {
           let segment = segments[segmentIndex]->Option.getExn
           let changeId = (segment.bookmarks[0]->Option.getExn).changeId
           selectionState.selections->Map.has(changeId)
         })
         ->Array.length
-      let totalCount = selectionState.selectableSegmentIndices->Array.length
+      let totalCount = selectableSegmentIndices->Array.length
       <Text>
         {React.string(
           `Make selections to continue (${completedCount->Int.toString}/${totalCount->Int.toString} selections made)\n`,

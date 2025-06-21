@@ -73,13 +73,14 @@ function getSelectedBookmarks(segments, selections) {
 function BookmarkSelectionComponent(props) {
   var onComplete = props.onComplete;
   var segments = props.segments;
+  var selectableSegmentIndices = React.useMemo((function () {
+          return getSelectableSegmentIndices(segments);
+        }), [segments]);
   var match = React.useState(function () {
         var defaultSelections = applyDefaultSelections(segments);
-        var selectableIndices = getSelectableSegmentIndices(segments);
         return {
-                focusedChangeIndex: 0,
-                selections: defaultSelections,
-                selectableSegmentIndices: selectableIndices
+                focusedSelectableIndex: 0,
+                selections: defaultSelections
               };
       });
   var setSelectionState = match[1];
@@ -91,11 +92,10 @@ function BookmarkSelectionComponent(props) {
             onComplete(selectedBookmarks);
           } else if (key.upArrow) {
             setSelectionState(function (state) {
-                  if (state.focusedChangeIndex > 0) {
+                  if (state.focusedSelectableIndex > 0) {
                     return {
-                            focusedChangeIndex: state.focusedChangeIndex - 1 | 0,
-                            selections: state.selections,
-                            selectableSegmentIndices: state.selectableSegmentIndices
+                            focusedSelectableIndex: state.focusedSelectableIndex - 1 | 0,
+                            selections: state.selections
                           };
                   } else {
                     return state;
@@ -103,11 +103,10 @@ function BookmarkSelectionComponent(props) {
                 });
           } else if (key.downArrow) {
             setSelectionState(function (state) {
-                  if (state.focusedChangeIndex < (state.selectableSegmentIndices.length - 1 | 0)) {
+                  if (state.focusedSelectableIndex < (selectableSegmentIndices.length - 1 | 0)) {
                     return {
-                            focusedChangeIndex: state.focusedChangeIndex + 1 | 0,
-                            selections: state.selections,
-                            selectableSegmentIndices: state.selectableSegmentIndices
+                            focusedSelectableIndex: state.focusedSelectableIndex + 1 | 0,
+                            selections: state.selections
                           };
                   } else {
                     return state;
@@ -115,10 +114,10 @@ function BookmarkSelectionComponent(props) {
                 });
           } else if (key.leftArrow || key.rightArrow) {
             setSelectionState(function (state) {
-                  if (state.selectableSegmentIndices.length === 0) {
+                  if (selectableSegmentIndices.length === 0) {
                     return state;
                   }
-                  var focusedSegmentIndex = Core__Option.getExn(state.selectableSegmentIndices[state.focusedChangeIndex], undefined);
+                  var focusedSegmentIndex = Core__Option.getExn(selectableSegmentIndices[state.focusedSelectableIndex], undefined);
                   var focusedSegment = Core__Option.getExn(segments[focusedSegmentIndex], undefined);
                   var changeId = Core__Option.getExn(focusedSegment.bookmarks[0], undefined).changeId;
                   var currentSelection = Core__Option.getOr(state.selections.get(changeId), 0);
@@ -127,9 +126,8 @@ function BookmarkSelectionComponent(props) {
                   var newSelections = new Map(Array.from(state.selections.entries()));
                   newSelections.set(changeId, newSelection);
                   return {
-                          focusedChangeIndex: state.focusedChangeIndex,
-                          selections: newSelections,
-                          selectableSegmentIndices: state.selectableSegmentIndices
+                          focusedSelectableIndex: state.focusedSelectableIndex,
+                          selections: newSelections
                         };
                 });
           }
@@ -137,19 +135,19 @@ function BookmarkSelectionComponent(props) {
         }), undefined);
   var tmp;
   if (isComplete) {
-    var selectableCount = selectionState.selectableSegmentIndices.length;
+    var selectableCount = selectableSegmentIndices.length;
     tmp = JsxRuntime.jsx(React.Fragment, {
           children: JsxRuntime.jsx($$Ink.Text, {
                 children: "Press Enter to continue (" + selectableCount.toString() + "/" + selectableCount.toString() + " selections made)\n"
               })
         });
   } else {
-    var completedCount = selectionState.selectableSegmentIndices.filter(function (segmentIndex) {
+    var completedCount = selectableSegmentIndices.filter(function (segmentIndex) {
           var segment = Core__Option.getExn(segments[segmentIndex], undefined);
           var changeId = Core__Option.getExn(segment.bookmarks[0], undefined).changeId;
           return selectionState.selections.has(changeId);
         }).length;
-    var totalCount = selectionState.selectableSegmentIndices.length;
+    var totalCount = selectableSegmentIndices.length;
     tmp = JsxRuntime.jsx($$Ink.Text, {
           children: "Make selections to continue (" + completedCount.toString() + "/" + totalCount.toString() + " selections made)\n"
         });
@@ -164,10 +162,10 @@ function BookmarkSelectionComponent(props) {
                       var isSelectable = segment.bookmarks.length > 1;
                       var isFocused;
                       if (isSelectable) {
-                        var selectableIndex = Core__Array.findIndexOpt(selectionState.selectableSegmentIndices, (function (i) {
+                        var selectableIndex = Core__Array.findIndexOpt(selectableSegmentIndices, (function (i) {
                                 return i === segmentIndex;
                               }));
-                        isFocused = selectableIndex !== undefined ? selectableIndex === selectionState.focusedChangeIndex : false;
+                        isFocused = selectableIndex !== undefined ? selectableIndex === selectionState.focusedSelectableIndex : false;
                       } else {
                         isFocused = false;
                       }
