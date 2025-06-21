@@ -18,15 +18,22 @@ let changeIdToLogEntry = (changeGraph: JJTypes.changeGraph, changeId) => {
 @module("readline") @val
 external createInterface: {"input": 'a, "output": 'b} => 'interface = "createInterface"
 
-@send external question: ('interface, string) => promise<string> = "question"
+@send external questionCallback: ('interface, string, string => unit) => unit = "question"
 @send external close: 'interface => unit = "close"
 
 /**
  * AIDEV-NOTE: Prompt user for input with a question
+ * Fixed to properly handle readline's callback-based API
  */
 let promptUser = async (questionText: string): string => {
   let rl = createInterface({"input": stdin, "output": stdout})
-  let answer = await rl->question(questionText)
+
+  let answer = await Js.Promise.make((~resolve, ~reject as _) => {
+    rl->questionCallback(questionText, answer => {
+      resolve(answer)
+    })
+  })
+
   rl->close
   answer->String.trim
 }

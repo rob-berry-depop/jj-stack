@@ -22,7 +22,11 @@ async function promptUser(questionText) {
         input: process.stdin,
         output: process.stdout
       });
-  var answer = await rl.question(questionText);
+  var answer = await new Promise((function (resolve, param) {
+          rl.question(questionText, (function (answer) {
+                  resolve(answer);
+                }));
+        }));
   rl.close();
   return answer.trim();
 }
