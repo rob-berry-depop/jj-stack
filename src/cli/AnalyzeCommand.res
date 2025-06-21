@@ -7,9 +7,9 @@ type gitHubConfig = {
 }
 
 @module("../lib/jjUtils.js")
-external buildChangeGraph: unit => promise<JJTypes.changeGraph> = "buildChangeGraph"
+external buildChangeGraph: JJTypes.jjConfig => promise<JJTypes.changeGraph> = "buildChangeGraph"
 @module("../lib/jjUtils.js")
-external gitFetch: unit => promise<unit> = "gitFetch"
+external gitFetch: JJTypes.jjConfig => promise<unit> = "gitFetch"
 @module("../lib/submit.js")
 external getExistingPRs: (
   octoKit,
@@ -21,9 +21,14 @@ external getExistingPRs: (
 external getGitHubConfig: unit => promise<gitHubConfig> = "getGitHubConfig"
 
 let analyzeCommand = async () => {
+  // AIDEV-NOTE: Hardcoded JJ binary path - moved from library to CLI
+  let jjConfig: JJTypes.jjConfig = {
+    binaryPath: "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin",
+  }
+
   Console.log("Fetching from remote...")
   try {
-    await gitFetch()
+    await gitFetch(jjConfig)
   } catch {
   | Exn.Error(error) =>
     Console.error(
@@ -32,7 +37,7 @@ let analyzeCommand = async () => {
   }
 
   Console.log("Building change graph from user bookmarks...")
-  let changeGraph = await buildChangeGraph()
+  let changeGraph = await buildChangeGraph(jjConfig)
 
   if changeGraph.stacks->Array.length == 0 {
     Console.log(

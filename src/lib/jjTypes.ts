@@ -44,3 +44,8 @@ export interface ChangeGraph {
   stackRoots: Set<string>;
   stacks: BranchStack[];
 }
+
+// AIDEV-NOTE: Configuration for JJ binary and other settings
+export interface JjConfig {
+  binaryPath: string;
+}

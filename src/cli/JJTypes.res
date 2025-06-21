@@ -50,3 +50,6 @@ type submissionAnalysis = {
   changeGraph: changeGraph,
   relevantSegments: array<bookmarkSegment>,
 }
+
+// AIDEV-NOTE: Configuration for JJ binary and other settings
+type jjConfig = {binaryPath: string}

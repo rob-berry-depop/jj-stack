@@ -10,11 +10,11 @@ import * as JjUtilsJs from "../lib/jjUtils.js";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
 function buildChangeGraph(prim) {
-  return JjUtilsJs.buildChangeGraph();
+  return JjUtilsJs.buildChangeGraph(prim);
 }
 
 function gitFetch(prim) {
-  return JjUtilsJs.gitFetch();
+  return JjUtilsJs.gitFetch(prim);
 }
 
 function analyzeSubmissionGraph(prim0, prim1) {
@@ -149,6 +149,9 @@ async function runSubmit(bookmarkName, changeGraph, dryRun) {
 }
 
 async function submitCommand(bookmarkName, options) {
+  var jjConfig = {
+    binaryPath: "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin"
+  };
   var dryRun = options !== undefined ? Core__Option.getOr(options.dryRun, false) : false;
   if (dryRun) {
     console.log("🧪 DRY RUN: Simulating submission of bookmark: " + bookmarkName);
@@ -156,7 +159,7 @@ async function submitCommand(bookmarkName, options) {
     console.log("🚀 Submitting bookmark: " + bookmarkName);
     console.log("Fetching from remote...");
     try {
-      await JjUtilsJs.gitFetch();
+      await JjUtilsJs.gitFetch(jjConfig);
     }
     catch (raw_error){
       var error = Caml_js_exceptions.internalToOCamlException(raw_error);
@@ -168,7 +171,7 @@ async function submitCommand(bookmarkName, options) {
     }
   }
   console.log("Building change graph from user bookmarks...");
-  var changeGraph = await JjUtilsJs.buildChangeGraph();
+  var changeGraph = await JjUtilsJs.buildChangeGraph(jjConfig);
   return await runSubmit(bookmarkName, changeGraph, dryRun);
 }
 

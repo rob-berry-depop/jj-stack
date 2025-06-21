@@ -5,17 +5,17 @@ import type {
   BranchStack,
   ChangeGraph,
   BookmarkSegment,
+  JjConfig,
 } from "./jjTypes.js";
 import * as v from "valibot";
 import { logger } from "./logger.js";
 
-const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
-
 // Types for dependency injection
 export type JjFunctions = {
-  gitFetch: () => Promise<void>;
-  getMyBookmarks: () => Promise<Bookmark[]>;
+  gitFetch: (config: JjConfig) => Promise<void>;
+  getMyBookmarks: (config: JjConfig) => Promise<Bookmark[]>;
   getBranchChangesPaginated: (
+    config: JjConfig,
     from: string,
     to: string,
     lastSeenCommit?: string,
@@ -25,10 +25,10 @@ export type JjFunctions = {
 /**
  * Fetch latest changes from all git remotes
  */
-export function gitFetch(): Promise<void> {
+export function gitFetch(config: JjConfig): Promise<void> {
   return new Promise((resolve, reject) => {
     execFile(
-      JJ_BINARY,
+      config.binaryPath,
       ["git", "fetch", "--all-remotes"],
       (error, stdout, stderr) => {
         if (error) {
@@ -58,7 +58,7 @@ const BookmarkOutputSchema = v.object({
 /**
  * Get all bookmarks created by the current user
  */
-export function getMyBookmarks(): Promise<Bookmark[]> {
+export function getMyBookmarks(config: JjConfig): Promise<Bookmark[]> {
   return new Promise((resolve, reject) => {
     const bookmarkTemplate = `'{ "name":' ++ name.escape_json() ++ ', ' ++
     '"commitId":' ++ normal_target.commit_id().short().escape_json() ++ ', ' ++
@@ -67,7 +67,7 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
     '"remoteBookmarks": [' ++ normal_target.remote_bookmarks().map(|b| stringify(b.name() ++ "@" ++ b.remote()).escape_json()).join(",") ++ '] }\n'`;
 
     execFile(
-      JJ_BINARY,
+      config.binaryPath,
       [
         "bookmark",
         "list",
@@ -150,6 +150,7 @@ const LogEntrySchema = v.object({
  * will include `to` itself, but not `trunk`.
  */
 export function getBranchChangesPaginated(
+  config: JjConfig,
   trunk: string,
   to: string,
   lastSeenCommit?: string,
@@ -173,7 +174,7 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
       : `${trunk}..${to}`;
 
     execFile(
-      JJ_BINARY,
+      config.binaryPath,
       [
         "log",
         "--revisions",
@@ -234,6 +235,7 @@ async function traverseAndDiscoverSegments(
   trunkRev: string,
   fullyCollectedBookmarks: Set<string>,
   jj: JjFunctions,
+  config: JjConfig,
 ): Promise<{
   segments: Array<{ bookmarks: string[]; changes: LogEntry[] }>;
   alreadySeenChangeId?: string; // if we hit a fully-collected bookmark
@@ -246,6 +248,7 @@ async function traverseAndDiscoverSegments(
 
   pageLoop: while (true) {
     const changes = await jj.getBranchChangesPaginated(
+      config,
       trunkRev,
       bookmark.commitId,
       lastSeenCommit,
@@ -376,7 +379,10 @@ function groupSegmentsIntoStacks(
 /**
  * Build a complete change graph by discovering all bookmark segments and their relationships
  */
-export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
+export async function buildChangeGraph(
+  config: JjConfig,
+  jj?: JjFunctions,
+): Promise<ChangeGraph> {
   // Use default implementations if no jj functions provided
   const jjFunctions: JjFunctions = jj || {
     gitFetch,
@@ -385,7 +391,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
   };
 
   logger.debug("Discovering user bookmarks...");
-  const bookmarks = await jjFunctions.getMyBookmarks();
+  const bookmarks = await jjFunctions.getMyBookmarks(config);
 
   logger.debug(
     `Found ${bookmarks.length} bookmarks: ${bookmarks.map((b) => b.name).join(", ")}`,
@@ -420,6 +426,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
         trunkRev,
         fullyCollectedBookmarks,
         jjFunctions,
+        config,
       );
 
       // Store segment changes for all bookmarks found in the result
