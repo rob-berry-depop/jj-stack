@@ -62,10 +62,11 @@ let analyzeCommand = async () => {
   let queue =
     changeGraph.stackLeafs
     ->Set.toArray
-    ->Array.toSorted((a, b) => {
+    ->Js.Array2.sortInPlaceWith((a, b) => {
       let logEntryA = Utils.changeIdToLogEntry(changeGraph, a)
       let logEntryB = Utils.changeIdToLogEntry(changeGraph, b)
-      logEntryB.committedAt->Date.getTime -. logEntryA.committedAt->Date.getTime
+      logEntryB.committedAt->Date.getTime->Float.toInt -
+        logEntryA.committedAt->Date.getTime->Float.toInt
     })
   let topSort = []
   while queue->Array.length > 0 {

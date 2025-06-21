@@ -47,10 +47,10 @@ async function analyzeCommand() {
   changeGraph.bookmarkedChangeAdjacencyList.forEach(function (parentChangeId) {
         inDegrees.set(parentChangeId, Core__Option.getOr(inDegrees.get(parentChangeId), 0) + 1 | 0);
       });
-  var queue = Array.from(changeGraph.stackLeafs).toSorted(function (a, b) {
+  var queue = Array.from(changeGraph.stackLeafs).sort(function (a, b) {
         var logEntryA = Utils.changeIdToLogEntry(changeGraph, a);
         var logEntryB = Utils.changeIdToLogEntry(changeGraph, b);
-        return logEntryB.committedAt.getTime() - logEntryA.committedAt.getTime();
+        return (logEntryB.committedAt.getTime() | 0) - (logEntryA.committedAt.getTime() | 0) | 0;
       });
   var topSort = [];
   while(queue.length > 0) {
