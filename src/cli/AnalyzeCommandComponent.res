@@ -57,8 +57,8 @@ let make = (
 
   <React.Fragment>
     {React.array(
-      output->Array.map(line => {
-        <Text>
+      output->Array.mapWithIndex((line, idx) => {
+        <Text key={idx->Int.toString}>
           <Text> {React.string(`${line.chars->Array.join("")}`)} </Text>
           {switch line.changeId {
           | Some(changeId) => {

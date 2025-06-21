@@ -61,7 +61,7 @@ function AnalyzeCommandComponent(props) {
   }
   return JsxRuntime.jsxs(React.Fragment, {
               children: [
-                output.map(function (line) {
+                output.map(function (line, idx) {
                       var changeId = line.changeId;
                       var tmp;
                       if (changeId !== undefined) {
@@ -85,7 +85,7 @@ function AnalyzeCommandComponent(props) {
                                         }),
                                     tmp
                                   ]
-                                });
+                                }, idx.toString());
                     }),
                 JsxRuntime.jsx($$Ink.Text, {
                       children: " ○ trunk()\n"
