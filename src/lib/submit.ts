@@ -23,6 +23,18 @@ export interface GitHubConfig {
   octokit: Octokit;
 }
 
+const PRCommentDataSchema = v.object({
+  version: v.number(),
+  stack: v.array(
+    v.object({
+      bookmarkName: v.string(),
+      prUrl: v.pipe(v.string(), v.url()),
+      prNumber: v.number(),
+    }),
+  ),
+});
+type PRCommentData = v.InferOutput<typeof PRCommentDataSchema>;
+
 export interface SubmissionPlan {
   targetBookmark: string;
   bookmarksToSubmit: Bookmark[];
@@ -345,65 +357,44 @@ export async function updatePRBase(
   return result.data;
 }
 
+const commentDataPrefix = "<!--- JJ-STACK_INFO: ";
+const commentDataPostfix = " --->";
 const stackCommentFooter =
   "*Created with [jj-stack](https://github.com/keanemind/jj-stack)*";
-
 const stackCommentThisPRText = "← this PR";
 
 /**
  * Create or update a stack information comment on a PR
- * TODO: fix this to support multiple stacks stacked on top of current PR
- *  - Maybe this isn't an issue because users have to select a bookmark to submit and we only submit downstack...
- *  - Should we remove the ability to pick a bookmark and always make everything on GitHub consistent with local?
- *  - What about CI costs?
- *  - If the upstack PRs aren't being submitted, they're going to be out of date anyway, and shouldn't be looked at,
- *    so it's fine to leave them out of the comment.
- * TODO: fix this to not remove links to downstack PRs when updating the comment after a merge into trunk
- *  - What if we made the user choose the downstack PR if the current PR is off of trunk? Maybe too much work
- *  - What if we always guessed based on the latest state of the comment?
- *    - If the PR before the current branch is merged, and the current branch is off of trunk, leave all links downstack
- *    - untouched? This logic would have to be propagated upstack.
  */
 export async function createOrUpdateStackComment(
   githubConfig: GitHubConfig,
-  bookmarksToSubmit: Bookmark[],
-  bookmarkToPR: Map<string, PullRequest>,
-  mergedPRLinks: string[],
+  prCommentData: PRCommentData,
   currentBookmarkIdx: number,
 ): Promise<void> {
-  const stackHeight = mergedPRLinks.length + bookmarksToSubmit.length;
-  let commentBody = `This PR is part of a stack of ${stackHeight} bookmark${stackHeight === 1 ? "" : "s"}:\n\n`;
+  const encodedPRCommentData = Buffer.from(
+    JSON.stringify(prCommentData),
+  ).toString("base64");
+  let commentBody = `${commentDataPrefix}${encodedPRCommentData}${commentDataPostfix}\nThis PR is part of a stack of ${prCommentData.stack.length} bookmark${prCommentData.stack.length === 1 ? "" : "s"}:\n\n`;
 
-  for (const mergedPRLink of mergedPRLinks) {
-    commentBody += `1. [${"todo"}](${mergedPRLink})\n`;
-  }
-
-  for (let i = 0; i < bookmarksToSubmit.length; i++) {
-    const bookmark = bookmarksToSubmit[i];
+  for (let i = 0; i < prCommentData.stack.length; i++) {
+    const stackItem = prCommentData.stack[i];
     const isCurrent = i === currentBookmarkIdx;
     if (isCurrent) {
-      commentBody += `1. **${bookmark.name} ${stackCommentThisPRText}**\n`;
+      commentBody += `1. **${stackItem.bookmarkName} ${stackCommentThisPRText}**\n`;
     } else {
-      const pr = bookmarkToPR.get(bookmarksToSubmit[i].name);
-      if (!pr) {
-        throw new Error("Couldn't find PR for bookmark");
-      }
-      commentBody += `1. [${bookmark.name}](${pr.html_url})\n`;
+      commentBody += `1. [${stackItem.bookmarkName}](${stackItem.prUrl})\n`;
     }
   }
 
   commentBody += `\n---\n${stackCommentFooter}`;
 
-  const pr = bookmarkToPR.get(bookmarksToSubmit[currentBookmarkIdx].name);
-  if (!pr) {
-    throw new Error("Couldn't find PR for current bookmark");
-  }
+  const currentPRnumber = prCommentData.stack[currentBookmarkIdx].prNumber;
 
   // List existing comments to find our stack comment
   const comments = await githubConfig.octokit.rest.issues.listComments({
     owner: githubConfig.owner,
     repo: githubConfig.repo,
-    issue_number: pr.number,
+    issue_number: currentPRnumber,
   });
 
   // Find existing jj-stack comment by looking for our footer
@@ -424,68 +415,43 @@ export async function createOrUpdateStackComment(
     await githubConfig.octokit.rest.issues.createComment({
       owner: githubConfig.owner,
       repo: githubConfig.repo,
-      issue_number: pr.number,
+      issue_number: currentPRnumber,
       body: commentBody,
     });
   }
 }
 
-function parseURL(raw: string) {
-  try {
-    return new URL(raw.trim());
-  } catch {
-    return null;
-  }
-}
-
-function extractPotentialPRUrl(text: string) {
-  const potentialUrl = text.match(/https?:\/\/\S+/)?.[0];
-  if (!potentialUrl) {
-    return null;
-  }
-  const url = parseURL(potentialUrl);
-  if (!url) {
-    return null;
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return null;
-  }
-  if (text.match(/\/pull\/(\d+)/)) {
-    return url.toString();
-  }
-  return null;
-}
-
-async function getDownstackPRLinksFromExistingComment(
+async function findCommentData(
   githubConfig: GitHubConfig,
   prNumber: number,
-): Promise<string[] | undefined> {
-  // List existing comments to find our stack comment
+): Promise<PRCommentData | undefined> {
   const comments = await githubConfig.octokit.rest.issues.listComments({
     owner: githubConfig.owner,
     repo: githubConfig.repo,
     issue_number: prNumber,
   });
 
-  // Find existing jj-stack comment by looking for our footer
-  const existingComment = comments.data.find((comment) =>
+  const comment = comments.data.find((comment) =>
     comment.body?.includes(stackCommentFooter),
   );
 
-  if (existingComment?.body) {
-    const lines = existingComment.body.split("\n");
-    const prLinksSeenSoFar: string[] = [];
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      const prUrl = extractPotentialPRUrl(line);
-      if (prUrl) {
-        prLinksSeenSoFar.push(prUrl);
-        continue;
-      }
-
-      if (line.includes(stackCommentThisPRText)) {
-        return prLinksSeenSoFar;
+  if (comment?.body) {
+    const lines = comment.body.trim().split("\n");
+    if (
+      lines[0] &&
+      lines[0].includes(commentDataPrefix) &&
+      lines[0].includes(commentDataPostfix)
+    ) {
+      const rawData = lines[0].slice(
+        commentDataPrefix.length,
+        -commentDataPostfix.length,
+      );
+      const decoded = Buffer.from(rawData, "base64").toString();
+      try {
+        const parsedJson = JSON.parse(decoded) as unknown;
+        return v.parse(PRCommentDataSchema, parsedJson);
+      } catch {
+        // ignore
       }
     }
   }
@@ -782,28 +748,62 @@ export async function executeSubmissionPlan(
           "PR not found in bookmarkToPr for bookmark in bookmarksToSubmit",
         );
       }
-      const downstackPRLinks = await getDownstackPRLinksFromExistingComment(
-        githubConfig,
-        rootPR.number,
-      );
 
-      const parentPRLink = downstackPRLinks?.at(-1);
-      const parentPRNumber = parentPRLink?.match(/\/pull\/(\d+)/)?.[0];
-      if (parentPRNumber === undefined) {
-        throw new Error("Couldn't extract PR number from parent PR link");
-      }
+      const alreadyMergedStack = await (async () => {
+        const rootPRCommentData = await findCommentData(
+          githubConfig,
+          rootPR.number,
+        );
+        if (rootPRCommentData === undefined) {
+          return [];
+        }
 
-      const parentPR = (
-        await githubConfig.octokit.rest.pulls.get({
-          owner: githubConfig.owner,
-          repo: githubConfig.repo,
-          pull_number: parseInt(parentPRNumber),
-        })
-      ).data;
+        const rootPRIdx = rootPRCommentData.stack.findIndex(
+          (item) => item.prNumber === rootPR.number,
+        );
+        if (rootPRIdx === -1) {
+          // This shouldn't be possible. The root PR's comment's data is invalid.
+          return [];
+        }
 
-      const mergedPRLinks = parentPR.merged ? downstackPRLinks : undefined;
+        const rootParentPRInfo = rootPRCommentData.stack[rootPRIdx - 1];
 
-      for (let i = 1; i < plan.bookmarksToSubmit.length; i++) {
+        const rootParentPR = (
+          await githubConfig.octokit.rest.pulls.get({
+            owner: githubConfig.owner,
+            repo: githubConfig.repo,
+            pull_number: rootParentPRInfo.prNumber,
+          })
+        ).data;
+
+        if (!rootParentPR.merged) {
+          return [];
+        }
+
+        return rootPRCommentData.stack.slice(0, rootPRIdx);
+      })();
+
+      const prCommentData = {
+        version: 0,
+        stack: [
+          ...alreadyMergedStack,
+          ...plan.bookmarksToSubmit.map((bookmark) => {
+            const pr = bookmarkToPR.get(bookmark.name);
+            if (!pr) {
+              throw new Error(
+                "PR not found in bookmarkToPr for bookmark in bookmarksToSubmit",
+              );
+            }
+            return {
+              bookmarkName: bookmark.name,
+              prUrl: pr.html_url,
+              prNumber: pr.number,
+            };
+          }),
+        ],
+      } satisfies PRCommentData;
+
+      for (let i = 0; i < plan.bookmarksToSubmit.length; i++) {
         const bookmark = plan.bookmarksToSubmit[i];
         const stackPR = bookmarkToPR.get(bookmark.name);
         if (!stackPR) {
@@ -813,13 +813,7 @@ export async function executeSubmissionPlan(
         }
 
         try {
-          await createOrUpdateStackComment(
-            githubConfig,
-            plan.bookmarksToSubmit,
-            bookmarkToPR,
-            mergedPRLinks || [],
-            i,
-          );
+          await createOrUpdateStackComment(githubConfig, prCommentData, i);
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
           result.errors.push({
