@@ -1,7 +1,9 @@
 // AIDEV-NOTE: Test harness for BookmarkSelectionComponent with sample data
 // This demonstrates the component working with mock data for development
 
-@module("ink") external render: React.element => unit = "render"
+// AIDEV-NOTE: Ink render function returns an instance with cleanup methods
+type inkInstance = {unmount: unit => unit}
+@module("ink") external render: React.element => inkInstance = "render"
 
 // AIDEV-NOTE: Mock data to test the component behavior
 let createMockSegments = (): array<JJTypes.bookmarkSegment> => {
@@ -71,7 +73,7 @@ let createMockSegments = (): array<JJTypes.bookmarkSegment> => {
   [singleBookmarkSegment, multipleBookmarksWithRemoteSegment, multipleBookmarksNoDefaultSegment]
 }
 
-let testBookmarkSelection = () => {
+let testBookmarkSelection = (): unit => {
   Console.log("🧪 Testing BookmarkSelectionComponent...")
   let mockSegments = createMockSegments()
 
@@ -85,8 +87,8 @@ let testBookmarkSelection = () => {
   }
 
   let component = <BookmarkSelectionComponent segments=mockSegments onComplete />
-  render(component)
+  let _inkInstance = render(component)
 }
 
 // Run the test when this file is executed
-testBookmarkSelection()
+testBookmarkSelection()->ignore

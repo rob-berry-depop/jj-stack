@@ -14,7 +14,9 @@ let changeIdToLogEntry = (changeGraph: JJTypes.changeGraph, changeId) => {
 
 // AIDEV-NOTE: Phase 2 - Data preparation and UI integration helpers
 
-@module("ink") external render: React.element => unit = "render"
+// AIDEV-NOTE: Ink render function returns an instance with cleanup methods
+type inkInstance = {unmount: unit => unit}
+@module("ink") external render: React.element => inkInstance = "render"
 
 /**
  * AIDEV-NOTE: Check if interactive UI is needed for bookmark selection
@@ -70,10 +72,18 @@ let resolveBookmarkSelectionsWithUI = async (analysis: JJTypes.submissionAnalysi
     Console.log(`🔀 Found changes with multiple bookmarks, opening interactive selector...`)
 
     await Js.Promise.make((~resolve, ~reject) => {
+      let inkInstanceRef = ref(None)
+
       let component =
         <BookmarkSelectionComponent
           segments
           onComplete={bookmarks => {
+            // Clean up the component first
+            switch inkInstanceRef.contents {
+            | Some(instance) => instance.unmount()
+            | None => ()
+            }
+
             // Validate that we got the expected number of bookmarks back
             if bookmarks->Array.length != segments->Array.length {
               Console.error(
@@ -87,7 +97,9 @@ let resolveBookmarkSelectionsWithUI = async (analysis: JJTypes.submissionAnalysi
             }
           }}
         />
-      render(component)
+
+      let inkInstance = render(component)
+      inkInstanceRef := Some(inkInstance)
     })
   }
 }

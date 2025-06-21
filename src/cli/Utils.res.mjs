@@ -43,9 +43,16 @@ async function resolveBookmarkSelectionsWithUI(analysis) {
   } else if (isInteractiveUINeeded(segments)) {
     console.log("🔀 Found changes with multiple bookmarks, opening interactive selector...");
     return await new Promise((function (resolve, reject) {
+                  var inkInstanceRef = {
+                    contents: undefined
+                  };
                   var component = JsxRuntime.jsx(BookmarkSelectionComponent.make, {
                         segments: segments,
                         onComplete: (function (bookmarks) {
+                            var instance = inkInstanceRef.contents;
+                            if (instance !== undefined) {
+                              instance.unmount();
+                            }
                             if (bookmarks.length !== segments.length) {
                               console.error("❌ Selection mismatch: expected " + segments.length.toString() + " bookmarks, got " + bookmarks.length.toString());
                               return reject(Js_exn.raiseError("Selection count mismatch"));
@@ -54,7 +61,8 @@ async function resolveBookmarkSelectionsWithUI(analysis) {
                             }
                           })
                       });
-                  $$Ink.render(component);
+                  var inkInstance = $$Ink.render(component);
+                  inkInstanceRef.contents = inkInstance;
                 }));
   } else {
     console.log("📋 All changes have single bookmarks, proceeding automatically...");
