@@ -7,6 +7,7 @@ import type {
   BookmarkSegment,
 } from "./jjTypes.js";
 import * as v from "valibot";
+import { logger } from "./logger.js";
 
 const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
 
@@ -31,15 +32,15 @@ export function gitFetch(): Promise<void> {
       ["git", "fetch", "--all-remotes"],
       (error, stdout, stderr) => {
         if (error) {
-          console.error(
+          logger.error(
             `Failed to fetch from remotes: ${(error as Error).toString()}`,
           );
           return reject(error as Error);
         }
         if (stderr) {
-          console.warn(`Git fetch warnings: ${stderr}`);
+          logger.warn(`Git fetch warnings: ${stderr}`);
         }
-        console.log("Successfully fetched from all remotes");
+        logger.debug("Successfully fetched from all remotes");
         resolve();
       },
     );
@@ -77,13 +78,13 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
       ],
       (error, stdout, stderr) => {
         if (error) {
-          console.error(
+          logger.error(
             `Failed to get bookmarks: ${(error as Error).toString()}`,
           );
           return reject(error as Error);
         }
         if (stderr) {
-          console.error(`stderr: ${stderr}`);
+          logger.error(`stderr: ${stderr}`);
         }
 
         const bookmarks = new Map<string, Bookmark>();
@@ -119,7 +120,7 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
               }
             }
           } catch (error) {
-            console.error(`Failed to parse bookmark line: ${line}`, error);
+            logger.error(`Failed to parse bookmark line: ${line}`, error);
             reject(error as Error);
           }
         }
@@ -185,13 +186,13 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
       ],
       (error, stdout, stderr) => {
         if (error) {
-          console.error(
+          logger.error(
             `Failed to get changes (trunk ${trunk}, to ${to}): ${(error as Error).toString()}`,
           );
           return reject(error as Error);
         }
         if (stderr) {
-          console.error(`stderr: ${stderr}`);
+          logger.error(`stderr: ${stderr}`);
         }
 
         const changes: LogEntry[] = [];
@@ -215,7 +216,7 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
               committedAt: new Date(rawChange.committedAt),
             });
           } catch (parseError) {
-            console.error(`Failed to parse line: ${line}`, parseError);
+            logger.error(`Failed to parse line: ${line}`, parseError);
           }
         }
 
@@ -270,7 +271,7 @@ async function traverseAndDiscoverSegments(
           segments.push(currentSegment);
         }
         if (change.localBookmarks.some((b) => fullyCollectedBookmarks.has(b))) {
-          console.log(
+          logger.debug(
             `    Found fully-collected bookmark at ${change.commitId}`,
           );
           alreadySeenChangeId = change.changeId;
@@ -282,7 +283,7 @@ async function traverseAndDiscoverSegments(
             changes: [],
           };
         }
-        console.log(
+        logger.debug(
           `    Starting new segment for bookmarks: ${change.localBookmarks.join(
             ", ",
           )} at commit ${change.commitId}`,
@@ -383,10 +384,10 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
     getBranchChangesPaginated,
   };
 
-  console.log("Discovering user bookmarks...");
+  logger.debug("Discovering user bookmarks...");
   const bookmarks = await jjFunctions.getMyBookmarks();
 
-  console.log(
+  logger.debug(
     `Found ${bookmarks.length} bookmarks: ${bookmarks.map((b) => b.name).join(", ")}`,
   );
 
@@ -404,11 +405,11 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
   // Process each bookmark to collect segment changes
   for (const bookmark of bookmarks) {
     if (fullyCollectedBookmarks.has(bookmark.name)) {
-      console.log(`Skipping already processed bookmark: ${bookmark.name}`);
+      logger.debug(`Skipping already processed bookmark: ${bookmark.name}`);
       continue;
     }
 
-    console.log(`Processing bookmark: ${bookmark.name}`);
+    logger.debug(`Processing bookmark: ${bookmark.name}`);
 
     try {
       const trunkRev = "trunk()";
@@ -431,7 +432,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
           bookmarkToChangeId.set(bookmark, segment.changes[0].changeId);
           fullyCollectedBookmarks.add(bookmark);
         }
-        console.log(
+        logger.debug(
           `    Found segment for [${segment.bookmarks.join(", ")}]: ${segment.changes.length} changes`,
         );
       }
@@ -445,7 +446,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
           childSegment.changes[0].changeId,
           parentSegment.changes[0].changeId,
         );
-        console.log(
+        logger.debug(
           `    Stacking: [${childSegment.bookmarks.join(", ")}] -> [${parentSegment.bookmarks.join(", ")}]`,
         );
       }
@@ -457,7 +458,7 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
           rootSegment.changes[0].changeId,
           result.alreadySeenChangeId,
         );
-        console.log(
+        logger.debug(
           `    Stacking: [${rootSegment.bookmarks.join(", ")}] -> [${bookmarkedChangeIdToSegment.get(result.alreadySeenChangeId)![0].localBookmarks.join(", ")}]`,
         );
       } else if (result.segments.length > 0) {
@@ -465,18 +466,18 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
         const rootSegment = result.segments[result.segments.length - 1];
         stackRoots.add(rootSegment.changes[0].changeId);
         for (const bookmark of rootSegment.bookmarks) {
-          console.log(`    Root bookmark identified: ${bookmark}`);
+          logger.debug(`    Root bookmark identified: ${bookmark}`);
         }
       } else {
         // No segments were found, meaning the bookmark is on an ancestor of trunk()
         // Note: a given change is an ancestor of itself, so the bookmark may have been on the same change as trunk()
       }
 
-      console.log(
+      logger.debug(
         `  Processed ${bookmark.name} - found ${result.segments.length} segments`,
       );
     } catch (error) {
-      console.error(`Failed to process bookmark ${bookmark.name}:`, error);
+      logger.error(`Failed to process bookmark ${bookmark.name}:`, error);
       throw error;
     }
   }
@@ -489,19 +490,19 @@ export async function buildChangeGraph(jj?: JjFunctions): Promise<ChangeGraph> {
   ); // changeIds that are leafs in the stack (no children, in-degree 0)
 
   // Debug: log the stacking relationships we discovered
-  console.log("=== STACKING RELATIONSHIPS ===");
+  logger.debug("=== STACKING RELATIONSHIPS ===");
   for (const [child, parent] of bookmarkedChangeAdjacencyList.entries()) {
-    console.log(
+    logger.debug(
       `[${bookmarkedChangeIdToSegment.get(child)![0].localBookmarks.join(", ")}] -> [${bookmarkedChangeIdToSegment.get(parent)![0].localBookmarks.join(", ")}]`,
     );
   }
   for (const changeId of stackRoots) {
-    console.log(
+    logger.debug(
       `[${bookmarkedChangeIdToSegment.get(changeId)![0].localBookmarks.join(", ")}] -> trunk()`,
     );
   }
   if (bookmarkedChangeIdToSegment.size === 0 && stackRoots.size === 0) {
-    console.log("No stacking relationships found");
+    logger.debug("No stacking relationships found");
   }
 
   // Group segments into stacks based on relationships
