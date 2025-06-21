@@ -3,7 +3,7 @@ import { promisify } from "util";
 import { Octokit } from "octokit";
 import { buildChangeGraph, gitFetch } from "./jjUtils.js";
 import { getGitHubAuth } from "./auth.js";
-import type { Bookmark, ChangeGraph } from "./jjTypes.js";
+import type { Bookmark, ChangeGraph, BookmarkSegment } from "./jjTypes.js";
 import * as v from "valibot";
 
 const execFileAsync = promisify(execFile);
@@ -23,6 +23,26 @@ export interface GitHubConfig {
   octokit: Octokit;
 }
 
+// AIDEV-NOTE: Types for three-phase submission approach
+
+// Phase 1: Change graph analysis result
+export interface SubmissionAnalysis {
+  targetBookmark: string;
+  changeGraph: ChangeGraph;
+  relevantSegments: BookmarkSegment[];
+  segmentsWithMultipleBookmarks: {
+    segment: BookmarkSegment;
+    bookmarksWithRemotes: Bookmark[];
+  }[];
+}
+
+// Phase 2: Plan creation callbacks (simplified, no bookmark selection)
+export interface PlanCallbacks {
+  onCheckingPRs?: (bookmarks: Bookmark[]) => void;
+  onPlanReady?: (plan: SubmissionPlan) => void;
+  onError?: (error: Error, context: string) => void;
+}
+
 const PRCommentDataSchema = v.object({
   version: v.number(),
   stack: v.array(
@@ -37,7 +57,7 @@ type PRCommentData = v.InferOutput<typeof PRCommentDataSchema>;
 
 export interface SubmissionPlan {
   targetBookmark: string;
-  bookmarksToSubmit: Bookmark[];
+  bookmarksToSubmit: Bookmark[]; // AIDEV-NOTE: Now guaranteed to be exactly one per segment
   bookmarksNeedingPush: Bookmark[];
   bookmarksNeedingPR: {
     bookmark: Bookmark;
@@ -54,12 +74,8 @@ export interface SubmissionPlan {
   existingPRs: Map<string, PullRequest>;
 }
 
-export interface SubmissionCallbacks {
-  onBookmarkValidated?: (bookmark: string) => void;
-  onAnalyzingStack?: (targetBookmark: string) => void;
-  onStackFound?: (bookmarks: Bookmark[]) => void;
-  onCheckingPRs?: (bookmarks: Bookmark[]) => void;
-  onPlanReady?: (plan: SubmissionPlan) => void;
+// Phase 3: Execution callbacks (unchanged from before)
+export interface ExecutionCallbacks {
   onPushStarted?: (bookmark: Bookmark, remote: string) => void;
   onPushCompleted?: (bookmark: Bookmark, remote: string) => void;
   onPRStarted?: (bookmark: Bookmark, title: string, base: string) => void;
@@ -97,12 +113,19 @@ export async function validateBookmark(bookmarkName: string): Promise<void> {
 }
 
 /**
- * Get all bookmarks in the stack that need to be submitted (including the target bookmark)
+ * PHASE 1: Analyze the change graph for submission
+ * AIDEV-NOTE: Pure analysis function - no bookmark selection, just identifies what needs to be resolved
  */
-export function getStackBookmarksToSubmit(
+export async function analyzeSubmissionGraph(
   bookmarkName: string,
-  changeGraph: ChangeGraph,
-): Bookmark[] {
+): Promise<SubmissionAnalysis> {
+  // Validate target bookmark exists locally
+  await validateBookmark(bookmarkName);
+  await gitFetch();
+
+  // Build change graph
+  const changeGraph = await buildChangeGraph();
+
   // Find which stack contains the target bookmark
   for (const stack of changeGraph.stacks) {
     const targetIndex = stack.segments.findIndex((segment) =>
@@ -110,10 +133,29 @@ export function getStackBookmarksToSubmit(
     );
 
     if (targetIndex !== -1) {
-      // Return all bookmarks from root up to and including the target
-      return stack.segments
-        .slice(0, targetIndex + 1)
-        .flatMap((segment) => segment.bookmarks); // TODO: allow user to pick which bookmark to submit
+      const relevantSegments = stack.segments.slice(0, targetIndex + 1);
+      const segmentsWithMultipleBookmarks: SubmissionAnalysis["segmentsWithMultipleBookmarks"] =
+        [];
+
+      // Identify segments with multiple bookmarks
+      for (const segment of relevantSegments) {
+        if (segment.bookmarks.length > 1) {
+          const bookmarksWithRemotes = segment.bookmarks.filter(
+            (b) => b.hasRemote,
+          );
+          segmentsWithMultipleBookmarks.push({
+            segment,
+            bookmarksWithRemotes,
+          });
+        }
+      }
+
+      return {
+        targetBookmark: bookmarkName,
+        changeGraph,
+        relevantSegments,
+        segmentsWithMultipleBookmarks,
+      };
     }
   }
 
@@ -531,34 +573,21 @@ export function validatePRBases(
 }
 
 /**
- * Analyze what needs to be done for submission and create a plan
+ * PHASE 2: Create submission plan from resolved bookmarks
+ * AIDEV-NOTE: Takes exactly one bookmark per segment (enforced by CLI)
  */
-export async function analyzeSubmissionPlan(
-  bookmarkName: string,
-  callbacks?: SubmissionCallbacks,
+export async function createSubmissionPlan(
+  bookmarksToSubmit: Bookmark[],
+  changeGraph: ChangeGraph,
+  callbacks?: PlanCallbacks,
 ): Promise<SubmissionPlan> {
   try {
-    // 1. Validate target bookmark exists locally
-    await validateBookmark(bookmarkName);
-    callbacks?.onBookmarkValidated?.(bookmarkName);
+    const targetBookmark = bookmarksToSubmit[bookmarksToSubmit.length - 1].name;
 
-    await gitFetch();
-
-    // 2. Build change graph once for all operations
-    const changeGraph = await buildChangeGraph();
-
-    // 3. Get all bookmarks in the stack that need to be submitted
-    callbacks?.onAnalyzingStack?.(bookmarkName);
-    const bookmarksToSubmit = getStackBookmarksToSubmit(
-      bookmarkName,
-      changeGraph,
-    );
-    callbacks?.onStackFound?.(bookmarksToSubmit);
-
-    // 3. Get GitHub repository info
+    // Get GitHub repository info
     const repoInfo = await getGitHubRepoInfo();
 
-    // 4. Get GitHub configuration for Octokit instance
+    // Get GitHub configuration for Octokit instance
     const githubConfig = await getGitHubConfig();
 
     callbacks?.onCheckingPRs?.(bookmarksToSubmit);
@@ -571,7 +600,7 @@ export async function analyzeSubmissionPlan(
 
     const defaultBranch = await getDefaultBranch();
 
-    // 6. Validate existing PRs against expected base branches
+    // Validate existing PRs against expected base branches
     const bookmarksNeedingPRBaseUpdate = validatePRBases(
       bookmarksToSubmit,
       existingPRs,
@@ -579,7 +608,7 @@ export async function analyzeSubmissionPlan(
       defaultBranch,
     );
 
-    // 7. Determine what actions are needed
+    // Determine what actions are needed
     const bookmarksNeedingPush: Bookmark[] = [];
     const bookmarksNeedingPR: SubmissionPlan["bookmarksNeedingPR"] = [];
 
@@ -604,7 +633,7 @@ export async function analyzeSubmissionPlan(
     }
 
     const plan: SubmissionPlan = {
-      targetBookmark: bookmarkName,
+      targetBookmark,
       bookmarksToSubmit,
       bookmarksNeedingPush,
       bookmarksNeedingPR,
@@ -623,12 +652,13 @@ export async function analyzeSubmissionPlan(
 }
 
 /**
- * Execute the submission plan
+ * PHASE 3: Execute the submission plan
+ * AIDEV-NOTE: Pure execution of the plan with no decision-making
  */
 export async function executeSubmissionPlan(
   plan: SubmissionPlan,
   githubConfig: GitHubConfig,
-  callbacks?: SubmissionCallbacks,
+  callbacks?: ExecutionCallbacks,
 ): Promise<SubmissionResult> {
   const result: SubmissionResult = {
     success: true,
