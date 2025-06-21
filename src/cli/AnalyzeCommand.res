@@ -75,8 +75,6 @@ let analyzeCommand = async () => {
     }
   }
 
-  Console.log(topSort)
-
   let output: array<AnalyzeCommandComponent.outputRow> = []
   let columns = []
   topSort->Array.forEach(changeId => {
@@ -151,25 +149,6 @@ let analyzeCommand = async () => {
     }
   })
 
-  // output:
-  //  ○ pxtukxlusrws (branchy)
-  //  │
-  //  │ ○ qxvtxrkwlntp (morework2)
-  //  ├─╯
-  //  ○ zysownlrrwor (morework1)
-  //  │
-  //  ○ zpkmkmkmxmws (morework0, morework00)
-  //  │
-  //  │ ○ uxwurwlzqkwy (branch3)
-  //  │ │
-  //  │ ○ pvsrsrmypmqk (branch2)
-  //  │ │
-  //  │ ○ kuzvuzknutyk (branch1)
-  //  ├─╯
-  //  │ ○ stkpqymzptot (branch0)
-  //  ├─╯
-  //  ○ trunk()
-
   let changeId = await Promise.make((resolve, _reject) => {
     let inkInstanceRef: ref<option<InkBindings.inkInstance>> = ref(None)
 
@@ -195,43 +174,4 @@ let analyzeCommand = async () => {
   let segment = changeGraph.bookmarkedChangeIdToSegment->Map.get(changeId)->Option.getExn
   let logEntry = segment[0]->Option.getExn
   await SubmitCommand.runSubmit(logEntry.localBookmarks[0]->Option.getExn, changeGraph, false)
-
-  Console.log("\n=== CHANGE GRAPH RESULTS ===")
-  Console.log(`Total bookmarks: ${changeGraph.bookmarks->Map.size->Belt.Int.toString}`)
-  Console.log(`Total stacks: ${changeGraph.stacks->Array.length->Belt.Int.toString}`)
-
-  if changeGraph.stacks->Array.length > 0 {
-    Console.log("\n=== BOOKMARK STACKS ===")
-    changeGraph.stacks->Array.forEachWithIndex((stack, i) => {
-      Console.log(`\nStack ${(i + 1)->Belt.Int.toString}:`)
-      Console.log(
-        `  Bookmarks: ${stack.segments
-          ->Array.flatMap(s => s.bookmarks->Array.map(b => b.name))
-          ->Array.join(", ")}`,
-      )
-
-      // Calculate total changes across all segments
-      let totalChanges =
-        stack.segments->Array.reduce(0, (sum, segment) => sum + segment.changes->Array.length)
-      Console.log(`  Total changes: ${totalChanges->Belt.Int.toString}`)
-
-      if stack.segments->Array.length > 1 {
-        Console.log("  📚 This is a stacked set of bookmarks!")
-      }
-    })
-  }
-
-  Console.log("\n=== SEGMENT DETAILS ===")
-  changeGraph.bookmarkedChangeIdToSegment->Map.forEachWithKey((segmentChanges, changeId) => {
-    let logEntry = Option.getExn(segmentChanges[0])
-    Console.log(`\n${changeId} (${logEntry.localBookmarks->Array.join(", ")}):`)
-    Console.log(`  Segment changes: ${segmentChanges->Array.length->Belt.Int.toString}`)
-    switch (segmentChanges->Array.at(0), segmentChanges->Array.last) {
-    | (Some(first), Some(last)) => {
-        Console.log(`  Latest: ${first.descriptionFirstLine}`)
-        Console.log(`  Oldest: ${last.descriptionFirstLine}`)
-      }
-    | _ => ()
-    }
-  })
 }

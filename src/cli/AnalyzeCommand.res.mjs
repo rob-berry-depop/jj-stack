@@ -3,7 +3,6 @@
 import * as $$Ink from "ink";
 import * as Utils from "./Utils.res.mjs";
 import * as Js_exn from "rescript/lib/es6/js_exn.js";
-import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 import * as PervasivesU from "rescript/lib/es6/pervasivesU.js";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 import * as SubmitCommand from "./SubmitCommand.res.mjs";
@@ -72,7 +71,6 @@ async function analyzeCommand() {
     }
     
   };
-  console.log(topSort);
   var output = [];
   var columns = [];
   topSort.forEach(function (changeId) {
@@ -168,44 +166,7 @@ async function analyzeCommand() {
         }));
   var segment = Core__Option.getExn(changeGraph.bookmarkedChangeIdToSegment.get(changeId$1), undefined);
   var logEntry = Core__Option.getExn(segment[0], undefined);
-  await SubmitCommand.runSubmit(Core__Option.getExn(logEntry.localBookmarks[0], undefined), changeGraph, false);
-  console.log("\n=== CHANGE GRAPH RESULTS ===");
-  console.log("Total bookmarks: " + String(changeGraph.bookmarks.size));
-  console.log("Total stacks: " + String(changeGraph.stacks.length));
-  if (changeGraph.stacks.length > 0) {
-    console.log("\n=== BOOKMARK STACKS ===");
-    changeGraph.stacks.forEach(function (stack, i) {
-          console.log("\nStack " + String(i + 1 | 0) + ":");
-          console.log("  Bookmarks: " + stack.segments.flatMap(function (s) {
-                      return s.bookmarks.map(function (b) {
-                                  return b.name;
-                                });
-                    }).join(", "));
-          var totalChanges = Core__Array.reduce(stack.segments, 0, (function (sum, segment) {
-                  return sum + segment.changes.length | 0;
-                }));
-          console.log("  Total changes: " + String(totalChanges));
-          if (stack.segments.length > 1) {
-            console.log("  📚 This is a stacked set of bookmarks!");
-            return ;
-          }
-          
-        });
-  }
-  console.log("\n=== SEGMENT DETAILS ===");
-  changeGraph.bookmarkedChangeIdToSegment.forEach(function (segmentChanges, changeId) {
-        var logEntry = Core__Option.getExn(segmentChanges[0], undefined);
-        console.log("\n" + changeId + " (" + logEntry.localBookmarks.join(", ") + "):");
-        console.log("  Segment changes: " + String(segmentChanges.length));
-        var match = segmentChanges.at(0);
-        var match$1 = Core__Array.last(segmentChanges);
-        if (match !== undefined && match$1 !== undefined) {
-          console.log("  Latest: " + match.descriptionFirstLine);
-          console.log("  Oldest: " + match$1.descriptionFirstLine);
-          return ;
-        }
-        
-      });
+  return await SubmitCommand.runSubmit(Core__Option.getExn(logEntry.localBookmarks[0], undefined), changeGraph, false);
 }
 
 export {
