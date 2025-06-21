@@ -9,28 +9,28 @@ import * as SubmitJs from "../lib/submit.js";
 import * as JjUtilsJs from "../lib/jjUtils.js";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
-function buildChangeGraph(prim) {
-  return JjUtilsJs.buildChangeGraph(prim);
+function createJjFunctions(prim) {
+  return JjUtilsJs.createJjFunctions(prim);
 }
 
-function gitFetch(prim) {
-  return JjUtilsJs.gitFetch(prim);
+function buildChangeGraph(prim) {
+  return JjUtilsJs.buildChangeGraph(prim);
 }
 
 function analyzeSubmissionGraph(prim0, prim1) {
   return SubmitJs.analyzeSubmissionGraph(prim0, prim1);
 }
 
-function createSubmissionPlan(prim0, prim1) {
-  return SubmitJs.createSubmissionPlan(prim0, prim1);
+function createSubmissionPlan(prim0, prim1, prim2) {
+  return SubmitJs.createSubmissionPlan(prim0, prim1, prim2);
 }
 
 function createNarrowedSegments(prim0, prim1) {
   return SubmitJs.createNarrowedSegments(prim0, prim1);
 }
 
-function executeSubmissionPlan(prim0, prim1, prim2) {
-  return SubmitJs.executeSubmissionPlan(prim0, prim1, prim2);
+function executeSubmissionPlan(prim0, prim1, prim2, prim3) {
+  return SubmitJs.executeSubmissionPlan(prim0, prim1, prim2, prim3);
 }
 
 function getGitHubConfig(prim) {
@@ -77,14 +77,14 @@ function createExecutionCallbacks() {
         };
 }
 
-async function runSubmit(bookmarkName, changeGraph, dryRun) {
+async function runSubmit(jjConfig, bookmarkName, changeGraph, dryRun) {
   console.log("🔍 Analyzing submission requirements for: " + bookmarkName);
   var analysis = SubmitJs.analyzeSubmissionGraph(changeGraph, bookmarkName);
   console.log("✅ Found stack with " + analysis.relevantSegments.length.toString() + " segment(s)");
   var resolvedBookmarks = await Utils.resolveBookmarkSelections(analysis);
   console.log("📋 Creating submission plan...");
   var narrowedSegments = SubmitJs.createNarrowedSegments(resolvedBookmarks, analysis);
-  var plan = await SubmitJs.createSubmissionPlan(narrowedSegments, undefined);
+  var plan = await SubmitJs.createSubmissionPlan(jjConfig, narrowedSegments, undefined);
   console.log("📍 GitHub repository: " + plan.repoInfo.owner + "/" + plan.repoInfo.repo);
   resolvedBookmarks.forEach(function (bookmark) {
         console.log(formatBookmarkStatus(bookmark, plan.existingPRs));
@@ -117,7 +117,7 @@ async function runSubmit(bookmarkName, changeGraph, dryRun) {
   console.log("🔑 Getting GitHub authentication...");
   var githubConfig = await SubmitJs.getGitHubConfig();
   var executionCallbacks = createExecutionCallbacks();
-  var result = await SubmitJs.executeSubmissionPlan(plan, githubConfig, Caml_option.some(executionCallbacks));
+  var result = await executeSubmissionPlan(jjConfig, plan, githubConfig, Caml_option.some(executionCallbacks));
   if (result.success) {
     console.log("\n🎉 Successfully submitted stack up to " + bookmarkName + "!");
     if (result.pushedBookmarks.length > 0) {
@@ -153,13 +153,14 @@ async function submitCommand(bookmarkName, options) {
     binaryPath: "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin"
   };
   var dryRun = options !== undefined ? Core__Option.getOr(options.dryRun, false) : false;
+  var jjFunctions = JjUtilsJs.createJjFunctions(jjConfig);
   if (dryRun) {
     console.log("🧪 DRY RUN: Simulating submission of bookmark: " + bookmarkName);
   } else {
     console.log("🚀 Submitting bookmark: " + bookmarkName);
     console.log("Fetching from remote...");
     try {
-      await JjUtilsJs.gitFetch(jjConfig);
+      await jjFunctions.gitFetch();
     }
     catch (raw_error){
       var error = Caml_js_exceptions.internalToOCamlException(raw_error);
@@ -171,13 +172,13 @@ async function submitCommand(bookmarkName, options) {
     }
   }
   console.log("Building change graph from user bookmarks...");
-  var changeGraph = await JjUtilsJs.buildChangeGraph(jjConfig);
-  return await runSubmit(bookmarkName, changeGraph, dryRun);
+  var changeGraph = await JjUtilsJs.buildChangeGraph(jjFunctions);
+  return await runSubmit(jjConfig, bookmarkName, changeGraph, dryRun);
 }
 
 export {
+  createJjFunctions ,
   buildChangeGraph ,
-  gitFetch ,
   analyzeSubmissionGraph ,
   createSubmissionPlan ,
   createNarrowedSegments ,

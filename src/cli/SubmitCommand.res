@@ -1,8 +1,8 @@
 @module("process") external exit: int => unit = "exit"
 @module("../lib/jjUtils.js")
-external buildChangeGraph: JJTypes.jjConfig => promise<JJTypes.changeGraph> = "buildChangeGraph"
+external createJjFunctions: JJTypes.jjConfig => JJTypes.jjFunctions = "createJjFunctions"
 @module("../lib/jjUtils.js")
-external gitFetch: JJTypes.jjConfig => promise<unit> = "gitFetch"
+external buildChangeGraph: JJTypes.jjFunctions => promise<JJTypes.changeGraph> = "buildChangeGraph"
 
 type prContent = {title: string}
 
@@ -89,6 +89,7 @@ external analyzeSubmissionGraph: (JJTypes.changeGraph, string) => JJTypes.submis
 
 @module("../lib/submit.js")
 external createSubmissionPlan: (
+  JJTypes.jjConfig,
   array<JJTypes.narrowedBookmarkSegment>,
   option<'planCallbacks>,
 ) => promise<submissionPlan> = "createSubmissionPlan"
@@ -101,6 +102,7 @@ external createNarrowedSegments: (
 
 @module("../lib/submit.js")
 external executeSubmissionPlan: (
+  JJTypes.jjConfig,
   submissionPlan,
   'githubConfig,
   option<'executionCallbacks>,
@@ -175,7 +177,12 @@ let createExecutionCallbacks = (): 'executionCallbacks => {
   }
 }
 
-let runSubmit = async (bookmarkName: string, changeGraph: JJTypes.changeGraph, dryRun: bool) => {
+let runSubmit = async (
+  jjConfig: JJTypes.jjConfig,
+  bookmarkName: string,
+  changeGraph: JJTypes.changeGraph,
+  dryRun: bool,
+) => {
   // PHASE 1: Analyze the submission graph
   Console.log(`🔍 Analyzing submission requirements for: ${bookmarkName}`)
   let analysis = analyzeSubmissionGraph(changeGraph, bookmarkName)
@@ -189,7 +196,7 @@ let runSubmit = async (bookmarkName: string, changeGraph: JJTypes.changeGraph, d
 
   Console.log(`📋 Creating submission plan...`)
   let narrowedSegments = createNarrowedSegments(resolvedBookmarks, analysis)
-  let plan = await createSubmissionPlan(narrowedSegments, None)
+  let plan = await createSubmissionPlan(jjConfig, narrowedSegments, None)
 
   // Display plan summary
   Console.log(`📍 GitHub repository: ${plan.repoInfo.owner}/${plan.repoInfo.repo}`)
@@ -243,7 +250,7 @@ let runSubmit = async (bookmarkName: string, changeGraph: JJTypes.changeGraph, d
     let githubConfig = await getGitHubConfig()
 
     let executionCallbacks = createExecutionCallbacks()
-    let result = await executeSubmissionPlan(plan, githubConfig, Some(executionCallbacks))
+    let result = await executeSubmissionPlan(jjConfig, plan, githubConfig, Some(executionCallbacks))
 
     if result.success {
       Console.log(`\n🎉 Successfully submitted stack up to ${bookmarkName}!`)
@@ -288,6 +295,8 @@ let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>
   | None => false
   }
 
+  let jjFunctions = createJjFunctions(jjConfig)
+
   if dryRun {
     Console.log(`🧪 DRY RUN: Simulating submission of bookmark: ${bookmarkName}`)
   } else {
@@ -295,7 +304,7 @@ let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>
 
     Console.log("Fetching from remote...")
     try {
-      await gitFetch(jjConfig)
+      await jjFunctions.gitFetch()
     } catch {
     | Exn.Error(error) =>
       Console.error(
@@ -305,7 +314,7 @@ let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>
   }
 
   Console.log("Building change graph from user bookmarks...")
-  let changeGraph = await buildChangeGraph(jjConfig)
+  let changeGraph = await buildChangeGraph(jjFunctions)
 
-  await runSubmit(bookmarkName, changeGraph, dryRun)
+  await runSubmit(jjConfig, bookmarkName, changeGraph, dryRun)
 }

@@ -7,11 +7,11 @@ import type {
   ChangeGraph,
   BookmarkSegment,
   NarrowedBookmarkSegment,
+  JjConfig,
 } from "./jjTypes.js";
 import * as v from "valibot";
 
 const execFileAsync = promisify(execFile);
-const JJ_BINARY = "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin";
 
 export type PullRequest = PullRequestItem | PullRequestListItem;
 type PullRequestItem = Awaited<
@@ -128,12 +128,16 @@ export function analyzeSubmissionGraph(
 /**
  * Extract GitHub owner and repo from jj git remote URL
  */
-export async function getGitHubRepoInfo(): Promise<{
+export async function getGitHubRepoInfo(config: JjConfig): Promise<{
   owner: string;
   repo: string;
 }> {
   // Get the origin remote URL using JJ
-  const result = await execFileAsync(JJ_BINARY, ["git", "remote", "list"]);
+  const result = await execFileAsync(config.binaryPath, [
+    "git",
+    "remote",
+    "list",
+  ]);
   const lines = result.stdout.trim().split("\n");
 
   // Find the origin remote
@@ -176,7 +180,7 @@ export async function getGitHubRepoInfo(): Promise<{
 /**
  * Get the GitHub configuration from environment or config
  */
-export async function getGitHubConfig(): Promise<GitHubConfig> {
+export async function getGitHubConfig(config: JjConfig): Promise<GitHubConfig> {
   // Get authentication using the auth utility
   const authConfig = await getGitHubAuth();
   const octokit = new Octokit({ auth: authConfig.token });
@@ -186,7 +190,7 @@ export async function getGitHubConfig(): Promise<GitHubConfig> {
   let repo = process.env.GITHUB_REPO;
 
   if (!owner || !repo) {
-    const repoInfo = await getGitHubRepoInfo();
+    const repoInfo = await getGitHubRepoInfo(config);
     owner = repoInfo.owner;
     repo = repoInfo.repo;
   }
@@ -218,9 +222,9 @@ const RemoteBookmarksSchema = v.array(v.string());
 /**
  * Get the default branch name for the repository by finding what trunk() resolves to
  */
-export async function getDefaultBranch(): Promise<string> {
+export async function getDefaultBranch(config: JjConfig): Promise<string> {
   const template = `'[ ' ++ remote_bookmarks.map(|b| b.name().escape_json()).join(",") ++ ']\n'`;
-  const result = await execFileAsync(JJ_BINARY, [
+  const result = await execFileAsync(config.binaryPath, [
     "log",
     "--revisions",
     "trunk()",
@@ -305,10 +309,11 @@ export function generatePRTitle(
  * Push the bookmark to the remote
  */
 export async function pushBookmark(
+  config: JjConfig,
   bookmarkName: string,
   remote: string = "origin",
 ): Promise<void> {
-  await execFileAsync(JJ_BINARY, [
+  await execFileAsync(config.binaryPath, [
     "git",
     "push",
     "--remote",
@@ -539,6 +544,7 @@ export function validatePRBases(
  * AIDEV-NOTE: Takes exactly one bookmark per segment (enforced by CLI)
  */
 export async function createSubmissionPlan(
+  config: JjConfig,
   segments: NarrowedBookmarkSegment[],
   callbacks?: PlanCallbacks,
 ): Promise<SubmissionPlan> {
@@ -547,7 +553,7 @@ export async function createSubmissionPlan(
     const targetBookmark = bookmarksToSubmit[bookmarksToSubmit.length - 1].name;
 
     // Get GitHub configuration for Octokit instance
-    const githubConfig = await getGitHubConfig();
+    const githubConfig = await getGitHubConfig(config);
 
     callbacks?.onCheckingPRs?.(bookmarksToSubmit);
     const existingPRs = await getExistingPRs(
@@ -557,7 +563,7 @@ export async function createSubmissionPlan(
       bookmarksToSubmit,
     );
 
-    const defaultBranch = await getDefaultBranch();
+    const defaultBranch = await getDefaultBranch(config);
 
     // Validate existing PRs against expected base branches
     const bookmarksNeedingPRBaseUpdate = validatePRBases(
@@ -618,6 +624,7 @@ export async function createSubmissionPlan(
  * AIDEV-NOTE: Pure execution of the plan with no decision-making
  */
 export async function executeSubmissionPlan(
+  config: JjConfig,
   plan: SubmissionPlan,
   githubConfig: GitHubConfig,
   callbacks?: ExecutionCallbacks,
@@ -635,7 +642,7 @@ export async function executeSubmissionPlan(
     for (const bookmark of plan.bookmarksNeedingPush) {
       try {
         callbacks?.onPushStarted?.(bookmark, "origin");
-        await pushBookmark(bookmark.name, "origin");
+        await pushBookmark(config, bookmark.name, "origin");
         callbacks?.onPushCompleted?.(bookmark, "origin");
         result.pushedBookmarks.push(bookmark);
       } catch (error) {

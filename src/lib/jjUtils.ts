@@ -12,10 +12,9 @@ import { logger } from "./logger.js";
 
 // Types for dependency injection
 export type JjFunctions = {
-  gitFetch: (config: JjConfig) => Promise<void>;
-  getMyBookmarks: (config: JjConfig) => Promise<Bookmark[]>;
+  gitFetch: () => Promise<void>;
+  getMyBookmarks: () => Promise<Bookmark[]>;
   getBranchChangesPaginated: (
-    config: JjConfig,
     from: string,
     to: string,
     lastSeenCommit?: string,
@@ -23,9 +22,21 @@ export type JjFunctions = {
 };
 
 /**
+ * Create configured JjFunctions from a config object
+ */
+export function createJjFunctions(config: JjConfig): JjFunctions {
+  return {
+    gitFetch: () => gitFetch(config),
+    getMyBookmarks: () => getMyBookmarks(config),
+    getBranchChangesPaginated: (from, to, lastSeenCommit) =>
+      getBranchChangesPaginated(config, from, to, lastSeenCommit),
+  };
+}
+
+/**
  * Fetch latest changes from all git remotes
  */
-export function gitFetch(config: JjConfig): Promise<void> {
+function gitFetch(config: JjConfig): Promise<void> {
   return new Promise((resolve, reject) => {
     execFile(
       config.binaryPath,
@@ -58,7 +69,7 @@ const BookmarkOutputSchema = v.object({
 /**
  * Get all bookmarks created by the current user
  */
-export function getMyBookmarks(config: JjConfig): Promise<Bookmark[]> {
+function getMyBookmarks(config: JjConfig): Promise<Bookmark[]> {
   return new Promise((resolve, reject) => {
     const bookmarkTemplate = `'{ "name":' ++ name.escape_json() ++ ', ' ++
     '"commitId":' ++ normal_target.commit_id().short().escape_json() ++ ', ' ++
@@ -149,7 +160,7 @@ const LogEntrySchema = v.object({
  * Get changes that are ancestors of `to` that are not ancestors of `trunk`. The result
  * will include `to` itself, but not `trunk`.
  */
-export function getBranchChangesPaginated(
+function getBranchChangesPaginated(
   config: JjConfig,
   trunk: string,
   to: string,
@@ -235,7 +246,6 @@ async function traverseAndDiscoverSegments(
   trunkRev: string,
   fullyCollectedBookmarks: Set<string>,
   jj: JjFunctions,
-  config: JjConfig,
 ): Promise<{
   segments: Array<{ bookmarks: string[]; changes: LogEntry[] }>;
   alreadySeenChangeId?: string; // if we hit a fully-collected bookmark
@@ -248,7 +258,6 @@ async function traverseAndDiscoverSegments(
 
   pageLoop: while (true) {
     const changes = await jj.getBranchChangesPaginated(
-      config,
       trunkRev,
       bookmark.commitId,
       lastSeenCommit,
@@ -379,19 +388,11 @@ function groupSegmentsIntoStacks(
 /**
  * Build a complete change graph by discovering all bookmark segments and their relationships
  */
-export async function buildChangeGraph(
-  config: JjConfig,
-  jj?: JjFunctions,
-): Promise<ChangeGraph> {
-  // Use default implementations if no jj functions provided
-  const jjFunctions: JjFunctions = jj || {
-    gitFetch,
-    getMyBookmarks,
-    getBranchChangesPaginated,
-  };
+export async function buildChangeGraph(jj: JjFunctions): Promise<ChangeGraph> {
+  const jjFunctions = jj;
 
   logger.debug("Discovering user bookmarks...");
-  const bookmarks = await jjFunctions.getMyBookmarks(config);
+  const bookmarks = await jjFunctions.getMyBookmarks();
 
   logger.debug(
     `Found ${bookmarks.length} bookmarks: ${bookmarks.map((b) => b.name).join(", ")}`,
@@ -426,7 +427,6 @@ export async function buildChangeGraph(
         trunkRev,
         fullyCollectedBookmarks,
         jjFunctions,
-        config,
       );
 
       // Store segment changes for all bookmarks found in the result
@@ -530,10 +530,3 @@ export async function buildChangeGraph(
     stacks,
   };
 }
-
-// Default implementations
-export const defaultJjFunctions: JjFunctions = {
-  gitFetch,
-  getMyBookmarks,
-  getBranchChangesPaginated,
-};

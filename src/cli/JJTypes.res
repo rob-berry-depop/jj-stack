@@ -53,3 +53,10 @@ type submissionAnalysis = {
 
 // AIDEV-NOTE: Configuration for JJ binary and other settings
 type jjConfig = {binaryPath: string}
+
+// AIDEV-NOTE: JJ function interface for dependency injection
+type jjFunctions = {
+  gitFetch: unit => promise<unit>,
+  getMyBookmarks: unit => promise<array<bookmark>>,
+  getBranchChangesPaginated: (string, string, option<string>) => promise<array<logEntry>>,
+}

@@ -12,12 +12,12 @@ import * as JsxRuntime from "react/jsx-runtime";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 import * as AnalyzeCommandComponent from "./AnalyzeCommandComponent.res.mjs";
 
-function buildChangeGraph(prim) {
-  return JjUtilsJs.buildChangeGraph(prim);
+function createJjFunctions(prim) {
+  return JjUtilsJs.createJjFunctions(prim);
 }
 
-function gitFetch(prim) {
-  return JjUtilsJs.gitFetch(prim);
+function buildChangeGraph(prim) {
+  return JjUtilsJs.buildChangeGraph(prim);
 }
 
 function getExistingPRs(prim0, prim1, prim2, prim3) {
@@ -33,8 +33,9 @@ async function analyzeCommand() {
     binaryPath: "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin"
   };
   console.log("Fetching from remote...");
+  var jjFunctions = JjUtilsJs.createJjFunctions(jjConfig);
   try {
-    await JjUtilsJs.gitFetch(jjConfig);
+    await jjFunctions.gitFetch();
   }
   catch (raw_error){
     var error = Caml_js_exceptions.internalToOCamlException(raw_error);
@@ -45,7 +46,7 @@ async function analyzeCommand() {
     }
   }
   console.log("Building change graph from user bookmarks...");
-  var changeGraph = await JjUtilsJs.buildChangeGraph(jjConfig);
+  var changeGraph = await JjUtilsJs.buildChangeGraph(jjFunctions);
   if (changeGraph.stacks.length === 0) {
     console.log("No bookmark stacks found. Create bookmarks with `jj bookmark create [revision]` first.");
     PervasivesU.exit(0);
@@ -170,12 +171,12 @@ async function analyzeCommand() {
         }));
   var segment = Core__Option.getExn(changeGraph.bookmarkedChangeIdToSegment.get(changeId$1), undefined);
   var logEntry = Core__Option.getExn(segment[0], undefined);
-  return await SubmitCommand.runSubmit(Core__Option.getExn(logEntry.localBookmarks[0], undefined), changeGraph, false);
+  return await SubmitCommand.runSubmit(jjConfig, Core__Option.getExn(logEntry.localBookmarks[0], undefined), changeGraph, false);
 }
 
 export {
+  createJjFunctions ,
   buildChangeGraph ,
-  gitFetch ,
   getExistingPRs ,
   getGitHubConfig ,
   analyzeCommand ,

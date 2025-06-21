@@ -88,14 +88,14 @@ suite("stack detection", () => {
       },
     ];
 
-    const mockConfig = { binaryPath: "/mock/jj" };
+    // AIDEV-NOTE: Using factory pattern mock setup (config is passed at factory creation)
 
     const mockJj: JjFunctions = {
       gitFetch: () => Promise.resolve(),
 
       getMyBookmarks: () => Promise.resolve(mockBookmarks),
 
-      getBranchChangesPaginated: (_config, _from: string, to: string) => {
+      getBranchChangesPaginated: (_from: string, to: string) => {
         // Return changes between trunk (commit_a) and target commit
         if (to === "commit_c") {
           // bookmark1: changes from trunk to C = [C, B] (newest first)
@@ -111,7 +111,7 @@ suite("stack detection", () => {
       },
     };
 
-    const result = await buildChangeGraph(mockConfig, mockJj);
+    const result = await buildChangeGraph(mockJj);
 
     // Expected: Two stacks
     // Stack 1: trunk -> bookmark3 -> bookmark1
@@ -233,7 +233,7 @@ suite("stack detection", () => {
   test("complex", async () => {
     console.log("\n=== Testing complex branching scenario ===");
 
-    const mockConfig = { binaryPath: "/mock/jj" };
+    // AIDEV-NOTE: Using factory pattern mock setup (config is passed at factory creation)
 
     // Setup: A complex tree structure
     // trunk -> bookmark1 -> bookmark2 -> bookmark3
@@ -388,7 +388,7 @@ suite("stack detection", () => {
 
       getMyBookmarks: () => Promise.resolve(mockBookmarks),
 
-      getBranchChangesPaginated: (_config, _from: string, to: string) => {
+      getBranchChangesPaginated: (_from: string, to: string) => {
         // Return changes between trunk (commit_a) and target commit
         if (to === "commit_b") {
           // bookmark1: [B]
@@ -431,7 +431,7 @@ suite("stack detection", () => {
       },
     };
 
-    const result = await buildChangeGraph(mockConfig, mockJj);
+    const result = await buildChangeGraph(mockJj);
 
     // Expected: Three stacks (one for each leaf)
     // Stack 1: trunk -> bookmark1 -> bookmark2 -> bookmark3

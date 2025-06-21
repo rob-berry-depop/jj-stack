@@ -7,9 +7,9 @@ type gitHubConfig = {
 }
 
 @module("../lib/jjUtils.js")
-external buildChangeGraph: JJTypes.jjConfig => promise<JJTypes.changeGraph> = "buildChangeGraph"
+external createJjFunctions: JJTypes.jjConfig => JJTypes.jjFunctions = "createJjFunctions"
 @module("../lib/jjUtils.js")
-external gitFetch: JJTypes.jjConfig => promise<unit> = "gitFetch"
+external buildChangeGraph: JJTypes.jjFunctions => promise<JJTypes.changeGraph> = "buildChangeGraph"
 @module("../lib/submit.js")
 external getExistingPRs: (
   octoKit,
@@ -27,8 +27,11 @@ let analyzeCommand = async () => {
   }
 
   Console.log("Fetching from remote...")
+
+  let jjFunctions = createJjFunctions(jjConfig)
+
   try {
-    await gitFetch(jjConfig)
+    await jjFunctions.gitFetch()
   } catch {
   | Exn.Error(error) =>
     Console.error(
@@ -37,7 +40,7 @@ let analyzeCommand = async () => {
   }
 
   Console.log("Building change graph from user bookmarks...")
-  let changeGraph = await buildChangeGraph(jjConfig)
+  let changeGraph = await buildChangeGraph(jjFunctions)
 
   if changeGraph.stacks->Array.length == 0 {
     Console.log(
@@ -177,5 +180,10 @@ let analyzeCommand = async () => {
 
   let segment = changeGraph.bookmarkedChangeIdToSegment->Map.get(changeId)->Option.getExn
   let logEntry = segment[0]->Option.getExn
-  await SubmitCommand.runSubmit(logEntry.localBookmarks[0]->Option.getExn, changeGraph, false)
+  await SubmitCommand.runSubmit(
+    jjConfig,
+    logEntry.localBookmarks[0]->Option.getExn,
+    changeGraph,
+    false,
+  )
 }
