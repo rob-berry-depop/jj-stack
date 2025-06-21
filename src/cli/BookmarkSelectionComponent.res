@@ -3,23 +3,7 @@
 
 @module("process") external exit: int => unit = "exit"
 
-module Text = {
-  @module("ink") @react.component
-  external make: (~children: React.element, ~color: string=?) => React.element = "Text"
-}
-
-type inkKey = {
-  upArrow: bool,
-  downArrow: bool,
-  leftArrow: bool,
-  rightArrow: bool,
-  return: bool,
-}
-
-type inkUseInputOptions = {isActive: bool}
-
-@module("ink")
-external useInput: ((string, inkKey) => unit, option<inkUseInputOptions>) => unit = "useInput"
+module Text = InkBindings.Text
 
 // AIDEV-NOTE: Internal state for tracking user selections and navigation
 type selectionState = {
@@ -138,7 +122,7 @@ let make = (
   let isComplete = areAllSelectionsComplete(segments, selectionState.selections)
 
   // AIDEV-NOTE: Handle keyboard navigation
-  useInput((_, key) => {
+  InkBindings.useInput((_, key) => {
     if key.return && isComplete {
       // User pressed Enter and all selections are complete
       let selectedBookmarks = getSelectedBookmarks(segments, selectionState.selections)

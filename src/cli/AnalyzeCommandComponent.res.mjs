@@ -8,8 +8,6 @@ import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 import * as JsxRuntime from "react/jsx-runtime";
 
-var $$Text = {};
-
 function AnalyzeCommandComponent(props) {
   var topSort = props.topSort;
   var output = props.output;
@@ -92,6 +90,8 @@ function AnalyzeCommandComponent(props) {
               ]
             });
 }
+
+var $$Text;
 
 var make = AnalyzeCommandComponent;
 

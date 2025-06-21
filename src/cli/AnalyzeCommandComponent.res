@@ -1,17 +1,4 @@
-module Text = {
-  @module("ink") @react.component
-  external make: (~children: React.element, ~color: string=?) => React.element = "Text"
-}
-
-type inkKey = {
-  upArrow: bool,
-  downArrow: bool,
-}
-
-type inkUseInputOptions = {isActive: bool}
-
-@module("ink")
-external useInput: ((string, inkKey) => unit, option<inkUseInputOptions>) => unit = "useInput"
+module Text = InkBindings.Text
 
 type outputRow = {
   chars: array<string>,
@@ -28,7 +15,7 @@ let make = (
     output[0]->Option.mapOr(None, outputRow => outputRow.changeId)
   )
 
-  useInput((_, key) => {
+  InkBindings.useInput((_, key) => {
     switch selectedChangeId {
     | Some(selectedChangeId) =>
       if key.upArrow {
