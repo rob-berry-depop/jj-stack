@@ -146,6 +146,7 @@ async function analyzeCommand() {
               changeId: undefined
             });
       });
+  console.log();
   var changeId$1 = await new Promise((function (resolve, _reject) {
           var inkInstanceRef = {
             contents: undefined

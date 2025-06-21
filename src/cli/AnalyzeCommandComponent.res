@@ -56,6 +56,7 @@ let make = (
   }
 
   <React.Fragment>
+    <Text> {React.string("Select a stack to submit:")} </Text>
     {React.array(
       output->Array.mapWithIndex((line, idx) => {
         <Text key={idx->Int.toString}>

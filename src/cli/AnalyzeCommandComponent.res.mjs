@@ -61,6 +61,9 @@ function AnalyzeCommandComponent(props) {
   }
   return JsxRuntime.jsxs(React.Fragment, {
               children: [
+                JsxRuntime.jsx($$Ink.Text, {
+                      children: "Select a stack to submit:"
+                    }),
                 output.map(function (line, idx) {
                       var changeId = line.changeId;
                       var tmp;

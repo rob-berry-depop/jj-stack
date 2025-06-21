@@ -176,7 +176,7 @@ let make = (
 
   // AIDEV-NOTE: Render the stack display
   <React.Fragment>
-    <Text> {React.string("Stack for submission:\n")} </Text>
+    <Text> {React.string("Select bookmarks for submission:\n")} </Text>
     {React.array(
       segments->Array.mapWithIndex((segment, segmentIndex) => {
         let changeId = (segment.bookmarks[0]->Option.getExn).changeId

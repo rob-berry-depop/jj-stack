@@ -153,7 +153,7 @@ function BookmarkSelectionComponent(props) {
   return JsxRuntime.jsxs(React.Fragment, {
               children: [
                 JsxRuntime.jsx($$Ink.Text, {
-                      children: "Stack for submission:\n"
+                      children: "Select bookmarks for submission:\n"
                     }),
                 segments.map(function (segment, segmentIndex) {
                       var changeId = Core__Option.getExn(segment.bookmarks[0], undefined).changeId;

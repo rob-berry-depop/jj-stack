@@ -20,8 +20,6 @@ external getExistingPRs: (
 @module("../lib/submit.js")
 external getGitHubConfig: unit => promise<gitHubConfig> = "getGitHubConfig"
 
-@module("ink") external render: React.element => unit = "render"
-
 let analyzeCommand = async () => {
   Console.log("Fetching from remote...")
   try {
@@ -149,6 +147,7 @@ let analyzeCommand = async () => {
     }
   })
 
+  Console.log() // add space between the above logs and the component
   let changeId = await Promise.make((resolve, _reject) => {
     let inkInstanceRef: ref<option<InkBindings.inkInstance>> = ref(None)
 
