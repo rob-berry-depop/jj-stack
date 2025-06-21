@@ -94,6 +94,9 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
 
           try {
             const bookmark = v.parse(BookmarkOutputSchema, JSON.parse(line));
+            const hasMatchingRemote = bookmark.remoteBookmarks.some((remote) =>
+              remote.startsWith(bookmark.name + "@"),
+            );
 
             const existingBookmark = bookmarks.get(bookmark.name);
             if (!existingBookmark) {
@@ -101,13 +104,11 @@ export function getMyBookmarks(): Promise<Bookmark[]> {
                 name: bookmark.name,
                 commitId: bookmark.commitId,
                 changeId: bookmark.changeId,
-                hasRemote: !!bookmark.remoteBookmarks.length,
-                isSynced:
-                  !!bookmark.localBookmarks.length &&
-                  !!bookmark.remoteBookmarks.length,
+                hasRemote: hasMatchingRemote,
+                isSynced: !!bookmark.localBookmarks.length && hasMatchingRemote,
               });
             } else {
-              existingBookmark.hasRemote ||= !!bookmark.remoteBookmarks.length;
+              existingBookmark.hasRemote ||= hasMatchingRemote;
               if (
                 !bookmark.localBookmarks.length &&
                 bookmark.remoteBookmarks.length
