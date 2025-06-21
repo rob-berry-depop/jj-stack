@@ -3,7 +3,6 @@
 import * as $$Ink from "ink";
 import * as Utils from "./Utils.res.mjs";
 import * as React from "react";
-import * as Process from "process";
 import * as Caml_obj from "rescript/lib/es6/caml_obj.js";
 import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
@@ -15,12 +14,6 @@ function AnalyzeCommandComponent(props) {
   var topSort = props.topSort;
   var output = props.output;
   var changeGraph = props.changeGraph;
-  React.useEffect((function () {
-          if (changeGraph.stacks.length === 0) {
-            Process.exit(0);
-          }
-          
-        }), []);
   var match = React.useState(function () {
         return Core__Option.mapOr(output[0], undefined, (function (outputRow) {
                       return outputRow.changeId;

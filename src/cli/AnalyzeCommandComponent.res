@@ -1,4 +1,3 @@
-@module("process") external exit: int => unit = "exit"
 module Text = {
   @module("ink") @react.component
   external make: (~children: React.element, ~color: string=?) => React.element = "Text"
@@ -25,13 +24,6 @@ let make = (
   ~output: array<outputRow>,
   ~topSort: array<string>,
 ) => {
-  React.useEffect(() => {
-    if changeGraph.stacks->Array.length == 0 {
-      exit(0)
-    }
-    None
-  }, [])
-
   let (selectedChangeId, setSelectedChangeId) = React.useState(() =>
     output[0]->Option.mapOr(None, outputRow => outputRow.changeId)
   )

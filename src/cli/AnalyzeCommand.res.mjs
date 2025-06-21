@@ -4,6 +4,7 @@ import * as $$Ink from "ink";
 import * as Utils from "./Utils.res.mjs";
 import * as Js_exn from "rescript/lib/es6/js_exn.js";
 import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
+import * as PervasivesU from "rescript/lib/es6/pervasivesU.js";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 import * as SubmitJs from "../lib/submit.js";
 import * as JjUtilsJs from "../lib/jjUtils.js";
@@ -42,6 +43,10 @@ async function analyzeCommand() {
   }
   console.log("Building change graph from user bookmarks...");
   var changeGraph = await JjUtilsJs.buildChangeGraph();
+  if (changeGraph.stacks.length === 0) {
+    console.log("No bookmark stacks found. Create bookmarks with `jj bookmark create [revision]` first.");
+    PervasivesU.exit(0);
+  }
   var inDegrees = new Map();
   changeGraph.bookmarkedChangeAdjacencyList.forEach(function (parentChangeId) {
         inDegrees.set(parentChangeId, Core__Option.getOr(inDegrees.get(parentChangeId), 0) + 1 | 0);

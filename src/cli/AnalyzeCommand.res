@@ -36,6 +36,13 @@ let analyzeCommand = async () => {
   Console.log("Building change graph from user bookmarks...")
   let changeGraph = await buildChangeGraph()
 
+  if changeGraph.stacks->Array.length == 0 {
+    Console.log(
+      "No bookmark stacks found. Create bookmarks with `jj bookmark create [revision]` first.",
+    )
+    exit(0)
+  }
+
   let inDegrees = Map.make()
   changeGraph.bookmarkedChangeAdjacencyList->Map.forEach(parentChangeId => {
     inDegrees->Map.set(parentChangeId, inDegrees->Map.get(parentChangeId)->Option.getOr(0) + 1)
