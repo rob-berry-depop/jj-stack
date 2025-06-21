@@ -45,14 +45,8 @@ type changeGraph = {
 
 // AIDEV-NOTE: Types for three-phase submission approach (mirrors TypeScript types)
 
-type segmentWithMultipleBookmarks = {
-  segment: bookmarkSegment,
-  bookmarksWithRemotes: array<bookmark>,
-}
-
 type submissionAnalysis = {
   targetBookmark: string,
   changeGraph: changeGraph,
   relevantSegments: array<bookmarkSegment>,
-  segmentsWithMultipleBookmarks: array<segmentWithMultipleBookmarks>,
 }

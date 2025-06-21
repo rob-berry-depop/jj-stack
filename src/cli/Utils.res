@@ -34,13 +34,10 @@ let promptUser = async (questionText: string): string => {
 /**
  * AIDEV-NOTE: Format segment with multiple bookmarks for display to user
  */
-let formatSegmentWithMultipleBookmarks = (
-  segmentWithMultiple: JJTypes.segmentWithMultipleBookmarks,
-): string => {
-  let availableNames =
-    segmentWithMultiple.segment.bookmarks->Array.map(b => b.name)->Array.join(", ")
-  let withRemotes =
-    segmentWithMultiple.bookmarksWithRemotes->Array.map(b => b.name)->Array.join(", ")
+let formatSegmentWithMultipleBookmarks = (segment: JJTypes.bookmarkSegment): string => {
+  let availableNames = segment.bookmarks->Array.map(b => b.name)->Array.join(", ")
+  let bookmarksWithRemotes = segment.bookmarks->Array.filter(b => b.hasRemote)
+  let withRemotes = bookmarksWithRemotes->Array.map(b => b.name)->Array.join(", ")
 
   let remotesInfo = if withRemotes == "" {
     "none have remote branches"
@@ -48,7 +45,7 @@ let formatSegmentWithMultipleBookmarks = (
     `bookmarks with remote branches: ${withRemotes}`
   }
 
-  let firstBookmark = segmentWithMultiple.segment.bookmarks[0]->Option.getExn
+  let firstBookmark = segment.bookmarks[0]->Option.getExn
   let changeId = firstBookmark.changeId
   `Change ${changeId}: multiple bookmarks [${availableNames}] (${remotesInfo})`
 }
@@ -93,15 +90,17 @@ let rec promptFromAllBookmarks = async (bookmarks: array<JJTypes.bookmark>): JJT
  * AIDEV-NOTE: Prompt user to select a bookmark from multiple options in a segment
  */
 and promptBookmarkSelectionForSegment = async (
-  segmentWithMultiple: JJTypes.segmentWithMultipleBookmarks,
+  segment: JJTypes.bookmarkSegment,
 ): JJTypes.bookmark => {
   Console.log(`\n⚠️  Multiple bookmarks found on the same change:`)
-  Console.log(formatSegmentWithMultipleBookmarks(segmentWithMultiple))
+  Console.log(formatSegmentWithMultipleBookmarks(segment))
+
+  // Compute bookmarks with remotes just-in-time
+  let bookmarksWithRemotes = segment.bookmarks->Array.filter(b => b.hasRemote)
 
   // If only one bookmark has a remote, suggest that as default
-  if segmentWithMultiple.bookmarksWithRemotes->Array.length == 1 {
-    let defaultBookmark: JJTypes.bookmark =
-      segmentWithMultiple.bookmarksWithRemotes[0]->Option.getExn
+  if bookmarksWithRemotes->Array.length == 1 {
+    let defaultBookmark: JJTypes.bookmark = bookmarksWithRemotes[0]->Option.getExn
     let questionText = `\nOnly '${defaultBookmark.name}' has a remote branch. Use it? [Y/n]: `
     let answer = await promptUser(questionText)
 
@@ -109,11 +108,11 @@ and promptBookmarkSelectionForSegment = async (
       defaultBookmark
     } else {
       // User declined the suggestion, continue to full selection
-      await promptFromAllBookmarks(segmentWithMultiple.segment.bookmarks)
+      await promptFromAllBookmarks(segment.bookmarks)
     }
   } else {
     // Multiple or no remotes - show all options
-    await promptFromAllBookmarks(segmentWithMultiple.segment.bookmarks)
+    await promptFromAllBookmarks(segment.bookmarks)
   }
 }
 
@@ -123,9 +122,13 @@ and promptBookmarkSelectionForSegment = async (
 let resolveBookmarkSelections = async (analysis: JJTypes.submissionAnalysis): array<
   JJTypes.bookmark,
 > => {
-  if analysis.segmentsWithMultipleBookmarks->Array.length > 0 {
+  // Compute segments with multiple bookmarks locally (just for counting and messaging)
+  let segmentsWithMultipleBookmarks =
+    analysis.relevantSegments->Array.filter(segment => segment.bookmarks->Array.length > 1)
+
+  if segmentsWithMultipleBookmarks->Array.length > 0 {
     Console.log(
-      `\n🔀 Found ${analysis.segmentsWithMultipleBookmarks
+      `\n🔀 Found ${segmentsWithMultipleBookmarks
         ->Array.length
         ->Int.toString} segment(s) with multiple bookmarks:`,
     )
@@ -141,22 +144,13 @@ let resolveBookmarkSelections = async (analysis: JJTypes.submissionAnalysis): ar
       selectedBookmarks->Array.push(segment.bookmarks[0]->Option.getExn)->ignore
     } else {
       // Multiple bookmarks - need user selection
-      let segmentWithMultiple =
-        analysis.segmentsWithMultipleBookmarks
-        ->Array.find(swm => {
-          let swmFirstBookmark = swm.segment.bookmarks[0]->Option.getExn
-          let segmentFirstBookmark = segment.bookmarks[0]->Option.getExn
-          swmFirstBookmark.changeId == segmentFirstBookmark.changeId
-        })
-        ->Option.getExn
-
-      let selectedBookmark = await promptBookmarkSelectionForSegment(segmentWithMultiple)
+      let selectedBookmark = await promptBookmarkSelectionForSegment(segment)
       selectedBookmarks->Array.push(selectedBookmark)->ignore
       Console.log(`✅ Selected '${selectedBookmark.name}' for change ${selectedBookmark.changeId}`)
     }
   }
 
-  if analysis.segmentsWithMultipleBookmarks->Array.length > 0 {
+  if segmentsWithMultipleBookmarks->Array.length > 0 {
     Console.log(`\n✨ All bookmark selections completed!`)
   }
 

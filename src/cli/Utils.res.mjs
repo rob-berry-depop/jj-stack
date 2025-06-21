@@ -27,15 +27,18 @@ async function promptUser(questionText) {
   return answer.trim();
 }
 
-function formatSegmentWithMultipleBookmarks(segmentWithMultiple) {
-  var availableNames = segmentWithMultiple.segment.bookmarks.map(function (b) {
+function formatSegmentWithMultipleBookmarks(segment) {
+  var availableNames = segment.bookmarks.map(function (b) {
           return b.name;
         }).join(", ");
-  var withRemotes = segmentWithMultiple.bookmarksWithRemotes.map(function (b) {
+  var bookmarksWithRemotes = segment.bookmarks.filter(function (b) {
+        return b.hasRemote;
+      });
+  var withRemotes = bookmarksWithRemotes.map(function (b) {
           return b.name;
         }).join(", ");
   var remotesInfo = withRemotes === "" ? "none have remote branches" : "bookmarks with remote branches: " + withRemotes;
-  var firstBookmark = Core__Option.getExn(segmentWithMultiple.segment.bookmarks[0], undefined);
+  var firstBookmark = Core__Option.getExn(segment.bookmarks[0], undefined);
   var changeId = firstBookmark.changeId;
   return "Change " + changeId + ": multiple bookmarks [" + availableNames + "] (" + remotesInfo + ")";
 }
@@ -61,25 +64,31 @@ async function promptFromAllBookmarks(bookmarks) {
   return await promptChoice();
 }
 
-async function promptBookmarkSelectionForSegment(segmentWithMultiple) {
+async function promptBookmarkSelectionForSegment(segment) {
   console.log("\n⚠️  Multiple bookmarks found on the same change:");
-  console.log(formatSegmentWithMultipleBookmarks(segmentWithMultiple));
-  if (segmentWithMultiple.bookmarksWithRemotes.length !== 1) {
-    return await promptFromAllBookmarks(segmentWithMultiple.segment.bookmarks);
+  console.log(formatSegmentWithMultipleBookmarks(segment));
+  var bookmarksWithRemotes = segment.bookmarks.filter(function (b) {
+        return b.hasRemote;
+      });
+  if (bookmarksWithRemotes.length !== 1) {
+    return await promptFromAllBookmarks(segment.bookmarks);
   }
-  var defaultBookmark = Core__Option.getExn(segmentWithMultiple.bookmarksWithRemotes[0], undefined);
+  var defaultBookmark = Core__Option.getExn(bookmarksWithRemotes[0], undefined);
   var questionText = "\nOnly '" + defaultBookmark.name + "' has a remote branch. Use it? [Y/n]: ";
   var answer = await promptUser(questionText);
   if (answer === "" || answer.toLowerCase() === "y" || answer.toLowerCase() === "yes") {
     return defaultBookmark;
   } else {
-    return await promptFromAllBookmarks(segmentWithMultiple.segment.bookmarks);
+    return await promptFromAllBookmarks(segment.bookmarks);
   }
 }
 
 async function resolveBookmarkSelections(analysis) {
-  if (analysis.segmentsWithMultipleBookmarks.length > 0) {
-    console.log("\n🔀 Found " + analysis.segmentsWithMultipleBookmarks.length.toString() + " segment(s) with multiple bookmarks:");
+  var segmentsWithMultipleBookmarks = analysis.relevantSegments.filter(function (segment) {
+        return segment.bookmarks.length > 1;
+      });
+  if (segmentsWithMultipleBookmarks.length > 0) {
+    console.log("\n🔀 Found " + segmentsWithMultipleBookmarks.length.toString() + " segment(s) with multiple bookmarks:");
   }
   var selectedBookmarks = [];
   for(var i = 0 ,i_finish = analysis.relevantSegments.length; i < i_finish; ++i){
@@ -87,19 +96,12 @@ async function resolveBookmarkSelections(analysis) {
     if (segment.bookmarks.length === 1) {
       selectedBookmarks.push(Core__Option.getExn(segment.bookmarks[0], undefined));
     } else {
-      var segmentWithMultiple = Core__Option.getExn(analysis.segmentsWithMultipleBookmarks.find((function(segment){
-              return function (swm) {
-                var swmFirstBookmark = Core__Option.getExn(swm.segment.bookmarks[0], undefined);
-                var segmentFirstBookmark = Core__Option.getExn(segment.bookmarks[0], undefined);
-                return swmFirstBookmark.changeId === segmentFirstBookmark.changeId;
-              }
-              }(segment))), undefined);
-      var selectedBookmark = await promptBookmarkSelectionForSegment(segmentWithMultiple);
+      var selectedBookmark = await promptBookmarkSelectionForSegment(segment);
       selectedBookmarks.push(selectedBookmark);
       console.log("✅ Selected '" + selectedBookmark.name + "' for change " + selectedBookmark.changeId);
     }
   }
-  if (analysis.segmentsWithMultipleBookmarks.length > 0) {
+  if (segmentsWithMultipleBookmarks.length > 0) {
     console.log("\n✨ All bookmark selections completed!");
   }
   return selectedBookmarks;

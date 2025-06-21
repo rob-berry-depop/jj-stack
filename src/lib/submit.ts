@@ -35,10 +35,6 @@ export interface SubmissionAnalysis {
   targetBookmark: string;
   changeGraph: ChangeGraph;
   relevantSegments: BookmarkSegment[];
-  segmentsWithMultipleBookmarks: {
-    segment: BookmarkSegment;
-    bookmarksWithRemotes: Bookmark[];
-  }[];
 }
 
 // Phase 2: Plan creation callbacks (simplified, no bookmark selection)
@@ -139,27 +135,11 @@ export async function analyzeSubmissionGraph(
 
     if (targetIndex !== -1) {
       const relevantSegments = stack.segments.slice(0, targetIndex + 1);
-      const segmentsWithMultipleBookmarks: SubmissionAnalysis["segmentsWithMultipleBookmarks"] =
-        [];
-
-      // Identify segments with multiple bookmarks
-      for (const segment of relevantSegments) {
-        if (segment.bookmarks.length > 1) {
-          const bookmarksWithRemotes = segment.bookmarks.filter(
-            (b) => b.hasRemote,
-          );
-          segmentsWithMultipleBookmarks.push({
-            segment,
-            bookmarksWithRemotes,
-          });
-        }
-      }
 
       return {
         targetBookmark: bookmarkName,
         changeGraph,
         relevantSegments,
-        segmentsWithMultipleBookmarks,
       };
     }
   }
