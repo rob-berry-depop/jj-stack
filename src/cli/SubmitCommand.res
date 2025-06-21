@@ -1,4 +1,8 @@
 @module("process") external exit: int => unit = "exit"
+@module("../lib/jjUtils.js")
+external buildChangeGraph: unit => promise<JJTypes.changeGraph> = "buildChangeGraph"
+@module("../lib/jjUtils.js")
+external gitFetch: unit => promise<unit> = "gitFetch"
 
 type prContent = {title: string}
 
@@ -80,7 +84,7 @@ type submissionResult = {
 // AIDEV-NOTE: External bindings for new three-phase submission API
 
 @module("../lib/submit.js")
-external analyzeSubmissionGraph: string => promise<JJTypes.submissionAnalysis> =
+external analyzeSubmissionGraph: (JJTypes.changeGraph, string) => JJTypes.submissionAnalysis =
   "analyzeSubmissionGraph"
 
 @module("../lib/submit.js")
@@ -171,24 +175,10 @@ let createExecutionCallbacks = (): 'executionCallbacks => {
   }
 }
 
-/**
- * Main submit command function
- */
-let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>=?): unit => {
-  let dryRun = switch options {
-  | Some({?dryRun}) => dryRun->Option.getOr(false)
-  | None => false
-  }
-
-  if dryRun {
-    Console.log(`🧪 DRY RUN: Simulating submission of bookmark: ${bookmarkName}`)
-  } else {
-    Console.log(`🚀 Submitting bookmark: ${bookmarkName}`)
-  }
-
+let runSubmit = async (bookmarkName: string, changeGraph: JJTypes.changeGraph, dryRun: bool) => {
   // PHASE 1: Analyze the submission graph
   Console.log(`🔍 Analyzing submission requirements for: ${bookmarkName}`)
-  let analysis = await analyzeSubmissionGraph(bookmarkName)
+  let analysis = analyzeSubmissionGraph(changeGraph, bookmarkName)
 
   Console.log(
     `✅ Found stack with ${analysis.relevantSegments->Array.length->Int.toString} segment(s)`,
@@ -282,4 +272,35 @@ let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>
       exit(1)
     }
   }
+}
+
+/**
+ * Main submit command function
+ */
+let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>=?): unit => {
+  let dryRun = switch options {
+  | Some({?dryRun}) => dryRun->Option.getOr(false)
+  | None => false
+  }
+
+  if dryRun {
+    Console.log(`🧪 DRY RUN: Simulating submission of bookmark: ${bookmarkName}`)
+  } else {
+    Console.log(`🚀 Submitting bookmark: ${bookmarkName}`)
+
+    Console.log("Fetching from remote...")
+    try {
+      await gitFetch()
+    } catch {
+    | Exn.Error(error) =>
+      Console.error(
+        "Error fetching from remote: " ++ error->Exn.message->Option.getOr("Unknown error"),
+      )
+    }
+  }
+
+  Console.log("Building change graph from user bookmarks...")
+  let changeGraph = await buildChangeGraph()
+
+  await runSubmit(bookmarkName, changeGraph, dryRun)
 }

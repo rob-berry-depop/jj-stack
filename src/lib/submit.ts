@@ -1,7 +1,6 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { Octokit } from "octokit";
-import { buildChangeGraph, gitFetch } from "./jjUtils.js";
 import { getGitHubAuth } from "./auth.js";
 import type {
   Bookmark,
@@ -99,34 +98,13 @@ export interface SubmissionResult {
 }
 
 /**
- * Validate that a bookmark exists locally
- */
-export async function validateBookmark(bookmarkName: string): Promise<void> {
-  const result = await execFileAsync(JJ_BINARY, [
-    "bookmark",
-    "list",
-    bookmarkName,
-  ]);
-
-  if (!result.stdout.trim()) {
-    throw new Error(`Bookmark '${bookmarkName}' does not exist locally`);
-  }
-}
-
-/**
  * PHASE 1: Analyze the change graph for submission
  * AIDEV-NOTE: Pure analysis function - no bookmark selection, just identifies what needs to be resolved
  */
-export async function analyzeSubmissionGraph(
+export function analyzeSubmissionGraph(
+  changeGraph: ChangeGraph,
   bookmarkName: string,
-): Promise<SubmissionAnalysis> {
-  // Validate target bookmark exists locally
-  await validateBookmark(bookmarkName);
-  await gitFetch();
-
-  // Build change graph
-  const changeGraph = await buildChangeGraph();
-
+): SubmissionAnalysis {
   // Find which stack contains the target bookmark
   for (const stack of changeGraph.stacks) {
     const targetIndex = stack.segments.findIndex((segment) =>
