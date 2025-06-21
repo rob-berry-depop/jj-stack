@@ -89,7 +89,7 @@ external analyzeSubmissionGraph: (JJTypes.changeGraph, string) => JJTypes.submis
 
 @module("../lib/submit.js")
 external createSubmissionPlan: (
-  JJTypes.jjConfig,
+  JJTypes.jjFunctions,
   array<JJTypes.narrowedBookmarkSegment>,
   option<'planCallbacks>,
 ) => promise<submissionPlan> = "createSubmissionPlan"
@@ -102,7 +102,7 @@ external createNarrowedSegments: (
 
 @module("../lib/submit.js")
 external executeSubmissionPlan: (
-  JJTypes.jjConfig,
+  JJTypes.jjFunctions,
   submissionPlan,
   'githubConfig,
   option<'executionCallbacks>,
@@ -178,7 +178,7 @@ let createExecutionCallbacks = (): 'executionCallbacks => {
 }
 
 let runSubmit = async (
-  jjConfig: JJTypes.jjConfig,
+  jjFunctions: JJTypes.jjFunctions,
   bookmarkName: string,
   changeGraph: JJTypes.changeGraph,
   dryRun: bool,
@@ -196,7 +196,7 @@ let runSubmit = async (
 
   Console.log(`📋 Creating submission plan...`)
   let narrowedSegments = createNarrowedSegments(resolvedBookmarks, analysis)
-  let plan = await createSubmissionPlan(jjConfig, narrowedSegments, None)
+  let plan = await createSubmissionPlan(jjFunctions, narrowedSegments, None)
 
   // Display plan summary
   Console.log(`📍 GitHub repository: ${plan.repoInfo.owner}/${plan.repoInfo.repo}`)
@@ -250,7 +250,12 @@ let runSubmit = async (
     let githubConfig = await getGitHubConfig()
 
     let executionCallbacks = createExecutionCallbacks()
-    let result = await executeSubmissionPlan(jjConfig, plan, githubConfig, Some(executionCallbacks))
+    let result = await executeSubmissionPlan(
+      jjFunctions,
+      plan,
+      githubConfig,
+      Some(executionCallbacks),
+    )
 
     if result.success {
       Console.log(`\n🎉 Successfully submitted stack up to ${bookmarkName}!`)
@@ -316,5 +321,5 @@ let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>
   Console.log("Building change graph from user bookmarks...")
   let changeGraph = await buildChangeGraph(jjFunctions)
 
-  await runSubmit(jjConfig, bookmarkName, changeGraph, dryRun)
+  await runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun)
 }

@@ -109,6 +109,13 @@ suite("stack detection", () => {
         }
         return Promise.resolve([]);
       },
+
+      getGitRemoteList: () =>
+        Promise.resolve([
+          { name: "origin", url: "https://github.com/test/repo.git" },
+        ]),
+      getDefaultBranch: () => Promise.resolve("main"),
+      pushBookmark: () => Promise.resolve(),
     };
 
     const result = await buildChangeGraph(mockJj);
@@ -429,6 +436,13 @@ suite("stack detection", () => {
         }
         return Promise.resolve([]);
       },
+
+      getGitRemoteList: () =>
+        Promise.resolve([
+          { name: "origin", url: "https://github.com/test/repo.git" },
+        ]),
+      getDefaultBranch: () => Promise.resolve("main"),
+      pushBookmark: () => Promise.resolve(),
     };
 
     const result = await buildChangeGraph(mockJj);

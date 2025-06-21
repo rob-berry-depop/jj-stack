@@ -181,7 +181,7 @@ let analyzeCommand = async () => {
   let segment = changeGraph.bookmarkedChangeIdToSegment->Map.get(changeId)->Option.getExn
   let logEntry = segment[0]->Option.getExn
   await SubmitCommand.runSubmit(
-    jjConfig,
+    jjFunctions,
     logEntry.localBookmarks[0]->Option.getExn,
     changeGraph,
     false,

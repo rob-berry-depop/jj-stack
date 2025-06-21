@@ -1,5 +1,3 @@
-import { execFile } from "child_process";
-import { promisify } from "util";
 import { Octokit } from "octokit";
 import { getGitHubAuth } from "./auth.js";
 import type {
@@ -7,11 +5,9 @@ import type {
   ChangeGraph,
   BookmarkSegment,
   NarrowedBookmarkSegment,
-  JjConfig,
 } from "./jjTypes.js";
+import type { JjFunctions } from "./jjUtils.js";
 import * as v from "valibot";
-
-const execFileAsync = promisify(execFile);
 
 export type PullRequest = PullRequestItem | PullRequestListItem;
 type PullRequestItem = Awaited<
@@ -128,32 +124,20 @@ export function analyzeSubmissionGraph(
 /**
  * Extract GitHub owner and repo from jj git remote URL
  */
-export async function getGitHubRepoInfo(config: JjConfig): Promise<{
+export async function getGitHubRepoInfo(jj: JjFunctions): Promise<{
   owner: string;
   repo: string;
 }> {
   // Get the origin remote URL using JJ
-  const result = await execFileAsync(config.binaryPath, [
-    "git",
-    "remote",
-    "list",
-  ]);
-  const lines = result.stdout.trim().split("\n");
+  const remotes = await jj.getGitRemoteList();
 
   // Find the origin remote
-  let originUrl = "";
-  for (const line of lines) {
-    // JJ git remote list format: "remote_name url"
-    const parts = line.trim().split(/\s+/);
-    if (parts.length >= 2 && parts[0] === "origin") {
-      originUrl = parts[1];
-      break;
-    }
-  }
-
-  if (!originUrl) {
+  const originRemote = remotes.find((remote) => remote.name === "origin");
+  if (!originRemote) {
     throw new Error("No 'origin' remote found");
   }
+
+  const originUrl = originRemote.url;
 
   // Parse GitHub URLs - support both HTTPS and SSH formats
   // HTTPS: https://github.com/owner/repo.git
@@ -180,7 +164,7 @@ export async function getGitHubRepoInfo(config: JjConfig): Promise<{
 /**
  * Get the GitHub configuration from environment or config
  */
-export async function getGitHubConfig(config: JjConfig): Promise<GitHubConfig> {
+export async function getGitHubConfig(jj: JjFunctions): Promise<GitHubConfig> {
   // Get authentication using the auth utility
   const authConfig = await getGitHubAuth();
   const octokit = new Octokit({ auth: authConfig.token });
@@ -190,7 +174,7 @@ export async function getGitHubConfig(config: JjConfig): Promise<GitHubConfig> {
   let repo = process.env.GITHUB_REPO;
 
   if (!owner || !repo) {
-    const repoInfo = await getGitHubRepoInfo(config);
+    const repoInfo = await getGitHubRepoInfo(jj);
     owner = repoInfo.owner;
     repo = repoInfo.repo;
   }
@@ -216,44 +200,6 @@ export async function findExistingPR(
 
   const pulls = result.data;
   return pulls.length > 0 ? pulls[0] : null;
-}
-
-const RemoteBookmarksSchema = v.array(v.string());
-/**
- * Get the default branch name for the repository by finding what trunk() resolves to
- */
-export async function getDefaultBranch(config: JjConfig): Promise<string> {
-  const template = `'[ ' ++ remote_bookmarks.map(|b| b.name().escape_json()).join(",") ++ ']\n'`;
-  const result = await execFileAsync(config.binaryPath, [
-    "log",
-    "--revisions",
-    "trunk()",
-    "--no-graph",
-    "--limit",
-    "1",
-    "--template",
-    template,
-  ]);
-
-  let remoteBookmarks: string[];
-  try {
-    remoteBookmarks = v.parse(RemoteBookmarksSchema, JSON.parse(result.stdout));
-  } catch (e) {
-    throw new Error(
-      `Failed to parse remote bookmarks from jj log output: ${String(e)}`,
-    );
-  }
-
-  const candidates = ["main", "master", "trunk"];
-  for (const candidate of candidates) {
-    if (remoteBookmarks.includes(candidate)) {
-      return candidate;
-    }
-  }
-
-  throw new Error(
-    `Could not find a remote bookmark for default branch (main, master, or trunk) in: ${JSON.stringify(remoteBookmarks)}`,
-  );
 }
 
 /**
@@ -303,25 +249,6 @@ export function generatePRTitle(
 
   // Use the latest commit's description as the title
   return segment.changes[0].descriptionFirstLine || bookmarkName;
-}
-
-/**
- * Push the bookmark to the remote
- */
-export async function pushBookmark(
-  config: JjConfig,
-  bookmarkName: string,
-  remote: string = "origin",
-): Promise<void> {
-  await execFileAsync(config.binaryPath, [
-    "git",
-    "push",
-    "--remote",
-    remote,
-    "--bookmark",
-    bookmarkName,
-    "--allow-new",
-  ]);
 }
 
 /**
@@ -544,7 +471,7 @@ export function validatePRBases(
  * AIDEV-NOTE: Takes exactly one bookmark per segment (enforced by CLI)
  */
 export async function createSubmissionPlan(
-  config: JjConfig,
+  jj: JjFunctions,
   segments: NarrowedBookmarkSegment[],
   callbacks?: PlanCallbacks,
 ): Promise<SubmissionPlan> {
@@ -553,7 +480,7 @@ export async function createSubmissionPlan(
     const targetBookmark = bookmarksToSubmit[bookmarksToSubmit.length - 1].name;
 
     // Get GitHub configuration for Octokit instance
-    const githubConfig = await getGitHubConfig(config);
+    const githubConfig = await getGitHubConfig(jj);
 
     callbacks?.onCheckingPRs?.(bookmarksToSubmit);
     const existingPRs = await getExistingPRs(
@@ -563,7 +490,7 @@ export async function createSubmissionPlan(
       bookmarksToSubmit,
     );
 
-    const defaultBranch = await getDefaultBranch(config);
+    const defaultBranch = await jj.getDefaultBranch();
 
     // Validate existing PRs against expected base branches
     const bookmarksNeedingPRBaseUpdate = validatePRBases(
@@ -624,7 +551,7 @@ export async function createSubmissionPlan(
  * AIDEV-NOTE: Pure execution of the plan with no decision-making
  */
 export async function executeSubmissionPlan(
-  config: JjConfig,
+  jj: JjFunctions,
   plan: SubmissionPlan,
   githubConfig: GitHubConfig,
   callbacks?: ExecutionCallbacks,
@@ -642,7 +569,7 @@ export async function executeSubmissionPlan(
     for (const bookmark of plan.bookmarksNeedingPush) {
       try {
         callbacks?.onPushStarted?.(bookmark, "origin");
-        await pushBookmark(config, bookmark.name, "origin");
+        await jj.pushBookmark(bookmark.name, "origin");
         callbacks?.onPushCompleted?.(bookmark, "origin");
         result.pushedBookmarks.push(bookmark);
       } catch (error) {

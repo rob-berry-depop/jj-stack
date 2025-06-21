@@ -19,6 +19,9 @@ export type JjFunctions = {
     to: string,
     lastSeenCommit?: string,
   ) => Promise<LogEntry[]>;
+  getGitRemoteList: () => Promise<Array<{ name: string; url: string }>>;
+  getDefaultBranch: () => Promise<string>;
+  pushBookmark: (bookmarkName: string, remote: string) => Promise<void>;
 };
 
 /**
@@ -30,6 +33,10 @@ export function createJjFunctions(config: JjConfig): JjFunctions {
     getMyBookmarks: () => getMyBookmarks(config),
     getBranchChangesPaginated: (from, to, lastSeenCommit) =>
       getBranchChangesPaginated(config, from, to, lastSeenCommit),
+    getGitRemoteList: () => getGitRemoteList(config),
+    getDefaultBranch: () => getDefaultBranch(config),
+    pushBookmark: (bookmarkName, remote) =>
+      pushBookmark(config, bookmarkName, remote),
   };
 }
 
@@ -529,4 +536,145 @@ export async function buildChangeGraph(jj: JjFunctions): Promise<ChangeGraph> {
     stackRoots,
     stacks,
   };
+}
+
+/**
+ * Get git remote list using JJ
+ */
+function getGitRemoteList(
+  config: JjConfig,
+): Promise<Array<{ name: string; url: string }>> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      config.binaryPath,
+      ["git", "remote", "list"],
+      (error, stdout, stderr) => {
+        if (error) {
+          logger.error(
+            `Failed to get git remotes: ${(error as Error).toString()}`,
+          );
+          return reject(error as Error);
+        }
+        if (stderr) {
+          logger.warn(`Git remote list warnings: ${stderr}`);
+        }
+
+        const lines = stdout.trim().split("\n");
+        const remotes: Array<{ name: string; url: string }> = [];
+
+        for (const line of lines) {
+          // JJ git remote list format: "remote_name url"
+          const parts = line.trim().split(/\s+/);
+          if (parts.length >= 2) {
+            remotes.push({ name: parts[0], url: parts[1] });
+          }
+        }
+
+        resolve(remotes);
+      },
+    );
+  });
+}
+
+const RemoteBookmarksSchema = v.array(v.string());
+/**
+ * Get the default branch name for the repository by finding what trunk() resolves to
+ */
+function getDefaultBranch(config: JjConfig): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const template = `'[ ' ++ remote_bookmarks.map(|b| b.name().escape_json()).join(",") ++ ']\n'`;
+
+    execFile(
+      config.binaryPath,
+      [
+        "log",
+        "--revisions",
+        "trunk()",
+        "--no-graph",
+        "--limit",
+        "1",
+        "--template",
+        template,
+      ],
+      (error, stdout, stderr) => {
+        if (error) {
+          logger.error(
+            `Failed to get default branch: ${(error as Error).toString()}`,
+          );
+          return reject(error as Error);
+        }
+        if (stderr) {
+          logger.warn(`Get default branch warnings: ${stderr}`);
+        }
+
+        let remoteBookmarks: string[];
+        try {
+          remoteBookmarks = v.parse(
+            RemoteBookmarksSchema,
+            JSON.parse(stdout.trim()),
+          );
+        } catch (e) {
+          const parseError = new Error(
+            `Failed to parse remote bookmarks from jj log output: ${String(e)}`,
+          );
+          logger.error(parseError.message);
+          return reject(parseError);
+        }
+
+        const candidates = ["main", "master", "trunk"];
+        for (const candidate of candidates) {
+          if (remoteBookmarks.includes(candidate)) {
+            resolve(candidate);
+            return;
+          }
+        }
+
+        const notFoundError = new Error(
+          `Could not find a remote bookmark for default branch (main, master, or trunk) in: ${JSON.stringify(remoteBookmarks)}`,
+        );
+        logger.error(notFoundError.message);
+        reject(notFoundError);
+      },
+    );
+  });
+}
+
+/**
+ * Push the bookmark to the remote using JJ
+ */
+function pushBookmark(
+  config: JjConfig,
+  bookmarkName: string,
+  remote: string = "origin",
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      config.binaryPath,
+      [
+        "git",
+        "push",
+        "--remote",
+        remote,
+        "--bookmark",
+        bookmarkName,
+        "--allow-new",
+      ],
+      (error, stdout, stderr) => {
+        if (error) {
+          logger.error(
+            `Failed to push bookmark ${bookmarkName}: ${(error as Error).toString()}`,
+          );
+          return reject(error as Error);
+        }
+        if (stderr) {
+          logger.warn(`Push bookmark warnings: ${stderr}`);
+        }
+
+        logger.debug(
+          `Successfully pushed bookmark ${bookmarkName} to ${remote}`,
+        );
+        resolve();
+      },
+    );
+  });
 }

@@ -29,11 +29,10 @@ function getGitHubConfig(prim) {
 }
 
 async function analyzeCommand() {
-  var jjConfig = {
-    binaryPath: "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin"
-  };
   console.log("Fetching from remote...");
-  var jjFunctions = JjUtilsJs.createJjFunctions(jjConfig);
+  var jjFunctions = JjUtilsJs.createJjFunctions({
+        binaryPath: "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin"
+      });
   try {
     await jjFunctions.gitFetch();
   }
@@ -171,7 +170,7 @@ async function analyzeCommand() {
         }));
   var segment = Core__Option.getExn(changeGraph.bookmarkedChangeIdToSegment.get(changeId$1), undefined);
   var logEntry = Core__Option.getExn(segment[0], undefined);
-  return await SubmitCommand.runSubmit(jjConfig, Core__Option.getExn(logEntry.localBookmarks[0], undefined), changeGraph, false);
+  return await SubmitCommand.runSubmit(jjFunctions, Core__Option.getExn(logEntry.localBookmarks[0], undefined), changeGraph, false);
 }
 
 export {
