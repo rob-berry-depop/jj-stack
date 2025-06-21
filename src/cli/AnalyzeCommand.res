@@ -170,7 +170,31 @@ let analyzeCommand = async () => {
   //  ├─╯
   //  ○ trunk()
 
-  render(<AnalyzeCommandComponent changeGraph output topSort />)
+  let changeId = await Promise.make((resolve, _reject) => {
+    let inkInstanceRef: ref<option<InkBindings.inkInstance>> = ref(None)
+
+    let inkInstance = InkBindings.render(
+      <AnalyzeCommandComponent
+        changeGraph
+        output
+        topSort
+        onSelect={changeId => {
+          // Clean up the component first
+          switch inkInstanceRef.contents {
+          | Some(instance) => instance.unmount()
+          | None => ()
+          }
+
+          resolve(changeId)
+        }}
+      />,
+    )
+    inkInstanceRef := Some(inkInstance)
+  })
+
+  let segment = changeGraph.bookmarkedChangeIdToSegment->Map.get(changeId)->Option.getExn
+  let logEntry = segment[0]->Option.getExn
+  await SubmitCommand.runSubmit(logEntry.localBookmarks[0]->Option.getExn, changeGraph, false)
 
   Console.log("\n=== CHANGE GRAPH RESULTS ===")
   Console.log(`Total bookmarks: ${changeGraph.bookmarks->Map.size->Belt.Int.toString}`)

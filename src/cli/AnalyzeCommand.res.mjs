@@ -6,6 +6,7 @@ import * as Js_exn from "rescript/lib/es6/js_exn.js";
 import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 import * as PervasivesU from "rescript/lib/es6/pervasivesU.js";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
+import * as SubmitCommand from "./SubmitCommand.res.mjs";
 import * as SubmitJs from "../lib/submit.js";
 import * as JjUtilsJs from "../lib/jjUtils.js";
 import * as JsxRuntime from "react/jsx-runtime";
@@ -147,11 +148,27 @@ async function analyzeCommand() {
               changeId: undefined
             });
       });
-  $$Ink.render(JsxRuntime.jsx(AnalyzeCommandComponent.make, {
-            changeGraph: changeGraph,
-            output: output,
-            topSort: topSort
-          }));
+  var changeId$1 = await new Promise((function (resolve, _reject) {
+          var inkInstanceRef = {
+            contents: undefined
+          };
+          var inkInstance = $$Ink.render(JsxRuntime.jsx(AnalyzeCommandComponent.make, {
+                    changeGraph: changeGraph,
+                    output: output,
+                    topSort: topSort,
+                    onSelect: (function (changeId) {
+                        var instance = inkInstanceRef.contents;
+                        if (instance !== undefined) {
+                          instance.unmount();
+                        }
+                        resolve(changeId);
+                      })
+                  }));
+          inkInstanceRef.contents = inkInstance;
+        }));
+  var segment = Core__Option.getExn(changeGraph.bookmarkedChangeIdToSegment.get(changeId$1), undefined);
+  var logEntry = Core__Option.getExn(segment[0], undefined);
+  await SubmitCommand.runSubmit(Core__Option.getExn(logEntry.localBookmarks[0], undefined), changeGraph, false);
   console.log("\n=== CHANGE GRAPH RESULTS ===");
   console.log("Total bookmarks: " + String(changeGraph.bookmarks.size));
   console.log("Total stacks: " + String(changeGraph.stacks.length));

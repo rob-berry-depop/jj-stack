@@ -9,6 +9,7 @@ import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 import * as JsxRuntime from "react/jsx-runtime";
 
 function AnalyzeCommandComponent(props) {
+  var onSelect = props.onSelect;
   var topSort = props.topSort;
   var output = props.output;
   var changeGraph = props.changeGraph;
@@ -41,6 +42,8 @@ function AnalyzeCommandComponent(props) {
                     });
               }
               
+            } else if (key.return) {
+              onSelect(selectedChangeId);
             }
             
           }

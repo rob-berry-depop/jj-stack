@@ -10,6 +10,7 @@ let make = (
   ~changeGraph: JJTypes.changeGraph,
   ~output: array<outputRow>,
   ~topSort: array<string>,
+  ~onSelect: string => unit,
 ) => {
   let (selectedChangeId, setSelectedChangeId) = React.useState(() =>
     output[0]->Option.mapOr(None, outputRow => outputRow.changeId)
@@ -30,6 +31,8 @@ let make = (
         if selectedChangeIdRowIdx < topSort->Array.length - 1 {
           setSelectedChangeId(_ => Some(topSort[selectedChangeIdRowIdx + 1]->Option.getExn))
         }
+      } else if key.return {
+        onSelect(selectedChangeId)
       }
     | None => ()
     }
