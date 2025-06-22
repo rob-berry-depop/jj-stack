@@ -140,6 +140,7 @@ function getMyBookmarks(config: JjConfig): Promise<Bookmark[]> {
           } catch (error) {
             logger.error(`Failed to parse bookmark line: ${line}`, error);
             reject(error as Error);
+            return;
           }
         }
 
@@ -236,6 +237,12 @@ remote_bookmarks.map(|b| stringify(b.name() ++ '@' ++ b.remote()).escape_json())
             });
           } catch (parseError) {
             logger.error(`Failed to parse line: ${line}`, parseError);
+            reject(
+              new Error(
+                `Failed to parse JJ log output: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+              ),
+            );
+            return;
           }
         }
 
