@@ -1,4 +1,9 @@
-import { buildChangeGraph, type JjFunctions } from "./jjUtils.js";
+import {
+  buildChangeGraph,
+  isGitHubRemote,
+  filterGitHubRemotes,
+  type JjFunctions,
+} from "./jjUtils.js";
 import type { LogEntry, Bookmark } from "./jjTypes.js";
 import assert from "assert/strict";
 
@@ -578,5 +583,64 @@ suite("stack detection", () => {
         bookmark6Changes[0].changeId === "change_g",
       `Expected bookmark6 segmentChanges to contain only change_g`,
     );
+  });
+});
+
+suite("remote validation", () => {
+  test("isGitHubRemote detects GitHub HTTPS URLs", () => {
+    assert.ok(isGitHubRemote("https://github.com/owner/repo.git"));
+    assert.ok(isGitHubRemote("https://github.com/owner/repo"));
+    assert.ok(isGitHubRemote("https://github.com/owner/repo-name.git"));
+  });
+
+  test("isGitHubRemote detects GitHub SSH URLs", () => {
+    assert.ok(isGitHubRemote("git@github.com:owner/repo.git"));
+    assert.ok(isGitHubRemote("git@github.com:owner/repo"));
+    assert.ok(isGitHubRemote("git@github.com:owner/repo-name.git"));
+  });
+
+  test("isGitHubRemote detects GitHub subdomain URLs", () => {
+    assert.ok(isGitHubRemote("https://company.github.com/owner/repo.git"));
+    assert.ok(isGitHubRemote("git@company.github.com:owner/repo.git"));
+  });
+
+  test("isGitHubRemote rejects non-GitHub URLs", () => {
+    assert.ok(!isGitHubRemote("https://gitlab.com/owner/repo.git"));
+    assert.ok(!isGitHubRemote("https://bitbucket.org/owner/repo.git"));
+    assert.ok(!isGitHubRemote("git@gitlab.com:owner/repo.git"));
+    assert.ok(!isGitHubRemote(""));
+    assert.ok(!isGitHubRemote("invalid-url"));
+  });
+
+  test("filterGitHubRemotes filters correctly", () => {
+    const remotes = [
+      { name: "origin", url: "https://github.com/owner/repo.git" },
+      { name: "upstream", url: "git@github.com:upstream/repo.git" },
+      { name: "gitlab", url: "https://gitlab.com/owner/repo.git" },
+      { name: "bitbucket", url: "https://bitbucket.org/owner/repo.git" },
+      { name: "enterprise", url: "https://company.github.com/owner/repo.git" },
+    ];
+
+    const githubRemotes = filterGitHubRemotes(remotes);
+
+    assert.equal(githubRemotes.length, 3);
+    assert.equal(githubRemotes[0].name, "origin");
+    assert.equal(githubRemotes[1].name, "upstream");
+    assert.equal(githubRemotes[2].name, "enterprise");
+  });
+
+  test("filterGitHubRemotes handles empty list", () => {
+    const githubRemotes = filterGitHubRemotes([]);
+    assert.equal(githubRemotes.length, 0);
+  });
+
+  test("filterGitHubRemotes handles no GitHub remotes", () => {
+    const remotes = [
+      { name: "gitlab", url: "https://gitlab.com/owner/repo.git" },
+      { name: "bitbucket", url: "https://bitbucket.org/owner/repo.git" },
+    ];
+
+    const githubRemotes = filterGitHubRemotes(remotes);
+    assert.equal(githubRemotes.length, 0);
   });
 });

@@ -25,6 +25,29 @@ export type JjFunctions = {
 };
 
 /**
+ * Check if a remote URL points to GitHub.com
+ * Supports both HTTPS and SSH formats:
+ * - HTTPS: https://github.com/owner/repo.git
+ * - SSH: git@github.com:owner/repo.git
+ */
+export function isGitHubRemote(remoteUrl: string): boolean {
+  // Match github.com (including subdomains like company.github.com)
+  // This supports both HTTPS and SSH formats:
+  // HTTPS: https://github.com/owner/repo.git, https://company.github.com/owner/repo.git
+  // SSH: git@github.com:owner/repo.git, git@company.github.com:owner/repo.git
+  return /github\.com[:/]/.test(remoteUrl);
+}
+
+/**
+ * Filter a list of remotes to only include GitHub.com remotes
+ */
+export function filterGitHubRemotes(
+  remotes: Array<{ name: string; url: string }>,
+): Array<{ name: string; url: string }> {
+  return remotes.filter((remote) => isGitHubRemote(remote.url));
+}
+
+/**
  * Create configured JjFunctions from a config object
  */
 export function createJjFunctions(config: JjConfig): JjFunctions {

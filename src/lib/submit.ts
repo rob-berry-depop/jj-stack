@@ -7,6 +7,7 @@ import type {
   NarrowedBookmarkSegment,
 } from "./jjTypes.js";
 import type { JjFunctions } from "./jjUtils.js";
+import { isGitHubRemote } from "./jjUtils.js";
 import * as v from "valibot";
 
 export type PullRequest = PullRequestItem | PullRequestListItem;
@@ -142,6 +143,13 @@ export async function getGitHubRepoInfo(
   }
 
   const remoteUrl = targetRemote.url;
+
+  // Validate that this is a GitHub remote
+  if (!isGitHubRemote(remoteUrl)) {
+    throw new Error(
+      `Remote '${remoteName}' does not point to GitHub.com: ${remoteUrl}`,
+    );
+  }
 
   // Parse GitHub URLs - support both HTTPS and SSH formats
   // HTTPS: https://github.com/owner/repo.git
