@@ -22,5 +22,10 @@ export default defineConfig([
       },
     },
   },
-  globalIgnores(["dist/", "eslint.config.mjs", "**/*.res.mjs"]),
+  globalIgnores([
+    "dist/",
+    "eslint.config.mjs",
+    "esbuild.config.mjs",
+    "**/*.res.mjs",
+  ]),
 ]);

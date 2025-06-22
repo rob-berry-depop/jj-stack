@@ -12,12 +12,10 @@
     "jst": "dist/cli/index.js"
   },
   "scripts": {
-    "build": "npm run res:build && npm run esbuild:build",
+    "build": "npm run res:build && tsc && npm run esbuild:build",
     "test": "mocha 'src/**/*.test.ts'",
     "esbuild:build": "node esbuild.config.mjs",
     "esbuild:dev": "node esbuild.config.mjs --watch",
-    "tsc:build": "tsc",
-    "tsc:dev": "tsc --watch",
     "res:build": "rescript",
     "res:clean": "rescript clean",
     "res:dev": "rescript -w",
