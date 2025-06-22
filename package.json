@@ -13,9 +13,10 @@
   },
   "scripts": {
     "build": "npm run res:build && tsc && npm run esbuild:build",
+    "build:dev": "npm run res:build && tsc && NODE_ENV=development npm run esbuild:build",
     "test": "mocha 'src/**/*.test.ts'",
     "esbuild:build": "node esbuild.config.mjs",
-    "esbuild:dev": "node esbuild.config.mjs --watch",
+    "esbuild:dev": "NODE_ENV=development node esbuild.config.mjs --watch",
     "res:build": "rescript",
     "res:clean": "rescript clean",
     "res:dev": "rescript -w",

@@ -29,7 +29,7 @@ const config = {
   target: "node18", // Match your current Node version, can upgrade to node20 later
   format: "esm",
   outfile: "dist/cli/index.js",
-  sourcemap: true,
+  sourcemap: process.env.NODE_ENV === "development",
 
   // Handle TypeScript and JavaScript files (including .res.mjs from ReScript)
   resolveExtensions: [".ts", ".tsx", ".js", ".mjs", ".json"],
