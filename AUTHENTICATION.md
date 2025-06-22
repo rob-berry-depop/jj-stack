@@ -15,7 +15,7 @@ brew install gh  # macOS
 gh auth login
 
 # That's it! jj-stack will automatically detect and use your GitHub CLI auth
-jj-stack submit my-feature-branch
+jst submit my-feature-branch
 ```
 
 ### 2. Environment Variables
@@ -51,10 +51,10 @@ You can test your authentication setup:
 
 ```bash
 # Test current authentication
-jj-stack auth test
+jst auth test
 
 # Show authentication help
-jj-stack auth help
+jst auth help
 ```
 
 The `auth test` command will show:

@@ -2,6 +2,8 @@
 
 A CLI tool for creating and managing stacked pull requests on GitHub when using Jujutsu locally.
 
+> **Note:** The command can be run as either `jst` (recommended) or `jj-stack`. Examples below use `jst`.
+
 ## Setup
 
 1. Install dependencies:
@@ -61,7 +63,7 @@ A CLI tool for creating and managing stacked pull requests on GitHub when using 
    **Test your authentication:**
 
    ```bash
-   jj-stack auth test
+   jst auth test
    ```
 
    For more details, see [AUTHENTICATION.md](./AUTHENTICATION.md)
@@ -72,10 +74,10 @@ A CLI tool for creating and managing stacked pull requests on GitHub when using 
 
 ```bash
 # Display the current bookmark stacks and change graph
-jj-stack
+jst
 ```
 
-Running `jj-stack` without any arguments will:
+Running `jst` without any arguments will:
 
 - Fetch from the remote repository
 - Build a graph of your bookmarked changes
@@ -88,16 +90,16 @@ If no bookmarks are found, it will prompt you to create bookmarks first with `jj
 
 ```bash
 # Test your current authentication setup
-jj-stack auth test
+jst auth test
 
 # Show authentication help
-jj-stack auth help
+jst auth help
 ```
 
 ### Submit a bookmark as a PR
 
 ```bash
-jj-stack submit <bookmark-name> [--dry-run]
+jst submit <bookmark-name> [--dry-run]
 ```
 
 #### Dry Run Mode
@@ -105,7 +107,7 @@ jj-stack submit <bookmark-name> [--dry-run]
 Use `--dry-run` to simulate the entire process without making any changes:
 
 ```bash
-jj-stack submit my-feature --dry-run
+jst submit my-feature --dry-run
 ```
 
 This will:
@@ -124,7 +126,7 @@ Perfect for development, testing, and understanding what the tool will do.
 
 ```bash
 export GITHUB_TOKEN="your_token"
-jj-stack submit my-feature
+jst submit my-feature
 ```
 
 This command will:
@@ -143,7 +145,7 @@ This command will:
 
 ```bash
 # Display the current bookmark hierarchy and stacking relationships
-jj-stack
+jst
 ```
 
 This is the default command that shows an interactive graph of your stacked bookmarks. You can navigate through the graph and select bookmarks to submit directly from the visualization.
@@ -185,7 +187,7 @@ jj new -m "Add profile editing"
 jj bookmark create profile-edit
 
 # Submit the entire stack
-jj-stack submit auth      # Creates PR: auth -> main
-jj-stack submit profile   # Creates PR: profile -> auth
-jj-stack submit profile-edit # Creates PR: profile-edit -> profile
+jst submit auth      # Creates PR: auth -> main
+jst submit profile   # Creates PR: profile -> auth
+jst submit profile-edit # Creates PR: profile-edit -> profile
 ```
