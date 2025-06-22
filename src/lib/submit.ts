@@ -694,8 +694,8 @@ export async function executeSubmissionPlan(
         const rootPRIdx = rootPRCommentData.stack.findIndex(
           (item) => item.prNumber === rootPR.number,
         );
-        if (rootPRIdx === -1) {
-          // This shouldn't be possible. The root PR's comment's data is invalid.
+        // If the root PR is not found or is the first in the stack, no already-merged parent
+        if (rootPRIdx <= 0) {
           return [];
         }
 
