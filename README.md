@@ -137,7 +137,7 @@ This command will:
 4. **Determine base branch**:
    - If the bookmark is stacked on another bookmark, use that as the base
    - Otherwise, use `main` as the base branch
-5. **Generate PR content**: Use the bookmark's commit messages for title and description
+5. **Generate PR content**: Use the bookmark's latest commit message for title
 6. **Push bookmark**: Push the bookmark to the remote repository
 7. **Create PR**: Create a new pull request on GitHub
 
