@@ -143,7 +143,7 @@ let main = async () => {
     // Use extractGlobalFlags to get filteredArgs and optional remote string
     let (filteredArgs, userSpecifiedRemoteOpt) = extractGlobalFlags(args)
     let knownCommands = ["submit", "auth", "help", "--help", "-h"]
-    let command = Belt.Array.get(filteredArgs, 0)
+    let command = filteredArgs[0]
     let isKnownCommand =
       command
       ->Belt.Option.map(cmd => knownCommands->Array.includes(cmd))

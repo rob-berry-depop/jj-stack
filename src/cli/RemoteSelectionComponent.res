@@ -26,7 +26,8 @@ let extractRepoInfo = (url: string): option<(string, string)> => {
 
   let tryMatch = (pattern, url) => {
     switch Js.String.match_(pattern, url) {
-    | Some(matches) => switch (Belt.Array.get(matches, 1), Belt.Array.get(matches, 2)) {
+    | Some(matches) =>
+      switch (matches[1], matches[2]) {
       | (Some(Some(owner)), Some(Some(repo))) => Some((owner, repo))
       | _ => None
       }

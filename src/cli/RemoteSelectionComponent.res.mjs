@@ -3,7 +3,6 @@
 import * as $$Ink from "ink";
 import * as React from "react";
 import * as Js_string from "rescript/lib/es6/js_string.js";
-import * as Belt_Array from "rescript/lib/es6/belt_Array.js";
 import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 import * as JsxRuntime from "react/jsx-runtime";
@@ -16,8 +15,8 @@ function extractRepoInfo(url) {
     if (matches === undefined) {
       return ;
     }
-    var match = Belt_Array.get(matches, 1);
-    var match$1 = Belt_Array.get(matches, 2);
+    var match = matches[1];
+    var match$1 = matches[2];
     if (match === undefined) {
       return ;
     }

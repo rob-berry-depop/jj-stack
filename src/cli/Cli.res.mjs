@@ -117,7 +117,7 @@ async function main() {
       "--help",
       "-h"
     ];
-    var command = Belt_Array.get(filteredArgs, 0);
+    var command = filteredArgs[0];
     var isKnownCommand = Belt_Option.getWithDefault(Belt_Option.map(command, (function (cmd) {
                 return knownCommands.includes(cmd);
               })), false);
