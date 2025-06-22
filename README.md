@@ -257,3 +257,10 @@ jst submit my-feature --dry-run
 ```
 
 This will output a plan of what would be done in normal mode, without actually executing the plan.
+
+## See also
+
+- https://github.com/sunshowers/spr
+  - Only lets you have one commit per PR.
+- https://github.com/lazywei/fj
+  - Only lets you have one commit per PR. Doesn't support updating the bases of existing PRs after shuffling bookmarks around.
