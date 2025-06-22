@@ -73,16 +73,16 @@ function createExecutionCallbacks() {
         };
 }
 
-async function runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun) {
+async function runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun, remote) {
   console.log("🔍 Analyzing submission requirements for: " + bookmarkName);
   var analysis = SubmitJs.analyzeSubmissionGraph(changeGraph, bookmarkName);
   console.log("✅ Found stack with " + analysis.relevantSegments.length.toString() + " segment(s)");
   var resolvedBookmarks = await Utils.resolveBookmarkSelections(analysis);
   console.log("🔑 Getting GitHub authentication...");
-  var githubConfig = await SubmitJs.getGitHubConfig(jjFunctions, "origin");
+  var githubConfig = await SubmitJs.getGitHubConfig(jjFunctions, remote);
   console.log("📋 Creating submission plan...");
   var narrowedSegments = SubmitJs.createNarrowedSegments(resolvedBookmarks, analysis);
-  var plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, "origin", undefined);
+  var plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, remote, undefined);
   console.log("📍 GitHub repository: " + plan.repoInfo.owner + "/" + plan.repoInfo.repo);
   resolvedBookmarks.forEach(function (bookmark) {
         console.log(formatBookmarkStatus(bookmark, plan.existingPRs));
@@ -149,6 +149,7 @@ async function runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun) {
 
 async function submitCommand(jjFunctions, bookmarkName, options) {
   var dryRun = options !== undefined ? Core__Option.getOr(options.dryRun, false) : false;
+  var remote = options !== undefined ? Core__Option.getOr(options.remote, "origin") : "origin";
   if (dryRun) {
     console.log("🧪 DRY RUN: Simulating submission of bookmark: " + bookmarkName);
   } else {
@@ -168,7 +169,7 @@ async function submitCommand(jjFunctions, bookmarkName, options) {
   }
   console.log("Building change graph from user bookmarks...");
   var changeGraph = await JjUtilsJs.buildChangeGraph(jjFunctions);
-  return await runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun);
+  return await runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun, remote);
 }
 
 export {

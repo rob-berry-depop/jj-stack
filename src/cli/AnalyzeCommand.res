@@ -19,7 +19,7 @@ external getExistingPRs: (
   array<string>,
 ) => promise<Map.t<string, SubmitCommand.pullRequest>> = "getExistingPRs"
 
-let analyzeCommand = async (jjFunctions: JJTypes.jjFunctions) => {
+let analyzeCommand = async (jjFunctions: JJTypes.jjFunctions, ~remote: string="origin") => {
   Console.log("Fetching from remote...")
 
   try {
@@ -177,5 +177,6 @@ let analyzeCommand = async (jjFunctions: JJTypes.jjFunctions) => {
     logEntry.localBookmarks[0]->Option.getExn,
     changeGraph,
     false,
+    remote,
   )
 }

@@ -107,15 +107,31 @@ Support configurable Git remotes instead of hardcoded "origin" for GitHub operat
 **Goal**: Allow users to specify remote via command line flag
 **Can be merged**: Yes - additive feature, backwards compatible
 
-### Changes:
+### Changes Implemented:
 
-1. **Update CLI argument parsing** in ReScript to accept `--remote` flag. The flag should be accepted no matter which subcommand is used.
+1. **Added global flag extraction helper** in CLI (ReScript) ✅:
 
-2. **Update submit command** to use provided remote or default to "origin"
+   - Implemented `extractGlobalFlags`, which removes `--remote <name>` from the argument list and returns both the filtered args and the remote name (defaulting to `origin`).
 
-3. **Add validation** in CLI to ensure specified remote exists and is a GitHub remote
+2. **Updated CLI command dispatch** to use filtered args ✅:
 
-4. **Update documentation** with the new flag, including help text and README.md
+   - After extracting global flags, the CLI checks if the first argument is a known command. If so, it dispatches as usual. If not, it runs the default (analyze) command, passing the remote.
+
+3. **Updated submit and analyze commands** to accept and use the remote parameter ✅:
+
+   - Both commands now receive the remote name and use it for all remote operations.
+
+4. **Validation and error handling** for remotes in CLI ✅:
+
+   - The CLI validates that the specified remote exists and is a GitHub remote, failing fast with a descriptive error if not.
+
+5. **Updated help text and examples** to document the new flag ✅
+
+### Implementation Notes:
+
+- The implementation is intentionally simple and does not use a CLI parsing library yet, but is structured to make such a migration easy in the future.
+- The `--remote` flag now works for all commands, including the default (no subcommand) case.
+- All tests pass and build succeeds.
 
 ---
 

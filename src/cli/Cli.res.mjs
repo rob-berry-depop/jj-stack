@@ -3,6 +3,7 @@
 import * as Utils from "./Utils.res.mjs";
 import * as Js_exn from "rescript/lib/es6/js_exn.js";
 import * as AuthCommand from "./AuthCommand.res.mjs";
+import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
 import * as SubmitCommand from "./SubmitCommand.res.mjs";
 import * as AnalyzeCommand from "./AnalyzeCommand.res.mjs";
 import * as JjUtilsJs from "../lib/jjUtils.js";
@@ -12,7 +13,29 @@ function createJjFunctions(prim) {
   return JjUtilsJs.createJjFunctions(prim);
 }
 
-var help = "🔧 jj-stack - Jujutsu Git workflow automation\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nUSAGE:\n  jj-stack [COMMAND] [OPTIONS]\n\nCOMMANDS:\n  submit <bookmark>     Submit a bookmark and all downstack bookmarks as PRs\n    --dry-run           Show what would be done without making changes\n\n  auth test             Test GitHub authentication\n  auth help             Show authentication help\n\n  help, --help, -h      Show this help message\n\nDEFAULT BEHAVIOR:\n  Running jj-stack without arguments analyzes and displays the current\n  graph of stacked bookmarks.\n\nEXAMPLES:\n  jj-stack                        # Show change graph\n  jj-stack submit feature-branch  # Submit feature-branch and downstack as PRs\n  jj-stack submit feature-branch --dry-run  # Preview what would be done\n  jj-stack auth test              # Test GitHub authentication\n\nFor more information, visit: https://github.com/keanemind/jj-stack\n";
+function isGitHubRemote(prim) {
+  return JjUtilsJs.isGitHubRemote(prim);
+}
+
+var help = "🔧 jj-stack - Jujutsu Git workflow automation\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nUSAGE:\n  jj-stack [COMMAND] [OPTIONS]\n\nCOMMANDS:\n  submit <bookmark>     Submit a bookmark and all downstack bookmarks as PRs\n    --dry-run           Show what would be done without making changes\n    --remote <name>     Use the specified Git remote (must be a GitHub remote)\n\n  auth test             Test GitHub authentication\n  auth help             Show authentication help\n\n  help, --help, -h      Show this help message\n\nDEFAULT BEHAVIOR:\n  Running jj-stack without arguments analyzes and displays the current\n  graph of stacked bookmarks.\n\nEXAMPLES:\n  jj-stack                        # Show change graph\n  jj-stack submit feature-branch  # Submit feature-branch and downstack as PRs\n  jj-stack submit feature-branch --dry-run  # Preview what would be done\n  jj-stack submit feature-branch --remote upstream  # Use a specific remote\n  jj-stack auth test              # Test GitHub authentication\n\nFor more information, visit: https://github.com/keanemind/jj-stack\n";
+
+function extractGlobalFlags(args) {
+  var idx = args.findIndex(function (arg) {
+        return arg === "--remote";
+      });
+  if (!(idx >= 0 && (idx + 1 | 0) < args.length)) {
+    return [
+            args,
+            "origin"
+          ];
+  }
+  var remoteName = Belt_Option.getWithDefault(args[idx + 1 | 0], "origin");
+  var filteredArgs = args.slice(0, idx).concat(args.slice(idx + 2 | 0, args.length));
+  return [
+          filteredArgs,
+          remoteName
+        ];
+}
 
 async function main() {
   try {
@@ -22,14 +45,30 @@ async function main() {
     };
     var jjFunctions = JjUtilsJs.createJjFunctions(jjConfig);
     var args = process.argv.slice(2, process.argv.length);
-    var command = args[0];
+    var match = extractGlobalFlags(args);
+    var remoteName = match[1];
+    var filteredArgs = match[0];
+    var knownCommands = [
+      "submit",
+      "auth",
+      "help",
+      "--help",
+      "-h"
+    ];
+    var command = filteredArgs[0];
+    var isKnownCommand = Belt_Option.getWithDefault(Belt_Option.map(command, (function (cmd) {
+                return knownCommands.includes(cmd);
+              })), false);
     if (command === undefined) {
-      return await AnalyzeCommand.analyzeCommand(jjFunctions);
+      return await AnalyzeCommand.analyzeCommand(jjFunctions, remoteName);
+    }
+    if (!isKnownCommand) {
+      return await AnalyzeCommand.analyzeCommand(jjFunctions, remoteName);
     }
     switch (command) {
       case "auth" :
-          var match = args[1];
-          if (match === "test") {
+          var match$1 = filteredArgs[1];
+          if (match$1 === "test") {
             return await AuthCommand.authTestCommand();
           } else {
             return AuthCommand.authHelpCommand();
@@ -40,19 +79,32 @@ async function main() {
           console.log(help);
           return ;
       case "submit" :
-          var bookmarkName = args[1];
+          var bookmarkName = filteredArgs[1];
           if (bookmarkName !== undefined) {
-            var isDryRun = args.includes("--dry-run");
-            return await SubmitCommand.submitCommand(jjFunctions, bookmarkName, {
-                        dryRun: isDryRun
-                      });
+            var isDryRun = filteredArgs.includes("--dry-run");
+            var remotes = jjFunctions.getGitRemoteList();
+            var foundRemote = remotes.find(function (r) {
+                  return r.name === remoteName;
+                });
+            if (foundRemote !== undefined) {
+              if (!JjUtilsJs.isGitHubRemote(foundRemote.url)) {
+                console.error("❌ Remote '" + remoteName + "' is not a GitHub remote. Only GitHub remotes are supported.");
+                process.exit(1);
+              }
+              return await SubmitCommand.submitCommand(jjFunctions, bookmarkName, {
+                          dryRun: isDryRun,
+                          remote: remoteName
+                        });
+            } else {
+              console.error("❌ Remote '" + remoteName + "' does not exist.");
+              process.exit(1);
+              return ;
+            }
           }
-          console.error("Usage: jj-stack submit <bookmark-name> [--dry-run]");
+          console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]");
           process.exit(1);
           return ;
       default:
-        console.error("Unknown command: " + command + ". Use 'jj-stack help' for usage information.");
-        process.exit(1);
         return ;
     }
   }
@@ -77,7 +129,9 @@ async function main() {
 
 export {
   createJjFunctions ,
+  isGitHubRemote ,
   help ,
+  extractGlobalFlags ,
   main ,
 }
 /* Utils Not a pure module */

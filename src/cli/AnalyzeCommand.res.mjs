@@ -20,7 +20,8 @@ function getExistingPRs(prim0, prim1, prim2, prim3) {
   return SubmitJs.getExistingPRs(prim0, prim1, prim2, prim3);
 }
 
-async function analyzeCommand(jjFunctions) {
+async function analyzeCommand(jjFunctions, remoteOpt) {
+  var remote = remoteOpt !== undefined ? remoteOpt : "origin";
   console.log("Fetching from remote...");
   try {
     await jjFunctions.gitFetch();
@@ -159,7 +160,7 @@ async function analyzeCommand(jjFunctions) {
         }));
   var segment = Core__Option.getExn(changeGraph.bookmarkedChangeIdToSegment.get(changeId$1), undefined);
   var logEntry = Core__Option.getExn(segment[0], undefined);
-  return await SubmitCommand.runSubmit(jjFunctions, Core__Option.getExn(logEntry.localBookmarks[0], undefined), changeGraph, false);
+  return await SubmitCommand.runSubmit(jjFunctions, Core__Option.getExn(logEntry.localBookmarks[0], undefined), changeGraph, false, remote);
 }
 
 export {

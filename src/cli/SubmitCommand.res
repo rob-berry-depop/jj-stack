@@ -117,7 +117,7 @@ external executeSubmissionPlan: (
 external getGitHubConfig: (JJTypes.jjFunctions, string) => promise<'githubConfig> =
   "getGitHubConfig"
 
-type submitOptions = {dryRun?: bool}
+type submitOptions = {dryRun?: bool, remote?: string}
 
 /**
  * Format bookmark status for display
@@ -188,6 +188,7 @@ let runSubmit = async (
   bookmarkName: string,
   changeGraph: JJTypes.changeGraph,
   dryRun: bool,
+  remote: string,
 ) => {
   // PHASE 1: Analyze the submission graph
   Console.log(`🔍 Analyzing submission requirements for: ${bookmarkName}`)
@@ -201,11 +202,11 @@ let runSubmit = async (
   let resolvedBookmarks = await Utils.resolveBookmarkSelections(analysis)
 
   Console.log(`🔑 Getting GitHub authentication...`)
-  let githubConfig = await getGitHubConfig(jjFunctions, "origin")
+  let githubConfig = await getGitHubConfig(jjFunctions, remote)
 
   Console.log(`📋 Creating submission plan...`)
   let narrowedSegments = createNarrowedSegments(resolvedBookmarks, analysis)
-  let plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, "origin", None)
+  let plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, remote, None)
 
   // Display plan summary
   Console.log(`📍 GitHub repository: ${plan.repoInfo.owner}/${plan.repoInfo.repo}`)
@@ -308,6 +309,10 @@ let submitCommand = async (
   | Some({?dryRun}) => dryRun->Option.getOr(false)
   | None => false
   }
+  let remote = switch options {
+  | Some({?remote}) => remote->Option.getOr("origin")
+  | None => "origin"
+  }
 
   if dryRun {
     Console.log(`🧪 DRY RUN: Simulating submission of bookmark: ${bookmarkName}`)
@@ -328,5 +333,5 @@ let submitCommand = async (
   Console.log("Building change graph from user bookmarks...")
   let changeGraph = await buildChangeGraph(jjFunctions)
 
-  await runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun)
+  await runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun, remote)
 }
