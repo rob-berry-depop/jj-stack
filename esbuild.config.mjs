@@ -1,5 +1,27 @@
 import { build } from "esbuild";
 
+// Plugin to selectively bundle only ReScript dependencies
+const selectiveBundlePlugin = {
+  name: "selective-bundle",
+  setup(build) {
+    // Bundle ReScript packages (to fix publishing issue)
+    const rescriptPattern = /^@rescript\//;
+
+    // External everything else from node_modules
+    const nodeModulesPattern = /^[^./]|^\.[^./]|^\.\.[^/]/; // matches node_modules imports
+
+    build.onResolve({ filter: nodeModulesPattern }, (args) => {
+      // Bundle ReScript packages
+      if (rescriptPattern.test(args.path)) {
+        return; // Let esbuild bundle it
+      }
+
+      // External everything else
+      return { path: args.path, external: true };
+    });
+  },
+};
+
 const config = {
   entryPoints: ["src/cli/index.ts"],
   bundle: true,
@@ -12,9 +34,11 @@ const config = {
   // Handle TypeScript and JavaScript files (including .res.mjs from ReScript)
   resolveExtensions: [".ts", ".tsx", ".js", ".mjs", ".json"],
 
-  // Keep Node.js built-ins and problematic packages external
+  // Use plugin for selective bundling
+  plugins: [selectiveBundlePlugin],
+
+  // Only keep Node.js built-ins external
   external: [
-    // Node.js built-ins
     "child_process",
     "util",
     "fs",
@@ -22,14 +46,6 @@ const config = {
     "os",
     "assert",
     "assert/strict",
-    // Keep these packages external (they'll be installed as dependencies)
-    "ink",
-    "react",
-    "octokit",
-    "valibot",
-    "which",
-    // Bundle ReScript deps to fix the publishing issue
-    // @rescript/core and @rescript/react will be bundled
   ],
 
   // JSX configuration for React/Ink components
