@@ -5,6 +5,7 @@ const selectiveBundlePlugin = {
   name: "selective-bundle",
   setup(build) {
     // Bundle ReScript packages (to fix publishing issue)
+    // https://github.com/rescript-lang/rescript/issues/6754
     const rescriptPattern = /^@rescript\//;
 
     // External everything else from node_modules
