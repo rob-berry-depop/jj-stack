@@ -12,8 +12,10 @@
     "jst": "dist/cli/index.js"
   },
   "scripts": {
-    "build": "npm run res:build && npm run tsc:build",
+    "build": "npm run res:build && npm run esbuild:build",
     "test": "mocha 'src/**/*.test.ts'",
+    "esbuild:build": "node esbuild.config.mjs",
+    "esbuild:dev": "node esbuild.config.mjs --watch",
     "tsc:build": "tsc",
     "tsc:dev": "tsc --watch",
     "res:build": "rescript",
@@ -27,6 +29,7 @@
     "@eslint/js": "^9.28.0",
     "@types/mocha": "^10.0.10",
     "@types/which": "^3.0.4",
+    "esbuild": "^0.25.5",
     "eslint": "^9.28.0",
     "globals": "^16.2.0",
     "mocha": "^11.6.0",
