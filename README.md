@@ -19,7 +19,7 @@ Unlike analogous tools for Git, jj-stack is much simpler because it is not an ab
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 18.3.0+
 - Jujutsu (jj) version 0.30.0 or later
 - Git repository with GitHub remote
 - GitHub authentication (multiple methods supported)

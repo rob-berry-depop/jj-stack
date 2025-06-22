@@ -14,6 +14,13 @@ external createJjFunctions: JJTypes.jjConfig => JJTypes.jjFunctions = "createJjF
 @module("../lib/jjUtils.js")
 external isGitHubRemote: string => bool = "isGitHubRemote"
 
+@unboxed type argumentValue = String(string) | Boolean(bool)
+
+type parseArgsResult = {"values": Js.Dict.t<argumentValue>, "positionals": array<string>}
+
+@module("node:util")
+external parseArgs: Js.t<{..}> => parseArgsResult = "parseArgs"
+
 let help = `🔧 jj-stack - Jujutsu Git workflow automation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -109,25 +116,6 @@ let resolveRemoteName = async (
   }
 }
 
-// AIDEV-NOTE: Extract global flags (e.g., --remote) and return filtered args and remoteName option
-let extractGlobalFlags = (args: array<string>): (array<string>, option<string>) => {
-  let idx = args->Array.findIndex(arg => arg == "--remote")
-  if idx >= 0 && idx + 1 < Array.length(args) {
-    switch args[idx + 1] {
-    | Some(remoteName) => {
-        let filteredArgs = Array.concat(
-          Array.slice(args, ~start=0, ~end=idx),
-          Array.slice(args, ~start=idx + 2, ~end=Array.length(args)),
-        )
-        (filteredArgs, Some(remoteName))
-      }
-    | None => (args, None) // This shouldn't happen given the length check above
-    }
-  } else {
-    (args, None)
-  }
-}
-
 @genType
 let main = async () => {
   try {
@@ -138,46 +126,89 @@ let main = async () => {
     }
     let jjFunctions = createJjFunctions(jjConfig)
 
-    let args = Array.slice(argv, ~start=2, ~end=Array.length(argv))
-    // AIDEV-NOTE: Phase 5 - extract --remote flag, now returns option to eliminate hardcoded "origin"
-    // Use extractGlobalFlags to get filteredArgs and optional remote string
-    let (filteredArgs, userSpecifiedRemoteOpt) = extractGlobalFlags(args)
-    let knownCommands = ["submit", "auth", "help", "--help", "-h"]
-    let command = filteredArgs[0]
-    let isKnownCommand =
-      command
-      ->Belt.Option.map(cmd => knownCommands->Array.includes(cmd))
-      ->Belt.Option.getWithDefault(false)
+    let parsed = parseArgs({
+      "options": {
+        "remote": {"type": "string"},
+        "dry-run": {"type": "boolean", "default": false},
+        "help": {"type": "boolean", "short": "h", "default": false},
+      },
+      "allowPositionals": true,
+    })
+
+    let positionals = parsed["positionals"]
+    let command = Belt.Array.get(positionals, 0)
+    let subArg = Belt.Array.get(positionals, 1)
+
+    let remoteOpt = switch Js.Dict.get(parsed["values"], "remote") {
+    | Some(remote) =>
+      switch remote {
+      | String(b) => Some(b)
+      | _ => Exn.raiseError("--remote was used as a boolean")
+      }
+    | None => None
+    }
+    let isDryRun = switch Js.Dict.get(parsed["values"], "dry-run") {
+    | Some(dryRun) =>
+      switch dryRun {
+      | Boolean(b) => b
+      | _ => Exn.raiseError("--dry-run was used as a string")
+      }
+    | None => false
+    }
+    let isHelp = switch Js.Dict.get(parsed["values"], "help") {
+    | Some(help) =>
+      switch help {
+      | Boolean(b) => b
+      | _ => Exn.raiseError("--help was used as a string")
+      }
+    | None => false
+    }
+
     // AIDEV-NOTE: Always resolve remote name before command dispatch
     let remotes = await jjFunctions.getGitRemoteList()
-    let remoteName = await resolveRemoteName(remotes, userSpecifiedRemoteOpt)
+    let remoteName = await resolveRemoteName(remotes, remoteOpt)
+
     switch command {
-    | Some(cmd) if isKnownCommand =>
+    | None =>
+      if isHelp {
+        Console.log(help)
+      } else {
+        await AnalyzeCommand.analyzeCommand(jjFunctions, ~remote=remoteName, ~dryRun=isDryRun)
+      }
+    | Some(cmd) =>
       switch cmd {
       | "auth" =>
-        switch filteredArgs[1] {
-        | Some("test") => await AuthCommand.authTestCommand()
-        | _ => AuthCommand.authHelpCommand()
+        if isHelp {
+          AuthCommand.authHelpCommand()
+        } else {
+          switch subArg {
+          | Some("test") => await AuthCommand.authTestCommand()
+          | _ => AuthCommand.authHelpCommand()
+          }
         }
       | "submit" =>
-        switch filteredArgs[1] {
-        | Some(bookmarkName) => {
-            let isDryRun = filteredArgs->Array.includes("--dry-run")
+        if isHelp {
+          Console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]")
+        } else {
+          switch subArg {
+          | Some(bookmarkName) =>
             await SubmitCommand.submitCommand(
               jjFunctions,
               bookmarkName,
               ~options={dryRun: isDryRun, remote: remoteName},
             )
-          }
-        | None => {
-            Console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]")
-            exit(1)
+          | None => {
+              Console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]")
+              exit(1)
+            }
           }
         }
-      | "help" | "--help" | "-h" => Console.log(help)
-      | _ => () // Should not happen
+      | "help" => Console.log(help)
+      | _ => {
+          Console.error(`Unrecognized command: ${cmd}\n`)
+          Console.log(help)
+        }
       }
-    | _ => await AnalyzeCommand.analyzeCommand(jjFunctions, ~remote=remoteName)
     }
   } catch {
   | Exn.Error(error) =>

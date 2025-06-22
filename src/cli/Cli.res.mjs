@@ -3,9 +3,10 @@
 import * as $$Ink from "ink";
 import * as Utils from "./Utils.res.mjs";
 import * as Js_exn from "rescript/lib/es6/js_exn.js";
+import * as Js_dict from "rescript/lib/es6/js_dict.js";
+import * as Nodeutil from "node:util";
 import * as Belt_Array from "rescript/lib/es6/belt_Array.js";
 import * as AuthCommand from "./AuthCommand.res.mjs";
-import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
 import * as SubmitCommand from "./SubmitCommand.res.mjs";
 import * as AnalyzeCommand from "./AnalyzeCommand.res.mjs";
 import * as JjUtilsJs from "../lib/jjUtils.js";
@@ -76,30 +77,6 @@ async function resolveRemoteName(remotes, userSpecified) {
   }
 }
 
-function extractGlobalFlags(args) {
-  var idx = args.findIndex(function (arg) {
-        return arg === "--remote";
-      });
-  if (!(idx >= 0 && (idx + 1 | 0) < args.length)) {
-    return [
-            args,
-            undefined
-          ];
-  }
-  var remoteName = args[idx + 1 | 0];
-  if (remoteName === undefined) {
-    return [
-            args,
-            undefined
-          ];
-  }
-  var filteredArgs = args.slice(0, idx).concat(args.slice(idx + 2 | 0, args.length));
-  return [
-          filteredArgs,
-          remoteName
-        ];
-}
-
 async function main() {
   try {
     var jjPathResult = await Utils.getJJPath();
@@ -107,54 +84,75 @@ async function main() {
       binaryPath: jjPathResult.filepath
     };
     var jjFunctions = JjUtilsJs.createJjFunctions(jjConfig);
-    var args = process.argv.slice(2, process.argv.length);
-    var match = extractGlobalFlags(args);
-    var filteredArgs = match[0];
-    var knownCommands = [
-      "submit",
-      "auth",
-      "help",
-      "--help",
-      "-h"
-    ];
-    var command = filteredArgs[0];
-    var isKnownCommand = Belt_Option.getWithDefault(Belt_Option.map(command, (function (cmd) {
-                return knownCommands.includes(cmd);
-              })), false);
+    var parsed = Nodeutil.parseArgs({
+          options: {
+            remote: {
+              type: "string"
+            },
+            "dry-run": {
+              type: "boolean",
+              default: false
+            },
+            help: {
+              type: "boolean",
+              short: "h",
+              default: false
+            }
+          },
+          allowPositionals: true
+        });
+    var positionals = parsed.positionals;
+    var command = Belt_Array.get(positionals, 0);
+    var subArg = Belt_Array.get(positionals, 1);
+    var remote = Js_dict.get(parsed.values, "remote");
+    var remoteOpt = remote !== undefined ? (
+        typeof remote === "string" ? remote : Js_exn.raiseError("--remote was used as a boolean")
+      ) : undefined;
+    var dryRun = Js_dict.get(parsed.values, "dry-run");
+    var isDryRun = dryRun !== undefined ? (
+        typeof dryRun === "string" ? Js_exn.raiseError("--dry-run was used as a string") : dryRun
+      ) : false;
+    var help$1 = Js_dict.get(parsed.values, "help");
+    var isHelp = help$1 !== undefined ? (
+        typeof help$1 === "string" ? Js_exn.raiseError("--help was used as a string") : help$1
+      ) : false;
     var remotes = await jjFunctions.getGitRemoteList();
-    var remoteName = await resolveRemoteName(remotes, match[1]);
+    var remoteName = await resolveRemoteName(remotes, remoteOpt);
     if (command === undefined) {
-      return await AnalyzeCommand.analyzeCommand(jjFunctions, remoteName);
-    }
-    if (!isKnownCommand) {
-      return await AnalyzeCommand.analyzeCommand(jjFunctions, remoteName);
+      if (isHelp) {
+        console.log(help);
+        return ;
+      } else {
+        return await AnalyzeCommand.analyzeCommand(jjFunctions, remoteName, isDryRun);
+      }
     }
     switch (command) {
       case "auth" :
-          var match$1 = filteredArgs[1];
-          if (match$1 === "test") {
-            return await AuthCommand.authTestCommand();
-          } else {
+          if (isHelp || subArg !== "test") {
             return AuthCommand.authHelpCommand();
+          } else {
+            return await AuthCommand.authTestCommand();
           }
-      case "--help" :
-      case "-h" :
       case "help" :
           console.log(help);
           return ;
       case "submit" :
-          var bookmarkName = filteredArgs[1];
-          if (bookmarkName !== undefined) {
-            var isDryRun = filteredArgs.includes("--dry-run");
-            return await SubmitCommand.submitCommand(jjFunctions, bookmarkName, {
+          if (isHelp) {
+            console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]");
+            return ;
+          } else if (subArg !== undefined) {
+            return await SubmitCommand.submitCommand(jjFunctions, subArg, {
                         dryRun: isDryRun,
                         remote: remoteName
                       });
+          } else {
+            console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]");
+            process.exit(1);
+            return ;
           }
-          console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]");
-          process.exit(1);
-          return ;
       default:
+        console.error("Unrecognized command: " + command + "\n");
+        console.log(help);
         return ;
     }
   }
@@ -182,7 +180,6 @@ export {
   isGitHubRemote ,
   help ,
   resolveRemoteName ,
-  extractGlobalFlags ,
   main ,
 }
 /* ink Not a pure module */
