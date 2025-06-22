@@ -2,6 +2,7 @@
 
 import * as Utils from "./Utils.res.mjs";
 import * as Js_exn from "rescript/lib/es6/js_exn.js";
+import * as Belt_Array from "rescript/lib/es6/belt_Array.js";
 import * as AuthCommand from "./AuthCommand.res.mjs";
 import * as Belt_Option from "rescript/lib/es6/belt_Option.js";
 import * as SubmitCommand from "./SubmitCommand.res.mjs";
@@ -18,6 +19,48 @@ function isGitHubRemote(prim) {
 }
 
 var help = "🔧 jj-stack - Jujutsu Git workflow automation\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nUSAGE:\n  jj-stack [COMMAND] [OPTIONS]\n\nCOMMANDS:\n  submit <bookmark>     Submit a bookmark and all downstack bookmarks as PRs\n    --dry-run           Show what would be done without making changes\n    --remote <name>     Use the specified Git remote (must be a GitHub remote)\n\n  auth test             Test GitHub authentication\n  auth help             Show authentication help\n\n  help, --help, -h      Show this help message\n\nDEFAULT BEHAVIOR:\n  Running jj-stack without arguments analyzes and displays the current\n  graph of stacked bookmarks.\n\nEXAMPLES:\n  jj-stack                        # Show change graph\n  jj-stack submit feature-branch  # Submit feature-branch and downstack as PRs\n  jj-stack submit feature-branch --dry-run  # Preview what would be done\n  jj-stack submit feature-branch --remote upstream  # Use a specific remote\n  jj-stack auth test              # Test GitHub authentication\n\nFor more information, visit: https://github.com/keanemind/jj-stack\n";
+
+function resolveRemoteName(remotes, userSpecified) {
+  if (userSpecified !== undefined) {
+    var foundRemote = remotes.find(function (r) {
+          return r.name === userSpecified;
+        });
+    if (foundRemote !== undefined) {
+      if (!JjUtilsJs.isGitHubRemote(foundRemote.url)) {
+        console.error("❌ Remote '" + userSpecified + "' is not a GitHub remote. Only GitHub remotes are supported.");
+        process.exit(1);
+        Js_exn.raiseError("");
+      }
+      return userSpecified;
+    } else {
+      console.error("❌ Remote '" + userSpecified + "' does not exist.");
+      process.exit(1);
+      return Js_exn.raiseError("");
+    }
+  }
+  var githubRemotes = remotes.filter(function (r) {
+        return JjUtilsJs.isGitHubRemote(r.url);
+      });
+  var match = githubRemotes.length;
+  if (match !== 0) {
+    if (match === 1) {
+      return Belt_Array.getExn(githubRemotes, 0).name;
+    }
+    var origin = githubRemotes.find(function (r) {
+          return r.name === "origin";
+        });
+    if (origin !== undefined) {
+      return origin.name;
+    } else {
+      console.error("❌ Multiple GitHub remotes found, but no 'origin' remote. Please specify --remote <name>.");
+      process.exit(1);
+      return Js_exn.raiseError("");
+    }
+  }
+  console.error("❌ No GitHub remotes found. At least one GitHub remote is required.");
+  process.exit(1);
+  return Js_exn.raiseError("");
+}
 
 function extractGlobalFlags(args) {
   var idx = args.findIndex(function (arg) {
@@ -46,8 +89,9 @@ async function main() {
     var jjFunctions = JjUtilsJs.createJjFunctions(jjConfig);
     var args = process.argv.slice(2, process.argv.length);
     var match = extractGlobalFlags(args);
-    var remoteName = match[1];
+    var remoteStr = match[1];
     var filteredArgs = match[0];
+    var userSpecifiedRemoteOpt = remoteStr === "origin" ? undefined : remoteStr;
     var knownCommands = [
       "submit",
       "auth",
@@ -55,10 +99,12 @@ async function main() {
       "--help",
       "-h"
     ];
-    var command = filteredArgs[0];
+    var command = Belt_Array.get(filteredArgs, 0);
     var isKnownCommand = Belt_Option.getWithDefault(Belt_Option.map(command, (function (cmd) {
                 return knownCommands.includes(cmd);
               })), false);
+    var remotes = await jjFunctions.getGitRemoteList();
+    var remoteName = resolveRemoteName(remotes, userSpecifiedRemoteOpt);
     if (command === undefined) {
       return await AnalyzeCommand.analyzeCommand(jjFunctions, remoteName);
     }
@@ -82,24 +128,10 @@ async function main() {
           var bookmarkName = filteredArgs[1];
           if (bookmarkName !== undefined) {
             var isDryRun = filteredArgs.includes("--dry-run");
-            var remotes = jjFunctions.getGitRemoteList();
-            var foundRemote = remotes.find(function (r) {
-                  return r.name === remoteName;
-                });
-            if (foundRemote !== undefined) {
-              if (!JjUtilsJs.isGitHubRemote(foundRemote.url)) {
-                console.error("❌ Remote '" + remoteName + "' is not a GitHub remote. Only GitHub remotes are supported.");
-                process.exit(1);
-              }
-              return await SubmitCommand.submitCommand(jjFunctions, bookmarkName, {
-                          dryRun: isDryRun,
-                          remote: remoteName
-                        });
-            } else {
-              console.error("❌ Remote '" + remoteName + "' does not exist.");
-              process.exit(1);
-              return ;
-            }
+            return await SubmitCommand.submitCommand(jjFunctions, bookmarkName, {
+                        dryRun: isDryRun,
+                        remote: remoteName
+                      });
           }
           console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]");
           process.exit(1);
@@ -131,6 +163,7 @@ export {
   createJjFunctions ,
   isGitHubRemote ,
   help ,
+  resolveRemoteName ,
   extractGlobalFlags ,
   main ,
 }

@@ -44,6 +44,59 @@ EXAMPLES:
 For more information, visit: https://github.com/keanemind/jj-stack
 `
 
+// AIDEV-NOTE: Phase 4 - Remote resolution logic for CLI
+let resolveRemoteName = (
+  remotes: array<JJTypes.gitRemote>,
+  userSpecified: option<string>,
+): string => {
+  switch userSpecified {
+  | Some(remoteName) => {
+      let foundRemote = remotes->Array.find(r => r.name == remoteName)
+      switch foundRemote {
+      | Some(remote) => {
+          if !isGitHubRemote(remote.url) {
+            Console.error(
+              `❌ Remote '${remoteName}' is not a GitHub remote. Only GitHub remotes are supported.`,
+            )
+            exit(1)
+            Js.Exn.raiseError("") // unreachable
+          }
+          remoteName
+        }
+      | None => {
+          Console.error(`❌ Remote '${remoteName}' does not exist.`)
+          exit(1)
+          Js.Exn.raiseError("")
+        }
+      }
+    }
+  | None => {
+      let githubRemotes = remotes->Array.filter(r => isGitHubRemote(r.url))
+      switch githubRemotes->Array.length {
+      | 0 => {
+          Console.error("❌ No GitHub remotes found. At least one GitHub remote is required.")
+          exit(1)
+          Js.Exn.raiseError("")
+        }
+      | 1 => Belt.Array.getExn(githubRemotes, 0).name
+      | _ => {
+          let origin = githubRemotes->Array.find(r => r.name == "origin")
+          switch origin {
+          | Some(r) => r.name
+          | None => {
+              Console.error(
+                "❌ Multiple GitHub remotes found, but no 'origin' remote. Please specify --remote <name>.",
+              )
+              exit(1)
+              Js.Exn.raiseError("")
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 // AIDEV-NOTE: Extract global flags (e.g., --remote) and return filtered args and remoteName
 let extractGlobalFlags = (args: array<string>): (array<string>, string) => {
   let idx = args->Array.findIndex(arg => arg == "--remote")
@@ -70,13 +123,23 @@ let main = async () => {
     let jjFunctions = createJjFunctions(jjConfig)
 
     let args = Array.slice(argv, ~start=2, ~end=Array.length(argv))
-    let (filteredArgs, remoteName) = extractGlobalFlags(args)
+    // AIDEV-NOTE: Phase 4 - extract --remote, but allow auto-detection if not specified
+    // Use extractGlobalFlags to get filteredArgs and remote string
+    let (filteredArgs, remoteStr) = extractGlobalFlags(args)
+    let userSpecifiedRemoteOpt = if remoteStr == "origin" {
+      None
+    } else {
+      Some(remoteStr)
+    }
     let knownCommands = ["submit", "auth", "help", "--help", "-h"]
-    let command = filteredArgs[0]
+    let command = Belt.Array.get(filteredArgs, 0)
     let isKnownCommand =
       command
       ->Belt.Option.map(cmd => knownCommands->Array.includes(cmd))
       ->Belt.Option.getWithDefault(false)
+    // AIDEV-NOTE: Always resolve remote name before command dispatch
+    let remotes = await jjFunctions.getGitRemoteList()
+    let remoteName = resolveRemoteName(remotes, userSpecifiedRemoteOpt)
     switch command {
     | Some(cmd) if isKnownCommand =>
       switch cmd {
@@ -89,29 +152,11 @@ let main = async () => {
         switch filteredArgs[1] {
         | Some(bookmarkName) => {
             let isDryRun = filteredArgs->Array.includes("--dry-run")
-            // Validate remote before proceeding
-            let remotes = jjFunctions.getGitRemoteList()
-            let foundRemote = remotes->Array.find(r => r.name == remoteName)
-            switch foundRemote {
-            | Some(remote) => {
-                // Validate GitHub remote (URL check)
-                if !isGitHubRemote(remote.url) {
-                  Console.error(
-                    `❌ Remote '${remoteName}' is not a GitHub remote. Only GitHub remotes are supported.`,
-                  )
-                  exit(1)
-                }
-                await SubmitCommand.submitCommand(
-                  jjFunctions,
-                  bookmarkName,
-                  ~options={dryRun: isDryRun, remote: remoteName},
-                )
-              }
-            | None => {
-                Console.error(`❌ Remote '${remoteName}' does not exist.`)
-                exit(1)
-              }
-            }
+            await SubmitCommand.submitCommand(
+              jjFunctions,
+              bookmarkName,
+              ~options={dryRun: isDryRun, remote: remoteName},
+            )
           }
         | None => {
             Console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]")

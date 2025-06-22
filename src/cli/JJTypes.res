@@ -64,7 +64,7 @@ type jjFunctions = {
   gitFetch: unit => promise<unit>,
   getMyBookmarks: unit => promise<array<bookmark>>,
   getBranchChangesPaginated: (string, string, option<string>) => promise<array<logEntry>>,
-  getGitRemoteList: unit => array<gitRemote>,
-  getDefaultBranch: unit => string,
-  pushBookmark: (string, string) => unit,
+  getGitRemoteList: unit => promise<array<gitRemote>>,
+  getDefaultBranch: unit => promise<string>,
+  pushBookmark: (string, string) => promise<unit>,
 }

@@ -135,25 +135,43 @@ Support configurable Git remotes instead of hardcoded "origin" for GitHub operat
 
 ---
 
-## Phase 4: Add Remote Auto-Detection Logic
+## Phase 4: Add Remote Auto-Detection Logic ✅ COMPLETED
 
 **Goal**: Automatically use the only remote if there's exactly one GitHub remote
 **Can be merged**: Yes - smart defaults, no breaking changes
 
-### Changes:
+### Changes Implemented:
 
-1. **Add remote resolution function** in CLI:
+1. **Added remote resolution function** in CLI (ReScript):
 
-   ```typescript
-   // If --remote specified: use it
-   // If exactly one GitHub remote: use it
-   // If multiple GitHub remotes: fall back to "origin" (for now)
-   // If no GitHub remotes: error
-   ```
+   - Implemented `resolveRemoteName` in `src/cli/cli.res`.
+   - Logic:
+     - If `--remote` is specified, use it (with validation).
+     - If not specified and exactly one GitHub remote exists, use it automatically.
+     - If multiple GitHub remotes exist, fall back to `origin` (for now; interactive selection is Phase 5).
+     - If no GitHub remotes exist, error out with a clear message.
+     - All remotes are validated to be GitHub remotes before use.
 
-2. **Update CLI** to call this resolution function
+2. **Updated CLI command dispatch** to use the new resolution logic:
 
-3. **Ensure** the remote is still validated to be a GitHub remote; error if not.
+   - The CLI now always calls `resolveRemoteName` before running any command that needs a remote.
+   - The remote list is now awaited (async) to match the actual implementation in TypeScript.
+   - The CLI type definitions for `jjFunctions` were updated in `src/cli/JJTypes.res` to ensure all remote-related functions are properly typed as async (`promise<...>`), matching the JS implementation.
+
+3. **Error handling and validation**:
+
+   - All error messages for missing, invalid, or non-GitHub remotes are clear and user-friendly.
+   - The CLI fails fast if the remote is not valid.
+
+4. **AIDEV-NOTE anchors**:
+   - Added and updated `AIDEV-NOTE` comments in the CLI for future maintainers and AI agents.
+
+### Implementation Notes:
+
+- The implementation is intentionally simple and does not use a CLI parsing library yet, but is structured to make such a migration easy in the future.
+- The remote auto-detection logic is fully backwards compatible and does not break existing workflows.
+- Only CLI files (`*.res`) and type definitions were changed for this phase.
+- All tests pass and build succeeds.
 
 ---
 
