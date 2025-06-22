@@ -1,0 +1,9 @@
+.env
+.aider*
+node_modules
+dist
+/lib/
+.bsb.lock
+
+images
+jj-docs
