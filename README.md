@@ -8,19 +8,39 @@ A CLI tool for creating and managing stacked pull requests on GitHub when using 
 
 ## Setup
 
-1. Install dependencies:
+### Installation
+
+Install jj-stack globally using npm:
+
+```bash
+npm install -g jj-stack
+```
+
+After installation, the `jst` and `jj-stack` commands will be available globally.
+
+<details>
+<summary> If you prefer to build from source instead of using npm </summary>
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/keanemind/jj-stack.git
+   cd jj-stack
+   ```
+
+2. Install dependencies:
 
    ```bash
    npm install
    ```
 
-2. Build the project:
+3. Build the project:
 
    ```bash
    npm run build
    ```
 
-3. Make the CLI available globally (optional):
+4. Make the CLI available globally:
 
    ```bash
    npm link
@@ -32,43 +52,47 @@ A CLI tool for creating and managing stacked pull requests on GitHub when using 
    node dist/index.js
    ```
 
-4. Set up GitHub authentication:
+</details>
 
-   jj-stack supports multiple authentication methods (in priority order):
+### Authentication
 
-   **Option 1: GitHub CLI (Recommended) ⭐**
+Set up GitHub authentication:
 
-   ```bash
-   # Install GitHub CLI if not already installed
-   brew install gh  # macOS
-   # or visit https://cli.github.com/
+jj-stack supports multiple authentication methods (in priority order):
 
-   # Authenticate with GitHub
-   gh auth login
+**Option 1: GitHub CLI (Recommended) ⭐**
 
-   # That's it! jj-stack will automatically use your GitHub CLI auth
-   ```
+```bash
+# Install GitHub CLI if not already installed
+brew install gh  # macOS
+# or visit https://cli.github.com/
 
-   **Option 2: Environment Variable**
+# Authenticate with GitHub
+gh auth login
 
-   ```bash
-   export GITHUB_TOKEN="your_github_personal_access_token"
-   # or
-   export GH_TOKEN="your_github_personal_access_token"
-   ```
+# That's it! jj-stack will automatically use your GitHub CLI auth
+```
 
-   **Creating a Personal Access Token:**
+**Option 2: Environment Variable**
 
-   - Go to https://github.com/settings/tokens/new
-   - Required scopes: `repo` (includes pull request access)
+```bash
+export GITHUB_TOKEN="your_github_personal_access_token"
+# or
+export GH_TOKEN="your_github_personal_access_token"
+```
 
-   **Test your authentication:**
+**Creating a Personal Access Token:**
 
-   ```bash
-   jst auth test
-   ```
+- Go to https://github.com/settings/tokens/new
+- Required scopes: `repo` (includes pull request access)
 
-   For more details, see [AUTHENTICATION.md](./AUTHENTICATION.md)
+**Test your authentication:**
+
+```bash
+jst auth test
+```
+
+For more details, see [AUTHENTICATION.md](./AUTHENTICATION.md)
 
 ## Usage
 
