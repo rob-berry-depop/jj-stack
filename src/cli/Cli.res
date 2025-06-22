@@ -44,8 +44,8 @@ EXAMPLES:
 For more information, visit: https://github.com/keanemind/jj-stack
 `
 
-// AIDEV-NOTE: Phase 4 - Remote resolution logic for CLI
-let resolveRemoteName = (
+// AIDEV-NOTE: Phase 5 - Async remote resolution with interactive selection for multiple GitHub remotes
+let resolveRemoteName = async (
   remotes: array<JJTypes.gitRemote>,
   userSpecified: option<string>,
 ): string => {
@@ -80,17 +80,29 @@ let resolveRemoteName = (
         }
       | 1 => Belt.Array.getExn(githubRemotes, 0).name
       | _ => {
-          let origin = githubRemotes->Array.find(r => r.name == "origin")
-          switch origin {
-          | Some(r) => r.name
-          | None => {
-              Console.error(
-                "❌ Multiple GitHub remotes found, but no 'origin' remote. Please specify --remote <name>.",
-              )
-              exit(1)
-              Js.Exn.raiseError("")
-            }
-          }
+          // AIDEV-NOTE: Multiple GitHub remotes - use interactive selection
+          Console.log(`🔀 Multiple GitHub remotes found, opening interactive selector...`)
+          Console.log() // add space before the component
+
+          await Promise.make((resolve, _reject) => {
+            let inkInstanceRef: ref<option<InkBindings.inkInstance>> = ref(None)
+
+            let component =
+              <RemoteSelectionComponent
+                remotes={githubRemotes}
+                onComplete={selectedRemoteName => {
+                  // Clean up the component first
+                  switch inkInstanceRef.contents {
+                  | Some(instance) => instance.unmount()
+                  | None => ()
+                  }
+                  resolve(selectedRemoteName)
+                }}
+              />
+
+            let inkInstance = InkBindings.render(component)
+            inkInstanceRef := Some(inkInstance)
+          })
         }
       }
     }
@@ -139,7 +151,7 @@ let main = async () => {
       ->Belt.Option.getWithDefault(false)
     // AIDEV-NOTE: Always resolve remote name before command dispatch
     let remotes = await jjFunctions.getGitRemoteList()
-    let remoteName = resolveRemoteName(remotes, userSpecifiedRemoteOpt)
+    let remoteName = await resolveRemoteName(remotes, userSpecifiedRemoteOpt)
     switch command {
     | Some(cmd) if isKnownCommand =>
       switch cmd {
