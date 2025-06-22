@@ -53,13 +53,6 @@ A CLI tool for creating and managing stacked pull requests on GitHub when using 
    export GH_TOKEN="your_github_personal_access_token"
    ```
 
-   **Option 3: Config File**
-
-   ```bash
-   mkdir -p ~/.config/jj-stack
-   echo '{"github":{"token":"your_token_here"}}' > ~/.config/jj-stack/config.json
-   ```
-
    **Creating a Personal Access Token:**
 
    - Go to https://github.com/settings/tokens/new
@@ -96,9 +89,6 @@ If no bookmarks are found, it will prompt you to create bookmarks first with `jj
 ```bash
 # Test your current authentication setup
 jj-stack auth test
-
-# Clear saved authentication
-jj-stack auth logout
 
 # Show authentication help
 jj-stack auth help

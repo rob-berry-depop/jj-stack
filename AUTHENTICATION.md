@@ -1,8 +1,6 @@
 # GitHub Authentication in jj-stack
 
-This document explains how jj-stack handles GitHub authentication in a user-friendly way.
-
-## Authentication Methods (Priority Order)
+## Authentication Methods
 
 ### 1. GitHub CLI (Recommended) ⭐
 
@@ -35,28 +33,6 @@ export GH_TOKEN="ghp_your_token_here"
 echo 'export GITHUB_TOKEN="ghp_your_token_here"' >> ~/.zshrc
 ```
 
-### 3. Config File
-
-jj-stack can store your token in a config file:
-
-```bash
-# Create config directory
-mkdir -p ~/.config/jj-stack
-
-# Create config file
-cat > ~/.config/jj-stack/config.json << EOF
-{
-  "github": {
-    "token": "ghp_your_token_here"
-  }
-}
-EOF
-```
-
-### 4. Manual Entry (Last Resort)
-
-If none of the above methods are available, jj-stack will provide instructions for setting up authentication.
-
 ## Creating a Personal Access Token
 
 If you need to create a GitHub Personal Access Token:
@@ -77,53 +53,13 @@ You can test your authentication setup:
 # Test current authentication
 jj-stack auth test
 
-# Clear saved authentication
-jj-stack auth logout
-
 # Show authentication help
 jj-stack auth help
 ```
 
-## Benefits of This Approach
+The `auth test` command will show:
 
-1. **Zero Setup for GitHub CLI Users**: If you already use `gh`, it just works
-2. **Flexible**: Multiple fallback options ensure it works in different environments
-3. **Secure**: Leverages existing secure auth mechanisms when possible
-4. **User Friendly**: Clear instructions when manual setup is needed
-5. **Persistent**: Saves tokens securely for future use (with permission)
-
-## Security Considerations
-
-- GitHub CLI manages tokens securely in the system keychain
-- Environment variables are only visible to your shell session
-- Config files are stored in user-only readable directories
-- Tokens are validated before use
-- Invalid tokens are automatically removed from config
-
-## Common Scenarios
-
-### Developer Workstation
-
-```bash
-# Most developers already have this
-gh auth login
-jj-stack submit feature-branch  # ✅ Just works
-```
-
-### CI/CD Pipeline
-
-```bash
-# Use environment variable in CI
-export GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
-jj-stack submit feature-branch
-```
-
-### Server/Script Environment
-
-```bash
-# Use config file for automated scripts
-echo '{"github":{"token":"ghp_..."}}' > ~/.config/jj-stack/config.json
-jj-stack submit feature-branch
-```
-
-This authentication system provides a smooth experience for users while maintaining security and flexibility across different environments.
+- ✅ Your GitHub username and name
+- 📧 Your email (if public)
+- 📋 Token scopes and permissions
+- ✅ Confirmation that you have repo access for creating PRs

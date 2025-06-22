@@ -5,7 +5,6 @@
 // - Default (no args): Interactive change graph analysis and stack selection
 // - submit <bookmark> [--dry-run]: Submit bookmark stack as PRs
 // - auth test: Validate GitHub authentication setup
-// - auth logout: Clear saved authentication tokens
 // - auth help: Show authentication setup instructions
 // - help/--help/-h: Display command usage information
 
@@ -24,7 +23,6 @@ COMMANDS:
     --dry-run           Show what would be done without making changes
 
   auth test             Test GitHub authentication
-  auth logout           Clear saved authentication
   auth help             Show authentication help
 
   help, --help, -h      Show this help message
