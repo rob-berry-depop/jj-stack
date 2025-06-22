@@ -167,7 +167,12 @@ function BookmarkSelectionComponent(props) {
                       } else {
                         isFocused = false;
                       }
-                      var focusIndicator = isFocused ? "▶ " : "  ";
+                      var focusIndicator = isFocused ? JsxRuntime.jsx($$Ink.Text, {
+                              children: "▶ ",
+                              color: "red"
+                            }) : JsxRuntime.jsx($$Ink.Text, {
+                              children: "  "
+                            });
                       var bookmarkDisplay;
                       if (segment.bookmarks.length === 1) {
                         var bookmark = Core__Option.getExn(segment.bookmarks[0], undefined);
@@ -185,22 +190,21 @@ function BookmarkSelectionComponent(props) {
                         var maybeSelectedIndex = selectionState.selections.get(changeId);
                         bookmarkDisplay = JsxRuntime.jsx(React.Fragment, {
                               children: segment.bookmarks.map(function (bookmark, bookmarkIndex) {
-                                    var bookmarkElement;
-                                    var exit = 0;
-                                    if (maybeSelectedIndex !== undefined && bookmarkIndex === maybeSelectedIndex) {
-                                      bookmarkElement = JsxRuntime.jsx($$Ink.Text, {
+                                    var isSelected = maybeSelectedIndex !== undefined ? bookmarkIndex === maybeSelectedIndex : false;
+                                    var bookmarkElement = isSelected && isFocused ? JsxRuntime.jsx($$Ink.Text, {
                                             children: bookmark.name,
                                             color: "red",
-                                            underline: true
-                                          });
-                                    } else {
-                                      exit = 1;
-                                    }
-                                    if (exit === 1) {
-                                      bookmarkElement = JsxRuntime.jsx($$Ink.Text, {
-                                            children: bookmark.name
-                                          });
-                                    }
+                                            underline: true,
+                                            bold: true
+                                          }) : (
+                                        isSelected ? JsxRuntime.jsx($$Ink.Text, {
+                                                children: bookmark.name,
+                                                underline: true,
+                                                bold: true
+                                              }) : JsxRuntime.jsx($$Ink.Text, {
+                                                children: bookmark.name
+                                              })
+                                      );
                                     if (bookmarkIndex < (segment.bookmarks.length - 1 | 0)) {
                                       return JsxRuntime.jsxs(React.Fragment, {
                                                   children: [
@@ -220,7 +224,8 @@ function BookmarkSelectionComponent(props) {
                       }
                       return JsxRuntime.jsxs($$Ink.Text, {
                                   children: [
-                                    focusIndicator + "Change " + changeId + ": ",
+                                    focusIndicator,
+                                    "Change " + changeId + ": ",
                                     bookmarkDisplay
                                   ]
                                 }, segmentIndex.toString());

@@ -192,9 +192,9 @@ let make = (
         }
 
         let focusIndicator = if isFocused {
-          "▶ "
+          <Text color="red"> {React.string("▶ ")} </Text>
         } else {
-          "  "
+          <Text> {React.string("  ")} </Text>
         }
 
         let bookmarkDisplay = if segment.bookmarks->Array.length == 1 {
@@ -210,10 +210,20 @@ let make = (
           <React.Fragment>
             {React.array(
               segment.bookmarks->Array.mapWithIndex((bookmark, bookmarkIndex) => {
-                let bookmarkElement = switch maybeSelectedIndex {
-                | Some(selectedIndex) if bookmarkIndex == selectedIndex =>
-                  <Text color="red" underline=true> {React.string(bookmark.name)} </Text>
-                | _ => <Text> {React.string(bookmark.name)} </Text>
+                let isSelected = switch maybeSelectedIndex {
+                | Some(selectedIndex) => bookmarkIndex == selectedIndex
+                | None => false
+                }
+
+                let bookmarkElement = if isSelected && isFocused {
+                  // Selected bookmark on focused change: red and underlined
+                  <Text color="red" underline=true bold=true> {React.string(bookmark.name)} </Text>
+                } else if isSelected {
+                  // Selected bookmark on non-focused change: just underlined
+                  <Text underline=true bold=true> {React.string(bookmark.name)} </Text>
+                } else {
+                  // Non-selected bookmark: normal text
+                  <Text> {React.string(bookmark.name)} </Text>
                 }
 
                 // Add space separator except for the last element
@@ -233,7 +243,8 @@ let make = (
         }
 
         <Text key={segmentIndex->Int.toString}>
-          {React.string(`${focusIndicator}Change ${changeId}: `)}
+          {focusIndicator}
+          {React.string(`Change ${changeId}: `)}
           {bookmarkDisplay}
         </Text>
       }),
