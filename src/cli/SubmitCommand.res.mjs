@@ -9,10 +9,6 @@ import * as SubmitJs from "../lib/submit.js";
 import * as JjUtilsJs from "../lib/jjUtils.js";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 
-function createJjFunctions(prim) {
-  return JjUtilsJs.createJjFunctions(prim);
-}
-
 function buildChangeGraph(prim) {
   return JjUtilsJs.buildChangeGraph(prim);
 }
@@ -148,11 +144,8 @@ async function runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun) {
   Process.exit(1);
 }
 
-async function submitCommand(bookmarkName, options) {
+async function submitCommand(jjFunctions, bookmarkName, options) {
   var dryRun = options !== undefined ? Core__Option.getOr(options.dryRun, false) : false;
-  var jjFunctions = JjUtilsJs.createJjFunctions({
-        binaryPath: "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin"
-      });
   if (dryRun) {
     console.log("🧪 DRY RUN: Simulating submission of bookmark: " + bookmarkName);
   } else {
@@ -176,7 +169,6 @@ async function submitCommand(bookmarkName, options) {
 }
 
 export {
-  createJjFunctions ,
   buildChangeGraph ,
   analyzeSubmissionGraph ,
   createSubmissionPlan ,

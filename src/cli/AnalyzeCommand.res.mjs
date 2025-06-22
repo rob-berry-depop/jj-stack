@@ -12,10 +12,6 @@ import * as JsxRuntime from "react/jsx-runtime";
 import * as Caml_js_exceptions from "rescript/lib/es6/caml_js_exceptions.js";
 import * as AnalyzeCommandComponent from "./AnalyzeCommandComponent.res.mjs";
 
-function createJjFunctions(prim) {
-  return JjUtilsJs.createJjFunctions(prim);
-}
-
 function buildChangeGraph(prim) {
   return JjUtilsJs.buildChangeGraph(prim);
 }
@@ -28,11 +24,8 @@ function getGitHubConfig(prim) {
   return SubmitJs.getGitHubConfig();
 }
 
-async function analyzeCommand() {
+async function analyzeCommand(jjFunctions) {
   console.log("Fetching from remote...");
-  var jjFunctions = JjUtilsJs.createJjFunctions({
-        binaryPath: "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin"
-      });
   try {
     await jjFunctions.gitFetch();
   }
@@ -174,7 +167,6 @@ async function analyzeCommand() {
 }
 
 export {
-  createJjFunctions ,
   buildChangeGraph ,
   getExistingPRs ,
   getGitHubConfig ,

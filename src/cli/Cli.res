@@ -1,6 +1,10 @@
 @scope("process") @val external argv: array<string> = "argv"
 @scope("process") @val external exit: int => unit = "exit"
 
+// AIDEV-NOTE: Central jjFunctions initialization for dependency injection pattern
+@module("../lib/jjUtils.js")
+external createJjFunctions: JJTypes.jjConfig => JJTypes.jjFunctions = "createJjFunctions"
+
 let help = `🔧 jj-stack - Jujutsu Git workflow automation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -33,6 +37,13 @@ For more information, visit: https://github.com/keanemind/jj-stack
 @genType
 let main = async () => {
   try {
+    // AIDEV-NOTE: Initialize JJ functions once during CLI startup for efficiency
+    let jjPathResult = await Utils.getJJPath()
+    let jjConfig: JJTypes.jjConfig = {
+      binaryPath: jjPathResult.filepath,
+    }
+    let jjFunctions = createJjFunctions(jjConfig)
+
     let args = Array.slice(argv, ~start=2, ~end=Array.length(argv))
     let command = args[0]
     switch command {
@@ -46,7 +57,7 @@ let main = async () => {
       switch args[1] {
       | Some(bookmarkName) => {
           let isDryRun = args->Array.includes("--dry-run")
-          await SubmitCommand.submitCommand(bookmarkName, ~options={dryRun: isDryRun})
+          await SubmitCommand.submitCommand(jjFunctions, bookmarkName, ~options={dryRun: isDryRun})
         }
       | None => {
           Console.error("Usage: jj-stack submit <bookmark-name> [--dry-run]")
@@ -60,7 +71,7 @@ let main = async () => {
         )
         exit(1)
       }
-    | _ => await AnalyzeCommand.analyzeCommand()
+    | _ => await AnalyzeCommand.analyzeCommand(jjFunctions)
     }
   } catch {
   | Exn.Error(error) =>

@@ -7,8 +7,6 @@ type gitHubConfig = {
 }
 
 @module("../lib/jjUtils.js")
-external createJjFunctions: JJTypes.jjConfig => JJTypes.jjFunctions = "createJjFunctions"
-@module("../lib/jjUtils.js")
 external buildChangeGraph: JJTypes.jjFunctions => promise<JJTypes.changeGraph> = "buildChangeGraph"
 @module("../lib/submit.js")
 external getExistingPRs: (
@@ -20,15 +18,8 @@ external getExistingPRs: (
 @module("../lib/submit.js")
 external getGitHubConfig: unit => promise<gitHubConfig> = "getGitHubConfig"
 
-let analyzeCommand = async () => {
-  // AIDEV-NOTE: Hardcoded JJ binary path - moved from library to CLI
-  let jjConfig: JJTypes.jjConfig = {
-    binaryPath: "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin",
-  }
-
+let analyzeCommand = async (jjFunctions: JJTypes.jjFunctions) => {
   Console.log("Fetching from remote...")
-
-  let jjFunctions = createJjFunctions(jjConfig)
 
   try {
     await jjFunctions.gitFetch()

@@ -1,7 +1,5 @@
 @module("process") external exit: int => unit = "exit"
 @module("../lib/jjUtils.js")
-external createJjFunctions: JJTypes.jjConfig => JJTypes.jjFunctions = "createJjFunctions"
-@module("../lib/jjUtils.js")
 external buildChangeGraph: JJTypes.jjFunctions => promise<JJTypes.changeGraph> = "buildChangeGraph"
 
 type prContent = {title: string}
@@ -289,18 +287,15 @@ let runSubmit = async (
 /**
  * Main submit command function
  */
-let submitCommand = async (bookmarkName: string, ~options: option<submitOptions>=?): unit => {
-  // AIDEV-NOTE: Hardcoded JJ binary path - moved from library to CLI
-  let jjConfig: JJTypes.jjConfig = {
-    binaryPath: "/Users/keane/code/jj-v0.30.0-aarch64-apple-darwin",
-  }
-
+let submitCommand = async (
+  jjFunctions: JJTypes.jjFunctions,
+  bookmarkName: string,
+  ~options: option<submitOptions>=?,
+): unit => {
   let dryRun = switch options {
   | Some({?dryRun}) => dryRun->Option.getOr(false)
   | None => false
   }
-
-  let jjFunctions = createJjFunctions(jjConfig)
 
   if dryRun {
     Console.log(`🧪 DRY RUN: Simulating submission of bookmark: ${bookmarkName}`)
