@@ -574,11 +574,7 @@ export async function executeSubmissionPlan(
         callbacks?.onPushCompleted?.(bookmark, "origin");
         result.pushedBookmarks.push(bookmark);
       } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
-        result.errors.push({ error: err, context: `pushing ${bookmark.name}` });
-        callbacks?.onError?.(err, `pushing ${bookmark.name}`);
-        result.success = false;
-        throw err;
+        throw new Error(`Error pushing ${bookmark.name}: ${String(error)}`);
       }
     }
 
@@ -615,14 +611,9 @@ export async function executeSubmissionPlan(
         callbacks?.onPRBaseUpdateCompleted?.(bookmark, updatedPR);
         result.updatedPRs.push({ bookmark, pr: updatedPR });
       } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
-        result.errors.push({
-          error: err,
-          context: `updating PR base for ${bookmark.name}`,
-        });
-        callbacks?.onError?.(err, `updating PR base for ${bookmark.name}`);
-        result.success = false;
-        throw err;
+        throw new Error(
+          `Error updating PR base for ${bookmark.name}: ${String(error)}`,
+        );
       }
     }
 
@@ -658,14 +649,9 @@ export async function executeSubmissionPlan(
         result.createdPRs.push({ bookmark, pr });
         bookmarkToPR.set(bookmark.name, pr);
       } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
-        result.errors.push({
-          error: err,
-          context: `creating PR for ${bookmark.name}`,
-        });
-        callbacks?.onError?.(err, `creating PR for ${bookmark.name}`);
-        result.success = false;
-        throw err;
+        throw new Error(
+          `Error creating PR for ${bookmark.name}: ${String(error)}`,
+        );
       }
     }
 

@@ -174,7 +174,7 @@ let createExecutionCallbacks = (): 'executionCallbacks => {
     "onError": Some(
       (error: Exn.t, context: string) => {
         let errorMessage = error->Exn.message->Option.getOr("Unknown error")
-        Console.error(`❌ Error ${context}: ${errorMessage}`)
+        Console.error(`❌ Error (${context}): ${errorMessage}`)
       },
     ),
   }
@@ -278,12 +278,16 @@ let runSubmit = async (
         let updatedPrBookmarks = result.updatedPRs->Array.map(pr => pr.bookmark.name)
         Console.log(`   🔄 Updated PRs: ${updatedPrBookmarks->Array.join(", ")}`)
       }
+
+      if result.errors->Array.length > 0 {
+        Console.error(`\n⚠️ Submission completed with errors:`)
+        result.errors->Array.forEach(({error: err, context}) => {
+          let errorMessage = err->Exn.message->Option.getOr("Unknown error")
+          Console.error(`   • ${context}: ${errorMessage}`)
+        })
+      }
     } else {
-      Console.error(`\n❌ Submission completed with errors:`)
-      result.errors->Array.forEach(({error: err, context}) => {
-        let errorMessage = err->Exn.message->Option.getOr("Unknown error")
-        Console.error(`   • ${context}: ${errorMessage}`)
-      })
+      // Error should have been printed already by onError callback
       exit(1)
     }
   }

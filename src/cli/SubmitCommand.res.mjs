@@ -68,7 +68,7 @@ function createExecutionCallbacks() {
             }),
           onError: (function (error, context) {
               var errorMessage = Core__Option.getOr(error.message, "Unknown error");
-              console.error("❌ Error " + context + ": " + errorMessage);
+              console.error("❌ Error (" + context + "): " + errorMessage);
             })
         };
 }
@@ -127,20 +127,23 @@ async function runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun) {
           });
       console.log("   📝 Created PRs: " + createdPrBookmarks.join(", "));
     }
-    if (result.updatedPRs.length <= 0) {
+    if (result.updatedPRs.length > 0) {
+      var updatedPrBookmarks = result.updatedPRs.map(function (pr) {
+            return pr.bookmark.name;
+          });
+      console.log("   🔄 Updated PRs: " + updatedPrBookmarks.join(", "));
+    }
+    if (result.errors.length > 0) {
+      console.error("\n⚠️ Submission completed with errors:");
+      result.errors.forEach(function (param) {
+            var errorMessage = Core__Option.getOr(param.error.message, "Unknown error");
+            console.error("   • " + param.context + ": " + errorMessage);
+          });
+      return ;
+    } else {
       return ;
     }
-    var updatedPrBookmarks = result.updatedPRs.map(function (pr) {
-          return pr.bookmark.name;
-        });
-    console.log("   🔄 Updated PRs: " + updatedPrBookmarks.join(", "));
-    return ;
   }
-  console.error("\n❌ Submission completed with errors:");
-  result.errors.forEach(function (param) {
-        var errorMessage = Core__Option.getOr(param.error.message, "Unknown error");
-        console.error("   • " + param.context + ": " + errorMessage);
-      });
   Process.exit(1);
 }
 
