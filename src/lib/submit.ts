@@ -578,6 +578,7 @@ export async function executeSubmissionPlan(
         result.errors.push({ error: err, context: `pushing ${bookmark.name}` });
         callbacks?.onError?.(err, `pushing ${bookmark.name}`);
         result.success = false;
+        throw err;
       }
     }
 
@@ -621,6 +622,7 @@ export async function executeSubmissionPlan(
         });
         callbacks?.onError?.(err, `updating PR base for ${bookmark.name}`);
         result.success = false;
+        throw err;
       }
     }
 
@@ -663,6 +665,7 @@ export async function executeSubmissionPlan(
         });
         callbacks?.onError?.(err, `creating PR for ${bookmark.name}`);
         result.success = false;
+        throw err;
       }
     }
 
