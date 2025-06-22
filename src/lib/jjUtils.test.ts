@@ -137,6 +137,13 @@ suite("stack detection", () => {
       `Expected 2 stacks, got ${result.stacks.length}`,
     );
 
+    // AIDEV-NOTE: Verify no bookmarks were excluded since this scenario has no merges
+    assert.strictEqual(
+      result.excludedBookmarkCount,
+      0,
+      `Expected 0 excluded bookmarks, got ${result.excludedBookmarkCount}`,
+    );
+
     // Each stack should have 2 segments
     assert.strictEqual(
       result.stacks[0].segments.length,

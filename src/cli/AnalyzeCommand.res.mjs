@@ -35,6 +35,10 @@ async function analyzeCommand(jjFunctions, remote) {
   }
   console.log("Building change graph from user bookmarks...");
   var changeGraph = await JjUtilsJs.buildChangeGraph(jjFunctions);
+  if (changeGraph.excludedBookmarkCount > 0) {
+    console.log("ℹ️  Found " + changeGraph.excludedBookmarkCount.toString() + " bookmarks on merge commits or their descendants, ignoring.\n   \n   jj-stack works with linear stacking workflows. Consider using 'jj rebase' \n   to linearize your history before creating stacked pull requests.");
+    console.log();
+  }
   if (changeGraph.stacks.length === 0) {
     console.log("No bookmark stacks found. Create bookmarks with `jj bookmark create [revision]` first.");
     PervasivesU.exit(0);

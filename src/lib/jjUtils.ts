@@ -282,16 +282,19 @@ async function traverseAndDiscoverSegments(
   bookmark: Bookmark,
   trunkRev: string,
   fullyCollectedBookmarks: Set<string>,
+  taintedChangeIds: Set<string>,
   jj: JjFunctions,
 ): Promise<{
   segments: Array<{ bookmarks: string[]; changes: LogEntry[] }>;
   alreadySeenChangeId?: string; // if we hit a fully-collected bookmark
+  excludedBookmarkCount: number; // count of bookmarks excluded due to merge taint
 }> {
   const segments: Array<{ bookmarks: string[]; changes: LogEntry[] }> = [];
   let currentSegment: { bookmarks: string[]; changes: LogEntry[] } | undefined =
     undefined;
   let lastSeenCommit: string | undefined;
   let alreadySeenChangeId: string | undefined;
+  const seenChangeIds: string[] = []; // AIDEV-NOTE: Track all changeIds seen during this bookmark's traversal
 
   pageLoop: while (true) {
     const changes = await jj.getBranchChangesPaginated(
@@ -304,12 +307,25 @@ async function traverseAndDiscoverSegments(
       break;
     }
 
-    // Check for merge commits (more than one parent)
+    // Check for merge commits or already-tainted changes
     for (const change of changes) {
-      if (change.parents.length > 1) {
-        throw new Error(
-          `Found merge commit ${change.commitId} in branch ${bookmark.name}. This indicates a split/merge in the history which is not supported.`,
+      seenChangeIds.push(change.changeId);
+
+      // Check if this change is a merge commit or already tainted
+      if (change.parents.length > 1 || taintedChangeIds.has(change.changeId)) {
+        logger.debug(
+          `Found ${change.parents.length > 1 ? "merge commit" : "tainted change"} ${change.commitId} in bookmark ${bookmark.name} - excluding bookmark and descendants`,
         );
+
+        // Add all seen changeIds to the tainted set
+        for (const seenChangeId of seenChangeIds) {
+          taintedChangeIds.add(seenChangeId);
+        }
+
+        return {
+          segments: [],
+          excludedBookmarkCount: 1,
+        };
       }
     }
 
@@ -361,6 +377,7 @@ async function traverseAndDiscoverSegments(
   return {
     segments,
     alreadySeenChangeId,
+    excludedBookmarkCount: 0,
   };
 }
 
@@ -445,6 +462,8 @@ export async function buildChangeGraph(jj: JjFunctions): Promise<ChangeGraph> {
   const bookmarkedChangeAdjacencyList = new Map<string, string>(); // child (changeId) -> parent (changeId)
   const bookmarkedChangeIdToSegment = new Map<string, LogEntry[]>(); // changeId -> all LogEntrys in that segment
   const stackRoots = new Set<string>(); // changeIds that are the lowest bookmark in a stack excluding trunk() ancestors
+  const taintedChangeIds = new Set<string>(); // AIDEV-NOTE: changeIds that are merge commits or descendants of merges
+  let totalExcludedBookmarkCount = 0; // AIDEV-NOTE: Total count of bookmarks excluded due to merges
 
   // Process each bookmark to collect segment changes
   for (const bookmark of bookmarks) {
@@ -463,8 +482,18 @@ export async function buildChangeGraph(jj: JjFunctions): Promise<ChangeGraph> {
         bookmark,
         trunkRev,
         fullyCollectedBookmarks,
+        taintedChangeIds,
         jjFunctions,
       );
+
+      // Handle excluded bookmarks (those that encountered merges)
+      if (result.excludedBookmarkCount > 0) {
+        totalExcludedBookmarkCount += result.excludedBookmarkCount;
+        logger.debug(
+          `  Excluded ${bookmark.name} due to merge commit in history`,
+        );
+        continue; // Skip processing this bookmark
+      }
 
       // Store segment changes for all bookmarks found in the result
       for (const segment of result.segments) {
@@ -565,6 +594,7 @@ export async function buildChangeGraph(jj: JjFunctions): Promise<ChangeGraph> {
     stackLeafs,
     stackRoots,
     stacks,
+    excludedBookmarkCount: totalExcludedBookmarkCount,
   };
 }
 

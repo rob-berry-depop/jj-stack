@@ -41,6 +41,7 @@ type changeGraph = {
   stackLeafs: Set.t<string>,
   stackRoots: Set.t<string>,
   stacks: array<branchStack>,
+  excludedBookmarkCount: int, // AIDEV-NOTE: Count of bookmarks excluded due to merge commits
 }
 
 // AIDEV-NOTE: Types for three-phase submission approach (mirrors TypeScript types)

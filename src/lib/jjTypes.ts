@@ -43,6 +43,7 @@ export interface ChangeGraph {
   stackLeafs: Set<string>;
   stackRoots: Set<string>;
   stacks: BranchStack[];
+  excludedBookmarkCount: number; // AIDEV-NOTE: Count of bookmarks excluded due to merge commits
 }
 
 // AIDEV-NOTE: Configuration for JJ binary and other settings

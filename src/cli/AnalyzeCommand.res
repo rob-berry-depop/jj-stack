@@ -34,6 +34,17 @@ let analyzeCommand = async (jjFunctions: JJTypes.jjFunctions, ~remote: string) =
   Console.log("Building change graph from user bookmarks...")
   let changeGraph = await buildChangeGraph(jjFunctions)
 
+  // AIDEV-NOTE: Show user message if any bookmarks were excluded due to merge commits
+  if changeGraph.excludedBookmarkCount > 0 {
+    Console.log(
+      `ℹ️  Found ${changeGraph.excludedBookmarkCount->Int.toString} bookmarks on merge commits or their descendants, ignoring.
+   
+   jj-stack works with linear stacking workflows. Consider using 'jj rebase' 
+   to linearize your history before creating stacked pull requests.`,
+    )
+    Console.log() // add space after the message
+  }
+
   if changeGraph.stacks->Array.length == 0 {
     Console.log(
       "No bookmark stacks found. Create bookmarks with `jj bookmark create [revision]` first.",
