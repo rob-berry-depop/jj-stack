@@ -68,6 +68,7 @@ export interface SubmissionPlan {
   }[];
   repoInfo: { owner: string; repo: string };
   existingPRs: Map<string, PullRequest>;
+  remoteName: string;
 }
 
 // Phase 3: Execution callbacks (unchanged from before)
@@ -124,29 +125,32 @@ export function analyzeSubmissionGraph(
 /**
  * Extract GitHub owner and repo from jj git remote URL
  */
-export async function getGitHubRepoInfo(jj: JjFunctions): Promise<{
+export async function getGitHubRepoInfo(
+  jj: JjFunctions,
+  remoteName: string,
+): Promise<{
   owner: string;
   repo: string;
 }> {
-  // Get the origin remote URL using JJ
+  // Get the specified remote URL using JJ
   const remotes = await jj.getGitRemoteList();
 
-  // Find the origin remote
-  const originRemote = remotes.find((remote) => remote.name === "origin");
-  if (!originRemote) {
-    throw new Error("No 'origin' remote found");
+  // Find the specified remote
+  const targetRemote = remotes.find((remote) => remote.name === remoteName);
+  if (!targetRemote) {
+    throw new Error(`No '${remoteName}' remote found`);
   }
 
-  const originUrl = originRemote.url;
+  const remoteUrl = targetRemote.url;
 
   // Parse GitHub URLs - support both HTTPS and SSH formats
   // HTTPS: https://github.com/owner/repo.git
   // SSH: git@github.com:owner/repo.git
-  const match = originUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)/);
+  const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)/);
 
   if (!match) {
     throw new Error(
-      `Could not parse GitHub repository from remote URL: ${originUrl}`,
+      `Could not parse GitHub repository from remote URL: ${remoteUrl}`,
     );
   }
 
@@ -164,7 +168,10 @@ export async function getGitHubRepoInfo(jj: JjFunctions): Promise<{
 /**
  * Get the GitHub configuration from environment or config
  */
-export async function getGitHubConfig(jj: JjFunctions): Promise<GitHubConfig> {
+export async function getGitHubConfig(
+  jj: JjFunctions,
+  remoteName: string,
+): Promise<GitHubConfig> {
   // Get authentication using the auth utility
   const authResult = await getGitHubAuth();
   if (authResult.kind !== "success") {
@@ -177,7 +184,7 @@ export async function getGitHubConfig(jj: JjFunctions): Promise<GitHubConfig> {
   let repo = process.env.GITHUB_REPO;
 
   if (!owner || !repo) {
-    const repoInfo = await getGitHubRepoInfo(jj);
+    const repoInfo = await getGitHubRepoInfo(jj, remoteName);
     owner = repoInfo.owner;
     repo = repoInfo.repo;
   }
@@ -477,6 +484,7 @@ export async function createSubmissionPlan(
   jj: JjFunctions,
   githubConfig: GitHubConfig,
   segments: NarrowedBookmarkSegment[],
+  remoteName: string,
   callbacks?: PlanCallbacks,
 ): Promise<SubmissionPlan> {
   try {
@@ -536,6 +544,7 @@ export async function createSubmissionPlan(
         repo: githubConfig.repo,
       },
       existingPRs,
+      remoteName,
     };
 
     callbacks?.onPlanReady?.(plan);
@@ -569,9 +578,9 @@ export async function executeSubmissionPlan(
     // Push all bookmarks that need pushing
     for (const bookmark of plan.bookmarksNeedingPush) {
       try {
-        callbacks?.onPushStarted?.(bookmark, "origin");
-        await jj.pushBookmark(bookmark.name, "origin");
-        callbacks?.onPushCompleted?.(bookmark, "origin");
+        callbacks?.onPushStarted?.(bookmark, plan.remoteName);
+        await jj.pushBookmark(bookmark.name, plan.remoteName);
+        callbacks?.onPushCompleted?.(bookmark, plan.remoteName);
         result.pushedBookmarks.push(bookmark);
       } catch (error) {
         throw new Error(`Error pushing ${bookmark.name}: ${String(error)}`);

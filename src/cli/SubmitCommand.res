@@ -48,6 +48,7 @@ type submissionPlan = {
   bookmarksNeedingPRBaseUpdate: array<bookmarkNeedingPRBaseUpdate>,
   repoInfo: repoInfo,
   existingPRs: Map.t<string, option<pullRequest>>,
+  remoteName: string,
 }
 
 type submissionCallbacks = {
@@ -94,6 +95,7 @@ external createSubmissionPlan: (
   JJTypes.jjFunctions,
   'githubConfig,
   array<JJTypes.narrowedBookmarkSegment>,
+  string,
   option<'planCallbacks>,
 ) => promise<submissionPlan> = "createSubmissionPlan"
 
@@ -112,7 +114,8 @@ external executeSubmissionPlan: (
 ) => promise<submissionResult> = "executeSubmissionPlan"
 
 @module("../lib/submit.js")
-external getGitHubConfig: JJTypes.jjFunctions => promise<'githubConfig> = "getGitHubConfig"
+external getGitHubConfig: (JJTypes.jjFunctions, string) => promise<'githubConfig> =
+  "getGitHubConfig"
 
 type submitOptions = {dryRun?: bool}
 
@@ -198,11 +201,11 @@ let runSubmit = async (
   let resolvedBookmarks = await Utils.resolveBookmarkSelections(analysis)
 
   Console.log(`🔑 Getting GitHub authentication...`)
-  let githubConfig = await getGitHubConfig(jjFunctions)
+  let githubConfig = await getGitHubConfig(jjFunctions, "origin")
 
   Console.log(`📋 Creating submission plan...`)
   let narrowedSegments = createNarrowedSegments(resolvedBookmarks, analysis)
-  let plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, None)
+  let plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, "origin", None)
 
   // Display plan summary
   Console.log(`📍 GitHub repository: ${plan.repoInfo.owner}/${plan.repoInfo.repo}`)

@@ -2,24 +2,20 @@
 
 Support configurable Git remotes instead of hardcoded "origin" for GitHub operations, with CLI-based remote selection.
 
-## Phase 1: Refactor Library to Accept Remote Parameter
+## Phase 1: Refactor Library to Accept Remote Parameter ✅ COMPLETED
 
 **Goal**: Make the library flexible to accept any remote name, but keep CLI hardcoded to "origin"
 **Can be merged**: Yes - no breaking changes, just internal refactoring
 
-### Changes:
+### Changes Implemented:
 
-1. **Update `JjFunctions` interface** to include remote parameter:
+1. **`JjFunctions` interface** - No changes needed ✅
 
-   ```typescript
-   export type JjFunctions = {
-     // ...existing methods...
-     pushBookmark: (bookmarkName: string, remote: string) => Promise<void>;
-     getGitRemoteList: () => Promise<Array<{ name: string; url: string }>>;
-   };
-   ```
+   - `pushBookmark(bookmarkName: string, remote: string)` already existed
+   - `getGitRemoteList()` already existed
+   - All necessary remote functionality was already in place
 
-2. **Update `getGitHubRepoInfo`** to accept remote name:
+2. **Updated `getGitHubRepoInfo`** to accept remote name ✅:
 
    ```typescript
    export async function getGitHubRepoInfo(
@@ -28,18 +24,51 @@ Support configurable Git remotes instead of hardcoded "origin" for GitHub operat
    ): Promise<{ owner: string; repo: string }>;
    ```
 
-3. **Update `SubmissionPlan`** to track which remote is being used:
+3. **Updated `getGitHubConfig`** to accept and pass remote name ✅:
+
+   ```typescript
+   export async function getGitHubConfig(
+     jj: JjFunctions,
+     remoteName: string,
+   ): Promise<GitHubConfig>;
+   ```
+
+4. **Updated `SubmissionPlan`** to track which remote is being used ✅:
 
    ```typescript
    export interface SubmissionPlan {
      // ...existing fields...
-     remoteName: string; // NEW
+     remoteName: string; // NEW - required field
    }
    ```
 
-4. **Update all functions** that currently hardcode "origin" to accept/use the remote parameter
+5. **Updated `createSubmissionPlan`** to accept remote parameter ✅:
 
-5. **CLI remains mostly unchanged** - just passes "origin" everywhere
+   ```typescript
+   export async function createSubmissionPlan(
+     jj: JjFunctions,
+     githubConfig: GitHubConfig,
+     segments: NarrowedBookmarkSegment[],
+     remoteName: string, // NEW parameter
+     callbacks?: PlanCallbacks,
+   ): Promise<SubmissionPlan>;
+   ```
+
+6. **Updated `executeSubmissionPlan`** to use remote from plan ✅:
+
+   - All `pushBookmark` calls now use `plan.remoteName` instead of hardcoded "origin"
+
+7. **Updated CLI (ReScript) bindings** ✅:
+   - External function declarations updated to match new TypeScript signatures
+   - `submissionPlan` type includes `remoteName: string` field
+   - All function calls pass "origin" as remote parameter
+
+### Implementation Notes:
+
+- **Breaking changes were made** (as approved) - no backward compatibility maintained
+- **Type safety enforced** throughout with required `remoteName` field
+- **CLI behavior unchanged** for users - still uses "origin" by default
+- **All tests pass** and build succeeds
 
 ---
 

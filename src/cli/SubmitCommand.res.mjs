@@ -17,8 +17,8 @@ function analyzeSubmissionGraph(prim0, prim1) {
   return SubmitJs.analyzeSubmissionGraph(prim0, prim1);
 }
 
-function createSubmissionPlan(prim0, prim1, prim2, prim3) {
-  return SubmitJs.createSubmissionPlan(prim0, prim1, prim2, prim3);
+function createSubmissionPlan(prim0, prim1, prim2, prim3, prim4) {
+  return SubmitJs.createSubmissionPlan(prim0, prim1, prim2, prim3, prim4);
 }
 
 function createNarrowedSegments(prim0, prim1) {
@@ -29,8 +29,8 @@ function executeSubmissionPlan(prim0, prim1, prim2, prim3) {
   return SubmitJs.executeSubmissionPlan(prim0, prim1, prim2, prim3);
 }
 
-function getGitHubConfig(prim) {
-  return SubmitJs.getGitHubConfig(prim);
+function getGitHubConfig(prim0, prim1) {
+  return SubmitJs.getGitHubConfig(prim0, prim1);
 }
 
 function formatBookmarkStatus(bookmark, existingPRs) {
@@ -79,10 +79,10 @@ async function runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun) {
   console.log("✅ Found stack with " + analysis.relevantSegments.length.toString() + " segment(s)");
   var resolvedBookmarks = await Utils.resolveBookmarkSelections(analysis);
   console.log("🔑 Getting GitHub authentication...");
-  var githubConfig = await SubmitJs.getGitHubConfig(jjFunctions);
+  var githubConfig = await SubmitJs.getGitHubConfig(jjFunctions, "origin");
   console.log("📋 Creating submission plan...");
   var narrowedSegments = SubmitJs.createNarrowedSegments(resolvedBookmarks, analysis);
-  var plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, undefined);
+  var plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, "origin", undefined);
   console.log("📍 GitHub repository: " + plan.repoInfo.owner + "/" + plan.repoInfo.repo);
   resolvedBookmarks.forEach(function (bookmark) {
         console.log(formatBookmarkStatus(bookmark, plan.existingPRs));
