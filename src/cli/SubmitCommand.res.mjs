@@ -17,8 +17,8 @@ function analyzeSubmissionGraph(prim0, prim1) {
   return SubmitJs.analyzeSubmissionGraph(prim0, prim1);
 }
 
-function createSubmissionPlan(prim0, prim1, prim2) {
-  return SubmitJs.createSubmissionPlan(prim0, prim1, prim2);
+function createSubmissionPlan(prim0, prim1, prim2, prim3) {
+  return SubmitJs.createSubmissionPlan(prim0, prim1, prim2, prim3);
 }
 
 function createNarrowedSegments(prim0, prim1) {
@@ -30,7 +30,7 @@ function executeSubmissionPlan(prim0, prim1, prim2, prim3) {
 }
 
 function getGitHubConfig(prim) {
-  return SubmitJs.getGitHubConfig();
+  return SubmitJs.getGitHubConfig(prim);
 }
 
 function formatBookmarkStatus(bookmark, existingPRs) {
@@ -78,9 +78,11 @@ async function runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun) {
   var analysis = SubmitJs.analyzeSubmissionGraph(changeGraph, bookmarkName);
   console.log("✅ Found stack with " + analysis.relevantSegments.length.toString() + " segment(s)");
   var resolvedBookmarks = await Utils.resolveBookmarkSelections(analysis);
+  console.log("🔑 Getting GitHub authentication...");
+  var githubConfig = await SubmitJs.getGitHubConfig(jjFunctions);
   console.log("📋 Creating submission plan...");
   var narrowedSegments = SubmitJs.createNarrowedSegments(resolvedBookmarks, analysis);
-  var plan = await SubmitJs.createSubmissionPlan(jjFunctions, narrowedSegments, undefined);
+  var plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, undefined);
   console.log("📍 GitHub repository: " + plan.repoInfo.owner + "/" + plan.repoInfo.repo);
   resolvedBookmarks.forEach(function (bookmark) {
         console.log(formatBookmarkStatus(bookmark, plan.existingPRs));
@@ -110,8 +112,6 @@ async function runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun) {
     console.log("✅ Dry run completed successfully!");
     return ;
   }
-  console.log("🔑 Getting GitHub authentication...");
-  var githubConfig = await SubmitJs.getGitHubConfig();
   var executionCallbacks = createExecutionCallbacks();
   var result = await executeSubmissionPlan(jjFunctions, plan, githubConfig, Caml_option.some(executionCallbacks));
   if (result.success) {

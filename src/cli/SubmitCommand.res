@@ -88,6 +88,7 @@ external analyzeSubmissionGraph: (JJTypes.changeGraph, string) => JJTypes.submis
 @module("../lib/submit.js")
 external createSubmissionPlan: (
   JJTypes.jjFunctions,
+  'githubConfig,
   array<JJTypes.narrowedBookmarkSegment>,
   option<'planCallbacks>,
 ) => promise<submissionPlan> = "createSubmissionPlan"
@@ -107,7 +108,7 @@ external executeSubmissionPlan: (
 ) => promise<submissionResult> = "executeSubmissionPlan"
 
 @module("../lib/submit.js")
-external getGitHubConfig: unit => promise<'githubConfig> = "getGitHubConfig"
+external getGitHubConfig: JJTypes.jjFunctions => promise<'githubConfig> = "getGitHubConfig"
 
 type submitOptions = {dryRun?: bool}
 
@@ -192,9 +193,12 @@ let runSubmit = async (
   // PHASE 2: Resolve bookmark selections (CLI handles user interaction)
   let resolvedBookmarks = await Utils.resolveBookmarkSelections(analysis)
 
+  Console.log(`🔑 Getting GitHub authentication...`)
+  let githubConfig = await getGitHubConfig(jjFunctions)
+
   Console.log(`📋 Creating submission plan...`)
   let narrowedSegments = createNarrowedSegments(resolvedBookmarks, analysis)
-  let plan = await createSubmissionPlan(jjFunctions, narrowedSegments, None)
+  let plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, None)
 
   // Display plan summary
   Console.log(`📍 GitHub repository: ${plan.repoInfo.owner}/${plan.repoInfo.repo}`)
@@ -244,9 +248,6 @@ let runSubmit = async (
     Console.log(`✅ Dry run completed successfully!`)
   } else {
     // PHASE 3: Execute the plan
-    Console.log(`🔑 Getting GitHub authentication...`)
-    let githubConfig = await getGitHubConfig()
-
     let executionCallbacks = createExecutionCallbacks()
     let result = await executeSubmissionPlan(
       jjFunctions,

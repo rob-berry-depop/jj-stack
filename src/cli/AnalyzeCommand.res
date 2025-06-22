@@ -15,8 +15,6 @@ external getExistingPRs: (
   string,
   array<string>,
 ) => promise<Map.t<string, SubmitCommand.pullRequest>> = "getExistingPRs"
-@module("../lib/submit.js")
-external getGitHubConfig: unit => promise<gitHubConfig> = "getGitHubConfig"
 
 let analyzeCommand = async (jjFunctions: JJTypes.jjFunctions) => {
   Console.log("Fetching from remote...")

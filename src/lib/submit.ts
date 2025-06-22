@@ -472,15 +472,13 @@ export function validatePRBases(
  */
 export async function createSubmissionPlan(
   jj: JjFunctions,
+  githubConfig: GitHubConfig,
   segments: NarrowedBookmarkSegment[],
   callbacks?: PlanCallbacks,
 ): Promise<SubmissionPlan> {
   try {
     const bookmarksToSubmit = segments.map((s) => s.bookmark);
     const targetBookmark = bookmarksToSubmit[bookmarksToSubmit.length - 1].name;
-
-    // Get GitHub configuration for Octokit instance
-    const githubConfig = await getGitHubConfig(jj);
 
     callbacks?.onCheckingPRs?.(bookmarksToSubmit);
     const existingPRs = await getExistingPRs(

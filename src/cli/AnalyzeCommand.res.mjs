@@ -20,10 +20,6 @@ function getExistingPRs(prim0, prim1, prim2, prim3) {
   return SubmitJs.getExistingPRs(prim0, prim1, prim2, prim3);
 }
 
-function getGitHubConfig(prim) {
-  return SubmitJs.getGitHubConfig();
-}
-
 async function analyzeCommand(jjFunctions) {
   console.log("Fetching from remote...");
   try {
@@ -169,7 +165,6 @@ async function analyzeCommand(jjFunctions) {
 export {
   buildChangeGraph ,
   getExistingPRs ,
-  getGitHubConfig ,
   analyzeCommand ,
 }
 /* ink Not a pure module */
