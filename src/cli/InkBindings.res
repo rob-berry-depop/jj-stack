@@ -12,7 +12,12 @@ type inkInstance = {unmount: unit => unit}
 
 module Text = {
   @module("ink") @react.component
-  external make: (~children: React.element, ~color: string=?) => React.element = "Text"
+  external make: (
+    ~children: React.element,
+    ~color: string=?,
+    ~underline: bool=?,
+    ~bold: bool=?,
+  ) => React.element = "Text"
 }
 
 type inkUseInputOptions = {isActive: bool}

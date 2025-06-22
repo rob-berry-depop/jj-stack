@@ -200,22 +200,41 @@ let make = (
         let bookmarkDisplay = if segment.bookmarks->Array.length == 1 {
           // Single bookmark - show with checkmark
           let bookmark = segment.bookmarks[0]->Option.getExn
-          `${bookmark.name} ✓`
+          <React.Fragment>
+            <Text> {React.string(bookmark.name)} </Text>
+            <Text> {React.string(" ✓")} </Text>
+          </React.Fragment>
         } else {
           // Multiple bookmarks - show with selection indicators
           let maybeSelectedIndex = selectionState.selections->Map.get(changeId)
-          segment.bookmarks
-          ->Array.mapWithIndex((bookmark, bookmarkIndex) => {
-            switch maybeSelectedIndex {
-            | Some(selectedIndex) if bookmarkIndex == selectedIndex => `(${bookmark.name})`
-            | _ => bookmark.name
-            }
-          })
-          ->Array.join(" ")
+          <React.Fragment>
+            {React.array(
+              segment.bookmarks->Array.mapWithIndex((bookmark, bookmarkIndex) => {
+                let bookmarkElement = switch maybeSelectedIndex {
+                | Some(selectedIndex) if bookmarkIndex == selectedIndex =>
+                  <Text color="red" underline=true> {React.string(bookmark.name)} </Text>
+                | _ => <Text> {React.string(bookmark.name)} </Text>
+                }
+
+                // Add space separator except for the last element
+                if bookmarkIndex < segment.bookmarks->Array.length - 1 {
+                  <React.Fragment key={bookmarkIndex->Int.toString}>
+                    {bookmarkElement}
+                    <Text> {React.string(" ")} </Text>
+                  </React.Fragment>
+                } else {
+                  <React.Fragment key={bookmarkIndex->Int.toString}>
+                    {bookmarkElement}
+                  </React.Fragment>
+                }
+              }),
+            )}
+          </React.Fragment>
         }
 
         <Text key={segmentIndex->Int.toString}>
-          {React.string(`${focusIndicator}Change ${changeId}: ${bookmarkDisplay}\n`)}
+          {React.string(`${focusIndicator}Change ${changeId}: `)}
+          {bookmarkDisplay}
         </Text>
       }),
     )}

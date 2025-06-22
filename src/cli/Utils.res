@@ -78,6 +78,7 @@ let resolveBookmarkSelectionsWithUI = async (analysis: JJTypes.submissionAnalysi
     // UI needed - render the interactive component
     Console.log(`🔀 Found changes with multiple bookmarks, opening interactive selector...`)
 
+    Console.log() // add space between the above logs and the component
     await Promise.make((resolve, reject) => {
       let inkInstanceRef: ref<option<InkBindings.inkInstance>> = ref(None)
 

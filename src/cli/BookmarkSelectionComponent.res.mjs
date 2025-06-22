@@ -171,19 +171,58 @@ function BookmarkSelectionComponent(props) {
                       var bookmarkDisplay;
                       if (segment.bookmarks.length === 1) {
                         var bookmark = Core__Option.getExn(segment.bookmarks[0], undefined);
-                        bookmarkDisplay = bookmark.name + " ✓";
+                        bookmarkDisplay = JsxRuntime.jsxs(React.Fragment, {
+                              children: [
+                                JsxRuntime.jsx($$Ink.Text, {
+                                      children: bookmark.name
+                                    }),
+                                JsxRuntime.jsx($$Ink.Text, {
+                                      children: " ✓"
+                                    })
+                              ]
+                            });
                       } else {
                         var maybeSelectedIndex = selectionState.selections.get(changeId);
-                        bookmarkDisplay = segment.bookmarks.map(function (bookmark, bookmarkIndex) {
-                                if (maybeSelectedIndex !== undefined && bookmarkIndex === maybeSelectedIndex) {
-                                  return "(" + bookmark.name + ")";
-                                } else {
-                                  return bookmark.name;
-                                }
-                              }).join(" ");
+                        bookmarkDisplay = JsxRuntime.jsx(React.Fragment, {
+                              children: segment.bookmarks.map(function (bookmark, bookmarkIndex) {
+                                    var bookmarkElement;
+                                    var exit = 0;
+                                    if (maybeSelectedIndex !== undefined && bookmarkIndex === maybeSelectedIndex) {
+                                      bookmarkElement = JsxRuntime.jsx($$Ink.Text, {
+                                            children: bookmark.name,
+                                            color: "red",
+                                            underline: true
+                                          });
+                                    } else {
+                                      exit = 1;
+                                    }
+                                    if (exit === 1) {
+                                      bookmarkElement = JsxRuntime.jsx($$Ink.Text, {
+                                            children: bookmark.name
+                                          });
+                                    }
+                                    if (bookmarkIndex < (segment.bookmarks.length - 1 | 0)) {
+                                      return JsxRuntime.jsxs(React.Fragment, {
+                                                  children: [
+                                                    bookmarkElement,
+                                                    JsxRuntime.jsx($$Ink.Text, {
+                                                          children: " "
+                                                        })
+                                                  ]
+                                                }, bookmarkIndex.toString());
+                                    } else {
+                                      return JsxRuntime.jsx(React.Fragment, {
+                                                  children: bookmarkElement
+                                                }, bookmarkIndex.toString());
+                                    }
+                                  })
+                            });
                       }
-                      return JsxRuntime.jsx($$Ink.Text, {
-                                  children: focusIndicator + "Change " + changeId + ": " + bookmarkDisplay + "\n"
+                      return JsxRuntime.jsxs($$Ink.Text, {
+                                  children: [
+                                    focusIndicator + "Change " + changeId + ": ",
+                                    bookmarkDisplay
+                                  ]
                                 }, segmentIndex.toString());
                     }),
                 JsxRuntime.jsx($$Ink.Text, {

@@ -47,6 +47,7 @@ async function resolveBookmarkSelectionsWithUI(analysis) {
     return Js_exn.raiseError("No segments to process");
   } else if (isInteractiveUINeeded(segments)) {
     console.log("🔀 Found changes with multiple bookmarks, opening interactive selector...");
+    console.log();
     return await new Promise((function (resolve, reject) {
                   var inkInstanceRef = {
                     contents: undefined
