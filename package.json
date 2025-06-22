@@ -20,6 +20,7 @@
   "devDependencies": {
     "@eslint/js": "^9.28.0",
     "@types/mocha": "^10.0.10",
+    "@types/which": "^3.0.4",
     "eslint": "^9.28.0",
     "globals": "^16.2.0",
     "mocha": "^11.6.0",
@@ -35,6 +36,7 @@
     "octokit": "^5.0.3",
     "react": "^19.1.0",
     "rescript": "^11.1.4",
-    "valibot": "^1.1.0"
+    "valibot": "^1.1.0",
+    "which": "^5.0.0"
   }
 }

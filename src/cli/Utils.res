@@ -1,3 +1,16 @@
+// AIDEV-NOTE: External bindings for Node.js modules needed for JJ executable detection
+@module("which")
+external which: (string, {"nothrow": bool}) => Js.Promise.t<Js.Nullable.t<string>> = "default"
+@module("os") external homedir: unit => string = "homedir"
+@module("path") external pathJoinMany: array<string> => string = "join"
+@val external process: {"env": Js.Dict.t<string>} = "process"
+
+// AIDEV-NOTE: Type definition for JJ executable path resolution result
+type jjPathResult = {
+  filepath: string,
+  source: [#configured | #path | #common],
+}
+
 let sleep = (ms: int): Js.Promise.t<unit> =>
   Js.Promise.make((~resolve, ~reject as _) => {
     let _ = Js.Global.setTimeout(() => {
@@ -107,4 +120,77 @@ let resolveBookmarkSelections = async (analysis: JJTypes.submissionAnalysis): ar
   JJTypes.bookmark,
 > => {
   await resolveBookmarkSelectionsWithUI(analysis)
+}
+
+/**
+ * AIDEV-NOTE: Gets the configured jj executable path from environment or searches common paths
+ * Searches environment, PATH, then common locations
+ */
+let getJJPath = (): Js.Promise.t<jjPathResult> => {
+  // Check if JJ_PATH environment variable is set (similar to configured path)
+  let envPath = Js.Dict.get(process["env"], "JJ_PATH")
+
+  // Helper function to check common paths
+  let rec checkCommonPaths = (pathIndex: int, commonPaths: array<string>): Js.Promise.t<
+    option<string>,
+  > => {
+    if pathIndex >= Array.length(commonPaths) {
+      Js.Promise.resolve(None)
+    } else {
+      let currentPath = commonPaths[pathIndex]->Option.getExn
+
+      Js.Promise.then_(whichResult => {
+        switch Js.Nullable.toOption(whichResult) {
+        | Some(foundPath) => Js.Promise.resolve(Some(foundPath))
+        | None => checkCommonPaths(pathIndex + 1, commonPaths)
+        }
+      }, which(currentPath, {"nothrow": true}))
+    }
+  }
+
+  switch envPath {
+  | Some(configuredPath) => Js.Promise.then_(whichResult => {
+      switch Js.Nullable.toOption(whichResult) {
+      | Some(_) => Js.Promise.resolve({filepath: configuredPath, source: #configured})
+      | None =>
+        Js.Promise.reject(
+          Js.Exn.raiseError(`Configured JJ_PATH is not an executable file: ${configuredPath}`),
+        )
+      }
+    }, which(configuredPath, {"nothrow": true}))
+  | None =>
+    // Check if 'jj' is in PATH
+
+    Js.Promise.then_(jjInPath => {
+      switch Js.Nullable.toOption(jjInPath) {
+      | Some(foundPath) => Js.Promise.resolve({filepath: foundPath, source: #path})
+      | None => {
+          // Check common installation paths
+          let homeDir = homedir()
+          let commonPaths = [
+            pathJoinMany([homeDir, ".cargo", "bin", "jj"]),
+            pathJoinMany([homeDir, ".cargo", "bin", "jj.exe"]),
+            pathJoinMany([homeDir, ".nix-profile", "bin", "jj"]),
+            pathJoinMany([homeDir, ".local", "bin", "jj"]),
+            pathJoinMany([homeDir, "bin", "jj"]),
+            "/usr/bin/jj",
+            "/home/linuxbrew/.linuxbrew/bin/jj",
+            "/usr/local/bin/jj",
+            "/opt/homebrew/bin/jj",
+            "/opt/local/bin/jj",
+          ]
+
+          Js.Promise.then_(foundCommonPath => {
+            switch foundCommonPath {
+            | Some(foundPath) => Js.Promise.resolve({filepath: foundPath, source: #common})
+            | None =>
+              Js.Promise.reject(
+                Js.Exn.raiseError("jj CLI not found in PATH nor in common locations."),
+              )
+            }
+          }, checkCommonPaths(0, commonPaths))
+        }
+      }
+    }, which("jj", {"nothrow": true}))
+  }
 }
