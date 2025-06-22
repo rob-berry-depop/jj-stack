@@ -20,8 +20,7 @@ function getExistingPRs(prim0, prim1, prim2, prim3) {
   return SubmitJs.getExistingPRs(prim0, prim1, prim2, prim3);
 }
 
-async function analyzeCommand(jjFunctions, remoteOpt) {
-  var remote = remoteOpt !== undefined ? remoteOpt : "origin";
+async function analyzeCommand(jjFunctions, remote) {
   console.log("Fetching from remote...");
   try {
     await jjFunctions.gitFetch();

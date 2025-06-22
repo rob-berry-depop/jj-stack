@@ -149,7 +149,13 @@ async function runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun, remote)
 
 async function submitCommand(jjFunctions, bookmarkName, options) {
   var dryRun = options !== undefined ? Core__Option.getOr(options.dryRun, false) : false;
-  var remote = options !== undefined ? Core__Option.getOr(options.remote, "origin") : "origin";
+  var remote;
+  if (options !== undefined) {
+    var remote$1 = options.remote;
+    remote = remote$1 !== undefined ? remote$1 : Js_exn.raiseError("Remote is required but not provided");
+  } else {
+    remote = Js_exn.raiseError("Options with remote are required");
+  }
   if (dryRun) {
     console.log("🧪 DRY RUN: Simulating submission of bookmark: " + bookmarkName);
   } else {

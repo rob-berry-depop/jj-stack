@@ -83,10 +83,16 @@ function extractGlobalFlags(args) {
   if (!(idx >= 0 && (idx + 1 | 0) < args.length)) {
     return [
             args,
-            "origin"
+            undefined
           ];
   }
-  var remoteName = Belt_Option.getWithDefault(args[idx + 1 | 0], "origin");
+  var remoteName = args[idx + 1 | 0];
+  if (remoteName === undefined) {
+    return [
+            args,
+            undefined
+          ];
+  }
   var filteredArgs = args.slice(0, idx).concat(args.slice(idx + 2 | 0, args.length));
   return [
           filteredArgs,
@@ -103,9 +109,7 @@ async function main() {
     var jjFunctions = JjUtilsJs.createJjFunctions(jjConfig);
     var args = process.argv.slice(2, process.argv.length);
     var match = extractGlobalFlags(args);
-    var remoteStr = match[1];
     var filteredArgs = match[0];
-    var userSpecifiedRemoteOpt = remoteStr === "origin" ? undefined : remoteStr;
     var knownCommands = [
       "submit",
       "auth",
@@ -118,7 +122,7 @@ async function main() {
                 return knownCommands.includes(cmd);
               })), false);
     var remotes = await jjFunctions.getGitRemoteList();
-    var remoteName = await resolveRemoteName(remotes, userSpecifiedRemoteOpt);
+    var remoteName = await resolveRemoteName(remotes, match[1]);
     if (command === undefined) {
       return await AnalyzeCommand.analyzeCommand(jjFunctions, remoteName);
     }

@@ -310,8 +310,12 @@ let submitCommand = async (
   | None => false
   }
   let remote = switch options {
-  | Some({?remote}) => remote->Option.getOr("origin")
-  | None => "origin"
+  | Some({?remote}) =>
+    switch remote {
+    | Some(r) => r
+    | None => Js.Exn.raiseError("Remote is required but not provided")
+    }
+  | None => Js.Exn.raiseError("Options with remote are required")
   }
 
   if dryRun {

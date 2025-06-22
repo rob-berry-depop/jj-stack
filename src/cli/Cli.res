@@ -109,18 +109,22 @@ let resolveRemoteName = async (
   }
 }
 
-// AIDEV-NOTE: Extract global flags (e.g., --remote) and return filtered args and remoteName
-let extractGlobalFlags = (args: array<string>): (array<string>, string) => {
+// AIDEV-NOTE: Extract global flags (e.g., --remote) and return filtered args and remoteName option
+let extractGlobalFlags = (args: array<string>): (array<string>, option<string>) => {
   let idx = args->Array.findIndex(arg => arg == "--remote")
   if idx >= 0 && idx + 1 < Array.length(args) {
-    let remoteName = args[idx + 1]->Belt.Option.getWithDefault("origin")
-    let filteredArgs = Array.concat(
-      Array.slice(args, ~start=0, ~end=idx),
-      Array.slice(args, ~start=idx + 2, ~end=Array.length(args)),
-    )
-    (filteredArgs, remoteName)
+    switch args[idx + 1] {
+    | Some(remoteName) => {
+        let filteredArgs = Array.concat(
+          Array.slice(args, ~start=0, ~end=idx),
+          Array.slice(args, ~start=idx + 2, ~end=Array.length(args)),
+        )
+        (filteredArgs, Some(remoteName))
+      }
+    | None => (args, None) // This shouldn't happen given the length check above
+    }
   } else {
-    (args, "origin")
+    (args, None)
   }
 }
 
@@ -135,14 +139,9 @@ let main = async () => {
     let jjFunctions = createJjFunctions(jjConfig)
 
     let args = Array.slice(argv, ~start=2, ~end=Array.length(argv))
-    // AIDEV-NOTE: Phase 4 - extract --remote, but allow auto-detection if not specified
-    // Use extractGlobalFlags to get filteredArgs and remote string
-    let (filteredArgs, remoteStr) = extractGlobalFlags(args)
-    let userSpecifiedRemoteOpt = if remoteStr == "origin" {
-      None
-    } else {
-      Some(remoteStr)
-    }
+    // AIDEV-NOTE: Phase 5 - extract --remote flag, now returns option to eliminate hardcoded "origin"
+    // Use extractGlobalFlags to get filteredArgs and optional remote string
+    let (filteredArgs, userSpecifiedRemoteOpt) = extractGlobalFlags(args)
     let knownCommands = ["submit", "auth", "help", "--help", "-h"]
     let command = Belt.Array.get(filteredArgs, 0)
     let isKnownCommand =

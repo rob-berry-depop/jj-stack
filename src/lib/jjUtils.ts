@@ -675,7 +675,7 @@ function getDefaultBranch(config: JjConfig): Promise<string> {
 function pushBookmark(
   config: JjConfig,
   bookmarkName: string,
-  remote: string = "origin",
+  remote: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     execFile(
