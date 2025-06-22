@@ -1,3 +1,6 @@
+// AIDEV-NOTE: Interactive UI component for bookmark stack visualization and selection
+// This component displays a text-based graph of stacked bookmarks and allows
+// users to navigate and select which stack to submit as PRs
 module Text = InkBindings.Text
 
 type outputRow = {

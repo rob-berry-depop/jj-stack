@@ -1,3 +1,7 @@
+// AIDEV-NOTE: Main submit command implementation - three-phase approach
+// Phase 1: Analyze submission requirements (which bookmarks need what)
+// Phase 2: Resolve bookmark selections (user chooses from multi-bookmark segments)
+// Phase 3: Execute the submission plan (push bookmarks, create/update PRs)
 @module("process") external exit: int => unit = "exit"
 @module("../lib/jjUtils.js")
 external buildChangeGraph: JJTypes.jjFunctions => promise<JJTypes.changeGraph> = "buildChangeGraph"

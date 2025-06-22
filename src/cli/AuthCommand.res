@@ -1,3 +1,7 @@
+// AIDEV-NOTE: GitHub authentication command implementations
+// Supports multiple auth methods: GitHub CLI, env vars, config files, manual entry
+// Commands: test (validate auth), logout (clear saved auth), help (show instructions)
+
 type source = [#"gc-cli" | #"env-var" | #"config-file" | #manual]
 
 type authConfig = {
@@ -83,7 +87,7 @@ jj-stack supports multiple authentication methods (in priority order):
    Format: {"github": {"token": "your_token_here"}}
 4. 🔗 Personal Access Token
    Create at: https://github.com/settings/tokens/new
-   Required scopes: repo, pull_requests
+   Required scopes: repo
 Commands:
   jj-stack auth test    - Test current authentication
   jj-stack auth logout  - Clear saved authentication

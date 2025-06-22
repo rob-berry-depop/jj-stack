@@ -54,7 +54,7 @@ async function authLogoutCommand() {
 }
 
 function authHelpCommand() {
-  console.log("🔐 GitHub Authentication Help\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\njj-stack supports multiple authentication methods (in priority order):\n1. 🛠️  GitHub CLI (recommended)\n   Install: https://cli.github.com/\n   Setup: gh auth login\n2. 🌍 Environment Variables\n   export GITHUB_TOKEN=your_token_here\n   export GH_TOKEN=your_token_here  # Alternative name\n3. 📁 Config File\n   File: ~/.config/jj-stack/config.json\n   Format: {\"github\": {\"token\": \"your_token_here\"}}\n4. 🔗 Personal Access Token\n   Create at: https://github.com/settings/tokens/new\n   Required scopes: repo, pull_requests\nCommands:\n  jj-stack auth test    - Test current authentication\n  jj-stack auth logout  - Clear saved authentication\n  jj-stack auth help    - Show this help\n");
+  console.log("🔐 GitHub Authentication Help\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\njj-stack supports multiple authentication methods (in priority order):\n1. 🛠️  GitHub CLI (recommended)\n   Install: https://cli.github.com/\n   Setup: gh auth login\n2. 🌍 Environment Variables\n   export GITHUB_TOKEN=your_token_here\n   export GH_TOKEN=your_token_here  # Alternative name\n3. 📁 Config File\n   File: ~/.config/jj-stack/config.json\n   Format: {\"github\": {\"token\": \"your_token_here\"}}\n4. 🔗 Personal Access Token\n   Create at: https://github.com/settings/tokens/new\n   Required scopes: repo\nCommands:\n  jj-stack auth test    - Test current authentication\n  jj-stack auth logout  - Clear saved authentication\n  jj-stack auth help    - Show this help\n");
 }
 
 export {

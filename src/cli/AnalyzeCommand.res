@@ -1,3 +1,6 @@
+// AIDEV-NOTE: Analyze command - the default command when no arguments provided
+// Fetches from remote, builds change graph, displays interactive stack visualization
+// Allows user to select a bookmark from the graph to submit directly
 type octoKit = {}
 
 type gitHubConfig = {

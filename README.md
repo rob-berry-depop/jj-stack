@@ -63,7 +63,7 @@ A CLI tool for creating and managing stacked pull requests on GitHub when using 
    **Creating a Personal Access Token:**
 
    - Go to https://github.com/settings/tokens/new
-   - Required scopes: `repo`, `workflow` (if using GitHub Actions)
+   - Required scopes: `repo` (includes pull request access)
 
    **Test your authentication:**
 
@@ -74,6 +74,22 @@ A CLI tool for creating and managing stacked pull requests on GitHub when using 
    For more details, see [AUTHENTICATION.md](./AUTHENTICATION.md)
 
 ## Usage
+
+### Default Command
+
+```bash
+# Display the current bookmark stacks and change graph
+jj-stack
+```
+
+Running `jj-stack` without any arguments will:
+
+- Fetch from the remote repository
+- Build a graph of your bookmarked changes
+- Display an interactive visualization of stacked bookmarks
+- Allow you to select a bookmark to submit directly from the graph
+
+If no bookmarks are found, it will prompt you to create bookmarks first with `jj bookmark create [revision]`.
 
 ### Authentication Commands
 
@@ -136,22 +152,25 @@ This command will:
 ### View bookmark stacks
 
 ```bash
+# Display the current bookmark hierarchy and stacking relationships
 jj-stack
 ```
 
-Shows the current bookmark hierarchy and stacking relationships.
+This is the default command that shows an interactive graph of your stacked bookmarks. You can navigate through the graph and select bookmarks to submit directly from the visualization.
 
 ## Requirements
 
+- Node.js 18+
 - Jujutsu (jj) version 0.30.0 or later
 - Git repository with GitHub remote
-- GitHub personal access token with repo permissions
+- GitHub authentication (multiple methods supported)
 
 ## Environment Variables
 
-- `GITHUB_TOKEN` (required): Your GitHub personal access token
+- `GITHUB_TOKEN` or `GH_TOKEN` (optional): Your GitHub personal access token
 - `GITHUB_OWNER` (optional): Override auto-detected repository owner
 - `GITHUB_REPO` (optional): Override auto-detected repository name
+- `JJ_PATH` (optional): Custom path to jj executable
 
 ## How it works
 

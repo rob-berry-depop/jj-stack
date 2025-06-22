@@ -1,6 +1,14 @@
 @scope("process") @val external argv: array<string> = "argv"
 @scope("process") @val external exit: int => unit = "exit"
 
+// AIDEV-NOTE: Main CLI entry point implementing all jj-stack commands:
+// - Default (no args): Interactive change graph analysis and stack selection
+// - submit <bookmark> [--dry-run]: Submit bookmark stack as PRs
+// - auth test: Validate GitHub authentication setup
+// - auth logout: Clear saved authentication tokens
+// - auth help: Show authentication setup instructions
+// - help/--help/-h: Display command usage information
+
 // AIDEV-NOTE: Central jjFunctions initialization for dependency injection pattern
 @module("../lib/jjUtils.js")
 external createJjFunctions: JJTypes.jjConfig => JJTypes.jjFunctions = "createJjFunctions"

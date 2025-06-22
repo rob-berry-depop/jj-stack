@@ -65,8 +65,7 @@ If you need to create a GitHub Personal Access Token:
 2. Give it a descriptive name (e.g., "jj-stack CLI")
 3. Set expiration (recommended: 90 days)
 4. Select scopes:
-   - ✅ `repo` (Full control of private repositories)
-   - ✅ `workflow` (Update GitHub Actions workflows) - if needed
+   - ✅ `repo` (Full control of private repositories, includes pull requests)
 5. Click "Generate token"
 6. Copy the token immediately (you won't see it again!)
 
@@ -76,13 +75,13 @@ You can test your authentication setup:
 
 ```bash
 # Test current authentication
-node src/authCommand.js auth test
+jj-stack auth test
 
 # Clear saved authentication
-node src/authCommand.js auth logout
+jj-stack auth logout
 
 # Show authentication help
-node src/authCommand.js auth help
+jj-stack auth help
 ```
 
 ## Benefits of This Approach
