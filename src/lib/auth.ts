@@ -1,42 +1,16 @@
+// AIDEV-NOTE: Simplified authentication system
+// Only supports GitHub CLI and environment variables, no local storage of tokens
+// This follows security best practices by not storing sensitive credentials locally
+
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { readFile, writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { homedir } from "os";
-import { existsSync } from "fs";
 import { Octokit } from "octokit";
-import * as v from "valibot";
 
 const execFileAsync = promisify(execFile);
 
 export interface AuthConfig {
   token: string;
-  source: "gh-cli" | "env-var" | "config-file" | "manual";
-}
-
-const ConfigFileSchema = v.object({
-  github: v.optional(
-    v.object({
-      token: v.optional(v.string()),
-    }),
-  ),
-});
-
-type ConfigFile = v.InferOutput<typeof ConfigFileSchema>;
-
-/**
- * Get the config directory for jj-stack
- */
-function getConfigDir(): string {
-  const homeDir = homedir();
-  return join(homeDir, ".config", "jj-stack");
-}
-
-/**
- * Get the config file path
- */
-function getConfigFilePath(): string {
-  return join(getConfigDir(), "config.json");
+  source: "gh-cli" | "env-var";
 }
 
 /**
@@ -79,96 +53,27 @@ function getEnvironmentToken(): string | null {
 }
 
 /**
- * Load config from file
+ * Show authentication setup instructions
  */
-async function loadConfigFile(): Promise<ConfigFile | null> {
-  try {
-    const configPath = getConfigFilePath();
-    if (!existsSync(configPath)) {
-      return null;
-    }
-
-    const configContent = await readFile(configPath, "utf-8");
-    return v.parse(ConfigFileSchema, JSON.parse(configContent));
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Save config to file
- */
-async function saveConfigFile(config: ConfigFile): Promise<void> {
-  try {
-    const configDir = getConfigDir();
-    const configPath = getConfigFilePath();
-
-    // Ensure config directory exists
-    await mkdir(configDir, { recursive: true });
-
-    await writeFile(configPath, JSON.stringify(config, null, 2));
-  } catch (error) {
-    console.warn("Failed to save config file:", error);
-  }
-}
-
-/**
- * Get token from config file
- */
-async function getConfigFileToken(): Promise<string | null> {
-  try {
-    const config = await loadConfigFile();
-    if (config?.github?.token) {
-      console.log("✅ Using GitHub token from config file");
-      return config.github.token;
-    }
-  } catch {
-    // Config file doesn't exist or is invalid
-  }
-  return null;
-}
-
-/**
- * Prompt user for token (simplified version - in real implementation you might want to use a proper prompt library)
- */
-function promptForToken(): Promise<string | null> {
-  console.log("\n🔐 GitHub Authentication Required");
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log(
+function showAuthInstructions(): never {
+  console.error("\n🔐 GitHub Authentication Required");
+  console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.error(
     "To create and manage pull requests, jj-stack needs access to GitHub.",
   );
-  console.log(
-    "\nPlease create a Personal Access Token (PAT) with the following permissions:",
+  console.error("\nPlease set up authentication using one of these methods:");
+  console.error("1. Install GitHub CLI and run: gh auth login");
+  console.error("2. Set environment variable: export GITHUB_TOKEN=your_token");
+  console.error(
+    "   (Create a token at: https://github.com/settings/tokens/new)",
   );
-  console.log("• repo (Full control of private repositories)");
-  console.log("• pull_requests (Create and update pull requests)");
-  console.log("\nCreate one at: https://github.com/settings/tokens/new");
-  console.log("\nAlternatively, you can:");
-  console.log("1. Install GitHub CLI and run: gh auth login");
-  console.log("2. Set environment variable: export GITHUB_TOKEN=your_token");
-  console.log("3. Add token to config file: ~/.config/jj-stack/config.json");
+  console.error("\nRequired token permissions:");
+  console.error("• repo (Full control of private repositories)");
+  console.error("• pull_requests (Create and update pull requests)");
 
-  // For now, just throw an error with instructions
-  // In a real implementation, you'd use a library like 'prompts' or 'inquirer'
   throw new Error(
-    "Please set up GitHub authentication using one of the methods above and try again.",
+    "GitHub authentication required. Please set up authentication and try again.",
   );
-}
-
-/**
- * Save token to config file for future use
- */
-async function saveTokenToConfig(token: string): Promise<void> {
-  try {
-    const existingConfig = (await loadConfigFile()) || {};
-    existingConfig.github = existingConfig.github || {};
-    existingConfig.github.token = token;
-
-    await saveConfigFile(existingConfig);
-    console.log("💾 Token saved to config file for future use");
-  } catch (error) {
-    console.warn("Failed to save token to config file:", error);
-  }
 }
 
 /**
@@ -203,8 +108,7 @@ export async function getAuthDetails(authConfig: AuthConfig) {
  * Get GitHub authentication token using the following priority:
  * 1. GitHub CLI (if available and authenticated)
  * 2. Environment variables (GITHUB_TOKEN or GH_TOKEN)
- * 3. Config file (~/.config/jj-stack/config.json)
- * 4. Prompt user for manual entry
+ * 3. Show setup instructions and exit
  */
 export async function getGitHubAuth(): Promise<AuthConfig> {
   // 1. Try GitHub CLI first
@@ -224,50 +128,6 @@ export async function getGitHubAuth(): Promise<AuthConfig> {
     }
   }
 
-  // 3. Try config file
-  const configToken = await getConfigFileToken();
-  if (configToken) {
-    // Validate the token
-    if (await validateToken(configToken)) {
-      return { token: configToken, source: "config-file" };
-    } else {
-      console.warn("⚠️  GitHub token from config file is invalid");
-      // Remove invalid token from config
-      try {
-        const config = await loadConfigFile();
-        if (config?.github?.token) {
-          delete config.github.token;
-          await saveConfigFile(config);
-        }
-      } catch {
-        // Ignore error when cleaning up invalid token
-      }
-    }
-  }
-
-  // 4. Last resort: prompt user
-  const manualToken = await promptForToken();
-  if (manualToken && (await validateToken(manualToken))) {
-    // Save for future use
-    await saveTokenToConfig(manualToken);
-    return { token: manualToken, source: "manual" };
-  }
-
-  throw new Error("Failed to obtain valid GitHub authentication");
-}
-
-/**
- * Clear saved authentication (useful for logout functionality)
- */
-export async function clearSavedAuth(): Promise<void> {
-  try {
-    const config = await loadConfigFile();
-    if (config?.github?.token) {
-      delete config.github.token;
-      await saveConfigFile(config);
-      console.log("🗑️  Cleared saved GitHub token");
-    }
-  } catch (error) {
-    console.warn("Failed to clear saved auth:", error);
-  }
+  // 3. No valid authentication found - show instructions
+  showAuthInstructions();
 }

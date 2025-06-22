@@ -6,23 +6,15 @@ function getGitHubAuth(prim) {
   return AuthJs.getGitHubAuth();
 }
 
-function clearSavedAuth(prim) {
-  return AuthJs.clearSavedAuth();
-}
-
 function getAuthDetails(prim) {
   return AuthJs.getAuthDetails(prim);
 }
 
 function sourceToString(source) {
-  if (source === "env-var") {
-    return "Environment Variable";
-  } else if (source === "config-file") {
-    return "Config File";
-  } else if (source === "manual") {
-    return "Manual Entry";
-  } else {
+  if (source === "gh-cli") {
     return "GitHub CLI";
+  } else {
+    return "Environment Variable";
   }
 }
 
@@ -46,24 +38,15 @@ async function authTestCommand() {
   }
 }
 
-async function authLogoutCommand() {
-  console.log("🔓 Clearing saved authentication...\n");
-  await AuthJs.clearSavedAuth();
-  console.log("✅ Authentication cleared successfully");
-  console.log("💡 Note: This only clears tokens saved by jj-stack. GitHub CLI auth is managed separately.");
-}
-
 function authHelpCommand() {
-  console.log("🔐 GitHub Authentication Help\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\njj-stack supports multiple authentication methods (in priority order):\n1. 🛠️  GitHub CLI (recommended)\n   Install: https://cli.github.com/\n   Setup: gh auth login\n2. 🌍 Environment Variables\n   export GITHUB_TOKEN=your_token_here\n   export GH_TOKEN=your_token_here  # Alternative name\n3. 📁 Config File\n   File: ~/.config/jj-stack/config.json\n   Format: {\"github\": {\"token\": \"your_token_here\"}}\n4. 🔗 Personal Access Token\n   Create at: https://github.com/settings/tokens/new\n   Required scopes: repo\nCommands:\n  jj-stack auth test    - Test current authentication\n  jj-stack auth logout  - Clear saved authentication\n  jj-stack auth help    - Show this help\n");
+  console.log("🔐 GitHub Authentication Help\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\njj-stack supports the following authentication methods (in priority order):\n\n1. 🛠️  GitHub CLI (recommended)\n   Install: https://cli.github.com/\n   Setup: gh auth login\n\n2. 🌍 Environment Variables\n   export GITHUB_TOKEN=your_token_here\n   export GH_TOKEN=your_token_here  # Alternative name\n   \n   Create a Personal Access Token at: https://github.com/settings/tokens/new\n   Required scopes: repo, pull_requests\n\nCommands:\n  jj-stack auth test - Test current authentication\n  jj-stack auth help - Show this help\n\nNote: jj-stack no longer stores tokens locally for security reasons.\nUse GitHub CLI or environment variables for authentication.\n");
 }
 
 export {
   getGitHubAuth ,
-  clearSavedAuth ,
   getAuthDetails ,
   sourceToString ,
   authTestCommand ,
-  authLogoutCommand ,
   authHelpCommand ,
 }
 /* ../lib/auth.js Not a pure module */

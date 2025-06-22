@@ -1,8 +1,8 @@
 // AIDEV-NOTE: GitHub authentication command implementations
-// Supports multiple auth methods: GitHub CLI, env vars, config files, manual entry
-// Commands: test (validate auth), logout (clear saved auth), help (show instructions)
+// Supports GitHub CLI and environment variables only (no persistence)
+// Commands: test (validate auth), help (show instructions)
 
-type source = [#"gc-cli" | #"env-var" | #"config-file" | #manual]
+type source = [#"gh-cli" | #"env-var"]
 
 type authConfig = {
   token: string,
@@ -17,16 +17,13 @@ type authDetails = {
 }
 
 @module("../lib/auth.js") external getGitHubAuth: unit => promise<authConfig> = "getGitHubAuth"
-@module("../lib/auth.js") external clearSavedAuth: unit => promise<unit> = "clearSavedAuth"
 @module("../lib/auth.js")
 external getAuthDetails: authConfig => promise<authDetails> = "getAuthDetails"
 
 let sourceToString = (source: source): string => {
   switch source {
-  | #"gc-cli" => "GitHub CLI"
+  | #"gh-cli" => "GitHub CLI"
   | #"env-var" => "Environment Variable"
-  | #"config-file" => "Config File"
-  | #manual => "Manual Entry"
   }
 }
 
@@ -63,34 +60,27 @@ let authTestCommand = async () => {
   }
 }
 
-let authLogoutCommand = async () => {
-  Console.log("🔓 Clearing saved authentication...\n")
-  await clearSavedAuth()
-  Console.log("✅ Authentication cleared successfully")
-  Console.log(
-    "💡 Note: This only clears tokens saved by jj-stack. GitHub CLI auth is managed separately.",
-  )
-}
-
 let authHelpCommand = () => {
   Console.log(`🔐 GitHub Authentication Help
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-jj-stack supports multiple authentication methods (in priority order):
+jj-stack supports the following authentication methods (in priority order):
+
 1. 🛠️  GitHub CLI (recommended)
    Install: https://cli.github.com/
    Setup: gh auth login
+
 2. 🌍 Environment Variables
    export GITHUB_TOKEN=your_token_here
    export GH_TOKEN=your_token_here  # Alternative name
-3. 📁 Config File
-   File: ~/.config/jj-stack/config.json
-   Format: {"github": {"token": "your_token_here"}}
-4. 🔗 Personal Access Token
-   Create at: https://github.com/settings/tokens/new
-   Required scopes: repo
+   
+   Create a Personal Access Token at: https://github.com/settings/tokens/new
+   Required scopes: repo, pull_requests
+
 Commands:
-  jj-stack auth test    - Test current authentication
-  jj-stack auth logout  - Clear saved authentication
-  jj-stack auth help    - Show this help
+  jj-stack auth test - Test current authentication
+  jj-stack auth help - Show this help
+
+Note: jj-stack no longer stores tokens locally for security reasons.
+Use GitHub CLI or environment variables for authentication.
 `)
 }

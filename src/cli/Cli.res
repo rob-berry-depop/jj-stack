@@ -58,7 +58,6 @@ let main = async () => {
     | Some("auth") =>
       switch args[1] {
       | Some("test") => await AuthCommand.authTestCommand()
-      | Some("logout") => await AuthCommand.authLogoutCommand()
       | _ => AuthCommand.authHelpCommand()
       }
     | Some("submit") =>

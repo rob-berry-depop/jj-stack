@@ -29,16 +29,10 @@ async function main() {
     switch (command) {
       case "auth" :
           var match = args[1];
-          if (match === undefined) {
+          if (match === "test") {
+            return await AuthCommand.authTestCommand();
+          } else {
             return AuthCommand.authHelpCommand();
-          }
-          switch (match) {
-            case "logout" :
-                return await AuthCommand.authLogoutCommand();
-            case "test" :
-                return await AuthCommand.authTestCommand();
-            default:
-              return AuthCommand.authHelpCommand();
           }
       case "--help" :
       case "-h" :
