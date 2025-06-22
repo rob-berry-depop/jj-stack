@@ -44,9 +44,7 @@ let analyzeCommand = async (jjFunctions: JJTypes.jjFunctions, ~remote: string, ~
   }
 
   if changeGraph.stacks->Array.length == 0 {
-    Console.log(
-      "No bookmark stacks found. Create bookmarks with `jj bookmark create [revision]` first.",
-    )
+    Console.log("No bookmark stacks found. Create bookmarks with `jj bookmark create` first.")
     exit(0)
   }
 

@@ -40,7 +40,7 @@ async function analyzeCommand(jjFunctions, remote, dryRun) {
     console.log();
   }
   if (changeGraph.stacks.length === 0) {
-    console.log("No bookmark stacks found. Create bookmarks with `jj bookmark create [revision]` first.");
+    console.log("No bookmark stacks found. Create bookmarks with `jj bookmark create` first.");
     PervasivesU.exit(0);
   }
   var inDegrees = new Map();
