@@ -1,7 +1,7 @@
 {
   "name": "jj-stack",
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A CLI tool for creating and managing stacked pull requests on GitHub when using Jujutsu locally.",
   "repository": {
     "type": "git",
