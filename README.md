@@ -2,7 +2,7 @@
 
 A CLI tool for creating and managing stacked pull requests on GitHub when using Jujutsu locally.
 
-![screenshot of branch selection prompt](images/screenshot_default_command.webp)
+![screenshot of branch selection prompt](images/screenshot_default_command.png)
 
 > **Note:** The command can be run as either `jst` (recommended) or `jj-stack`. Examples below use `jst`.
 
