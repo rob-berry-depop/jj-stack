@@ -38,9 +38,7 @@ let analyzeCommand = async (jjFunctions: JJTypes.jjFunctions, ~remote: string) =
   if changeGraph.excludedBookmarkCount > 0 {
     Console.log(
       `ℹ️  Found ${changeGraph.excludedBookmarkCount->Int.toString} bookmarks on merge commits or their descendants, ignoring.
-   
-   jj-stack works with linear stacking workflows. Consider using 'jj rebase' 
-   to linearize your history before creating stacked pull requests.`,
+   jj-stack works with linear stacking workflows. Consider using 'jj rebase' to linearize your history before creating stacked pull requests.`,
     )
     Console.log() // add space after the message
   }
