@@ -1,3 +1,9 @@
+// AIDEV-NOTE: Auth architecture after refactoring:
+// - lib/auth.ts: Pure functions that return structured results, no console output, no instructions
+// - CLI commands implement all user messaging directly in AuthCommand.res
+// - Library functions (like submit.ts) use lib/auth.ts directly for silent operation
+// - Debug logging available via logger.ts when DEBUG=true
+
 // AIDEV-NOTE: Simplified authentication system
 // Only supports GitHub CLI and environment variables, no local storage of tokens
 // This follows security best practices by not storing sensitive credentials locally
@@ -5,12 +11,24 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { Octokit } from "octokit";
+import { logger } from "./logger.js";
 
 const execFileAsync = promisify(execFile);
 
 export interface AuthConfig {
   token: string;
   source: "gh-cli" | "env-var";
+}
+
+// AIDEV-NOTE: Result types for clean separation of auth logic from presentation
+export interface AuthSuccess {
+  kind: "success";
+  config: AuthConfig;
+}
+
+export interface AuthFailure {
+  kind: "failure";
+  reason: "no-auth-found" | "invalid-token";
 }
 
 /**
@@ -29,7 +47,7 @@ async function getGitHubCLIAuth(): Promise<string | null> {
     const token = tokenResult.stdout.trim();
 
     if (token) {
-      console.log("✅ Using GitHub CLI authentication");
+      logger.debug("Found GitHub CLI authentication");
       return token;
     }
   } catch {
@@ -46,34 +64,10 @@ async function getGitHubCLIAuth(): Promise<string | null> {
 function getEnvironmentToken(): string | null {
   const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
   if (token) {
-    console.log("✅ Using GitHub token from environment variable");
+    logger.debug("Found GitHub token in environment variable");
     return token;
   }
   return null;
-}
-
-/**
- * Show authentication setup instructions
- */
-function showAuthInstructions(): never {
-  console.error("\n🔐 GitHub Authentication Required");
-  console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.error(
-    "To create and manage pull requests, jj-stack needs access to GitHub.",
-  );
-  console.error("\nPlease set up authentication using one of these methods:");
-  console.error("1. Install GitHub CLI and run: gh auth login");
-  console.error("2. Set environment variable: export GITHUB_TOKEN=your_token");
-  console.error(
-    "   (Create a token at: https://github.com/settings/tokens/new)",
-  );
-  console.error("\nRequired token permissions:");
-  console.error("• repo (Full control of private repositories)");
-  console.error("• pull_requests (Create and update pull requests)");
-
-  throw new Error(
-    "GitHub authentication required. Please set up authentication and try again.",
-  );
 }
 
 /**
@@ -108,13 +102,16 @@ export async function getAuthDetails(authConfig: AuthConfig) {
  * Get GitHub authentication token using the following priority:
  * 1. GitHub CLI (if available and authenticated)
  * 2. Environment variables (GITHUB_TOKEN or GH_TOKEN)
- * 3. Show setup instructions and exit
+ * 3. Return failure with instructions
  */
-export async function getGitHubAuth(): Promise<AuthConfig> {
+export async function getGitHubAuth(): Promise<AuthSuccess | AuthFailure> {
   // 1. Try GitHub CLI first
   const ghCliToken = await getGitHubCLIAuth();
   if (ghCliToken) {
-    return { token: ghCliToken, source: "gh-cli" };
+    return {
+      kind: "success",
+      config: { token: ghCliToken, source: "gh-cli" },
+    };
   }
 
   // 2. Try environment variables
@@ -122,12 +119,22 @@ export async function getGitHubAuth(): Promise<AuthConfig> {
   if (envToken) {
     // Validate the token
     if (await validateToken(envToken)) {
-      return { token: envToken, source: "env-var" };
+      return {
+        kind: "success",
+        config: { token: envToken, source: "env-var" },
+      };
     } else {
-      console.warn("⚠️  GitHub token from environment variable is invalid");
+      logger.debug("GitHub token from environment variable is invalid");
+      return {
+        kind: "failure",
+        reason: "invalid-token",
+      };
     }
   }
 
-  // 3. No valid authentication found - show instructions
-  showAuthInstructions();
+  // 3. No valid authentication found
+  return {
+    kind: "failure",
+    reason: "no-auth-found",
+  };
 }

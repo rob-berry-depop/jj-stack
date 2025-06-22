@@ -166,8 +166,11 @@ export async function getGitHubRepoInfo(jj: JjFunctions): Promise<{
  */
 export async function getGitHubConfig(jj: JjFunctions): Promise<GitHubConfig> {
   // Get authentication using the auth utility
-  const authConfig = await getGitHubAuth();
-  const octokit = new Octokit({ auth: authConfig.token });
+  const authResult = await getGitHubAuth();
+  if (authResult.kind !== "success") {
+    throw new Error(`GitHub authentication failed: ${authResult.reason}`);
+  }
+  const octokit = new Octokit({ auth: authResult.config.token });
 
   // Try to extract owner/repo from git remote, fall back to environment variables
   let owner = process.env.GITHUB_OWNER;
