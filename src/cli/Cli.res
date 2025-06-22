@@ -19,7 +19,7 @@ USAGE:
   jj-stack [COMMAND] [OPTIONS]
 
 COMMANDS:
-  submit <bookmark>     Submit a bookmark (and its stack) as PRs
+  submit <bookmark>     Submit a bookmark and all downstack bookmarks as PRs
     --dry-run           Show what would be done without making changes
 
   auth test             Test GitHub authentication
@@ -33,7 +33,7 @@ DEFAULT BEHAVIOR:
 
 EXAMPLES:
   jj-stack                        # Show change graph
-  jj-stack submit feature-branch  # Submit feature-branch as PR
+  jj-stack submit feature-branch  # Submit feature-branch and downstack as PRs
   jj-stack submit feature-branch --dry-run  # Preview what would be done
   jj-stack auth test              # Test GitHub authentication
 

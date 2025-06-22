@@ -102,6 +102,8 @@ jst auth help
 jst submit <bookmark-name> [--dry-run]
 ```
 
+This command submits the specified bookmark and all bookmarks below it (downstack toward trunk) as pull requests.
+
 #### Dry Run Mode
 
 Use `--dry-run` to simulate the entire process without making any changes:
@@ -178,16 +180,17 @@ The tool leverages Jujutsu's bookmark system to understand the structure of your
 ```bash
 # Create a stack of bookmarks
 jj new main -m "Add user authentication"
-jj bookmark create auth
+jj bookmark create auth --revision @
 
 jj new -m "Add user profile page"
-jj bookmark create profile
+jj bookmark create profile --revision @
 
 jj new -m "Add profile editing"
-jj bookmark create profile-edit
+jj bookmark create profile-edit --revision @
 
-# Submit the entire stack
-jst submit auth      # Creates PR: auth -> main
-jst submit profile   # Creates PR: profile -> auth
-jst submit profile-edit # Creates PR: profile-edit -> profile
+# Submit bookmarks downstack from the top
+jst submit profile-edit  # Creates PRs: auth -> main, profile -> auth, profile-edit -> profile
+
+# Or submit starting from any point in the stack
+jst submit profile      # Creates PRs: auth -> main, profile -> auth
 ```
