@@ -3,6 +3,10 @@
   "type": "module",
   "version": "1.0.0",
   "description": "A CLI tool for creating and managing stacked pull requests on GitHub when using Jujutsu locally.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/keanemind/jj-stack.git"
+  },
   "bin": {
     "jj-stack": "dist/cli/index.js",
     "jst": "dist/cli/index.js"
@@ -14,9 +18,10 @@
     "tsc:dev": "tsc --watch",
     "res:build": "rescript",
     "res:clean": "rescript clean",
-    "res:dev": "rescript -w"
+    "res:dev": "rescript -w",
+    "prepack": "rm -r dist && npm run build"
   },
-  "author": "",
+  "author": "Keane Nguyen",
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.28.0",
