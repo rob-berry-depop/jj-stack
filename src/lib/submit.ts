@@ -738,12 +738,6 @@ export async function executeSubmissionPlan(
 
       for (let i = 0; i < plan.bookmarksToSubmit.length; i++) {
         const bookmark = plan.bookmarksToSubmit[i];
-        const stackPR = bookmarkToPR.get(bookmark.name);
-        if (!stackPR) {
-          throw new Error(
-            "PR not found in bookmarkToPR for bookmark in bookmarksToSubmit",
-          );
-        }
 
         try {
           await createOrUpdateStackComment(
