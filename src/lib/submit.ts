@@ -744,11 +744,11 @@ export async function executeSubmissionPlan(
           const err = error instanceof Error ? error : new Error(String(error));
           result.errors.push({
             error: err,
-            context: `creating stack comment for ${stackItem.bookmarkName}`,
+            context: `creating/updating stack comment for ${stackItem.bookmarkName}`,
           });
           callbacks?.onError?.(
             err,
-            `creating stack comment for ${stackItem.bookmarkName}`,
+            `creating/updating stack comment for ${stackItem.bookmarkName}`,
           );
           // Don't mark as failed for comment errors
         }
