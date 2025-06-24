@@ -59,8 +59,16 @@ let analyzeCommand = async (jjFunctions: JJTypes.jjFunctions, ~remote: string, ~
     ->Js.Array2.sortInPlaceWith((a, b) => {
       let logEntryA = Utils.changeIdToLogEntry(changeGraph, a)
       let logEntryB = Utils.changeIdToLogEntry(changeGraph, b)
-      logEntryB.committedAt->Date.getTime->Float.toInt -
-        logEntryA.committedAt->Date.getTime->Float.toInt
+      let difference = logEntryB.committedAt->Date.getTime -. logEntryA.committedAt->Date.getTime
+
+      // converting directly to int could overflow
+      if difference > 0. {
+        1
+      } else if difference < 0. {
+        -1
+      } else {
+        0
+      }
     })
   let topSort = []
   while queue->Array.length > 0 {

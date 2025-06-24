@@ -50,7 +50,14 @@ async function analyzeCommand(jjFunctions, remote, dryRun) {
   var queue = Array.from(changeGraph.stackLeafs).sort(function (a, b) {
         var logEntryA = Utils.changeIdToLogEntry(changeGraph, a);
         var logEntryB = Utils.changeIdToLogEntry(changeGraph, b);
-        return (logEntryB.committedAt.getTime() | 0) - (logEntryA.committedAt.getTime() | 0) | 0;
+        var difference = logEntryB.committedAt.getTime() - logEntryA.committedAt.getTime();
+        if (difference > 0) {
+          return 1;
+        } else if (difference < 0) {
+          return -1;
+        } else {
+          return 0;
+        }
       });
   var topSort = [];
   while(queue.length > 0) {
