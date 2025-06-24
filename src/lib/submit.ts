@@ -746,7 +746,11 @@ export async function executeSubmissionPlan(
         }
 
         try {
-          await createOrUpdateStackComment(githubConfig, prCommentData, i);
+          await createOrUpdateStackComment(
+            githubConfig,
+            prCommentData,
+            i + alreadyMergedStack.length,
+          );
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
           result.errors.push({
