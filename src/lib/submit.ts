@@ -736,24 +736,19 @@ export async function executeSubmissionPlan(
         ],
       } satisfies PRCommentData;
 
-      for (let i = 0; i < plan.bookmarksToSubmit.length; i++) {
-        const bookmark = plan.bookmarksToSubmit[i];
-
+      for (let i = 0; i < prCommentData.stack.length; i++) {
+        const stackItem = prCommentData.stack[i];
         try {
-          await createOrUpdateStackComment(
-            githubConfig,
-            prCommentData,
-            i + alreadyMergedStack.length,
-          );
+          await createOrUpdateStackComment(githubConfig, prCommentData, i);
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
           result.errors.push({
             error: err,
-            context: `creating stack comment for ${bookmark.name}`,
+            context: `creating stack comment for ${stackItem.bookmarkName}`,
           });
           callbacks?.onError?.(
             err,
-            `creating stack comment for ${bookmark.name}`,
+            `creating stack comment for ${stackItem.bookmarkName}`,
           );
           // Don't mark as failed for comment errors
         }
