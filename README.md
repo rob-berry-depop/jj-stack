@@ -67,7 +67,7 @@ After installation, the `jst` and `jj-stack` commands will be available globally
    Or run directly with:
 
    ```bash
-   node dist/index.js
+   node dist/cli/index.js
    ```
 
 </details>
