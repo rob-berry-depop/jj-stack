@@ -186,7 +186,7 @@ Now rebase your remaining upstack bookmarks on the latest `trunk()`.
 jj rebase -b profile-edit -d "trunk()"
 ```
 
-Since your local changes are now updated, they need to be pushed to remote and the corresopnding PRs updated. Use jj-stack to do this.
+Since your local changes are now updated, they need to be pushed to remote and the corresponding PRs updated. Use jj-stack to do this.
 
 ```bash
 jst submit profile-edit
