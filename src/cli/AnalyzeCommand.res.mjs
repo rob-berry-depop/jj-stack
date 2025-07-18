@@ -149,6 +149,10 @@ async function analyzeCommand(jjFunctions, remote, dryRun) {
               changeId: undefined
             });
       });
+  output.push({
+        chars: " ○ trunk()".split(""),
+        changeId: undefined
+      });
   console.log();
   var changeId$1 = await new Promise((function (resolve, _reject) {
           var inkInstanceRef = {
@@ -157,7 +161,6 @@ async function analyzeCommand(jjFunctions, remote, dryRun) {
           var inkInstance = $$Ink.render(JsxRuntime.jsx(AnalyzeCommandComponent.make, {
                     changeGraph: changeGraph,
                     output: output,
-                    topSort: topSort,
                     onSelect: (function (changeId) {
                         var instance = inkInstanceRef.contents;
                         if (instance !== undefined) {

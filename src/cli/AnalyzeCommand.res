@@ -162,6 +162,9 @@ let analyzeCommand = async (jjFunctions: JJTypes.jjFunctions, ~remote: string, ~
     }
   })
 
+  // Add trunk line to the output array so all graph rendering is consistent
+  output->Array.push({chars: " ○ trunk()"->String.split(""), changeId: None})
+
   Console.log() // add space between the above logs and the component
   let changeId = await Promise.make((resolve, _reject) => {
     let inkInstanceRef: ref<option<InkBindings.inkInstance>> = ref(None)
@@ -170,7 +173,6 @@ let analyzeCommand = async (jjFunctions: JJTypes.jjFunctions, ~remote: string, ~
       <AnalyzeCommandComponent
         changeGraph
         output
-        topSort
         onSelect={changeId => {
           // Clean up the component first
           switch inkInstanceRef.contents {

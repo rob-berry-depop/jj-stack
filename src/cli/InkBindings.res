@@ -10,17 +10,38 @@ type inkKey = {
 type inkInstance = {unmount: unit => unit}
 @module("ink") external render: React.element => inkInstance = "render"
 
+module Box = {
+  @module("ink") @react.component
+  external make: (
+    ~children: React.element,
+    ~flexDirection: string=?,
+    ~maxHeight: int=?,
+  ) => React.element = "Box"
+}
+
 module Text = {
   @module("ink") @react.component
   external make: (
     ~children: React.element,
     ~color: string=?,
-    ~underline: bool=?,
+    ~backgroundColor: string=?,
+    ~dimColor: bool=?,
     ~bold: bool=?,
+    ~italic: bool=?,
+    ~underline: bool=?,
+    ~strikethrough: bool=?,
+    ~inverse: bool=?,
+    ~wrap: string=?,
   ) => React.element = "Text"
 }
 
-type inkUseInputOptions = {isActive: bool}
-
-@module("ink")
-external useInput: ((string, inkKey) => unit, option<inkUseInputOptions>) => unit = "useInput"
+module Hooks = {
+  @module("ink") @val external useStdout: unit => {"rows": option<int>} = "useStdout"
+  @module("ink") @val
+  external useInput: (
+    (string, inkKey) => unit,
+    // AIDEV-NOTE: Options can be used to exit the app if needed
+    // {exitOnCtrlC: bool}
+    option<Js.t<{..}>>,
+  ) => unit = "useInput"
+}

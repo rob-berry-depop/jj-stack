@@ -194,13 +194,13 @@ function BookmarkSelectionComponent(props) {
                                     var bookmarkElement = isSelected && isFocused ? JsxRuntime.jsx($$Ink.Text, {
                                             children: bookmark.name,
                                             color: "red",
-                                            underline: true,
-                                            bold: true
+                                            bold: true,
+                                            underline: true
                                           }) : (
                                         isSelected ? JsxRuntime.jsx($$Ink.Text, {
                                                 children: bookmark.name,
-                                                underline: true,
-                                                bold: true
+                                                bold: true,
+                                                underline: true
                                               }) : JsxRuntime.jsx($$Ink.Text, {
                                                 children: bookmark.name
                                               })

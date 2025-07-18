@@ -3,69 +3,151 @@
 import * as $$Ink from "ink";
 import * as Utils from "./Utils.res.mjs";
 import * as React from "react";
-import * as Caml_obj from "rescript/lib/es6/caml_obj.js";
+import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
+import * as Belt_SetString from "rescript/lib/es6/belt_SetString.js";
 import * as JsxRuntime from "react/jsx-runtime";
 
 function AnalyzeCommandComponent(props) {
   var onSelect = props.onSelect;
-  var topSort = props.topSort;
   var output = props.output;
   var changeGraph = props.changeGraph;
+  var selectableIndices = React.useMemo((function () {
+          return Core__Array.filterMap(output.map(function (row, index) {
+                          if (Core__Option.isSome(row.changeId)) {
+                            return index;
+                          }
+                          
+                        }), (function (x) {
+                        return x;
+                      }));
+        }), [output]);
+  var initialSelectedIndex = Core__Option.getOr(selectableIndices[0], 0);
   var match = React.useState(function () {
-        return Core__Option.mapOr(output[0], undefined, (function (outputRow) {
-                      return outputRow.changeId;
-                    }));
+        return {
+                selectedIndex: initialSelectedIndex,
+                scrollOffset: 0
+              };
       });
-  var setSelectedChangeId = match[1];
-  var selectedChangeId = match[0];
+  var setUiState = match[1];
+  var uiState = match[0];
+  var stdout = $$Ink.useStdout();
+  var rows = stdout.rows;
+  var terminalHeight;
+  if (rows !== undefined) {
+    terminalHeight = rows;
+  } else {
+    var processRows = process.stdout.rows;
+    terminalHeight = processRows !== undefined ? Caml_option.valFromOption(processRows) : 20;
+  }
+  var contentViewportHeight = terminalHeight - 3 | 0;
+  var totalItems = output.length;
+  var calculateScrollOffset = function (selectedIndex, currentScrollOffset, contentViewportHeight, totalItems, selectableIndices) {
+    if (totalItems <= contentViewportHeight) {
+      return 0;
+    }
+    var isLastCommit = selectableIndices.length > 0 && selectedIndex === Core__Option.getOr(selectableIndices[selectableIndices.length - 1 | 0], 0);
+    var requiredEndIndex = isLastCommit ? totalItems - 1 | 0 : selectedIndex;
+    if (selectedIndex < currentScrollOffset) {
+      return selectedIndex;
+    } else if (requiredEndIndex >= (currentScrollOffset + contentViewportHeight | 0)) {
+      return (requiredEndIndex - contentViewportHeight | 0) + 1 | 0;
+    } else {
+      return currentScrollOffset;
+    }
+  };
   $$Ink.useInput((function (param, key) {
-          if (selectedChangeId !== undefined) {
-            if (key.upArrow) {
-              var selectedChangeIdRowIdx = Core__Option.getExn(Core__Array.findIndexOpt(topSort, (function (changeId) {
-                          return changeId === selectedChangeId;
-                        })), undefined);
-              if (selectedChangeIdRowIdx > 0) {
-                setSelectedChangeId(function (param) {
-                      return Core__Option.getExn(topSort[selectedChangeIdRowIdx - 1 | 0], undefined);
-                    });
+          if (key.upArrow) {
+            var currentPos = Core__Option.getOr(Core__Array.findIndexOpt(selectableIndices, (function (idx) {
+                        return idx === uiState.selectedIndex;
+                      })), 0);
+            if (currentPos > 0) {
+              var newSelectedIndex = Core__Option.getExn(selectableIndices[currentPos - 1 | 0], undefined);
+              var newScrollOffset = calculateScrollOffset(newSelectedIndex, uiState.scrollOffset, contentViewportHeight, totalItems, selectableIndices);
+              setUiState(function (param) {
+                    return {
+                            selectedIndex: newSelectedIndex,
+                            scrollOffset: newScrollOffset
+                          };
+                  });
+            }
+            
+          } else if (key.downArrow) {
+            var currentPos$1 = Core__Option.getOr(Core__Array.findIndexOpt(selectableIndices, (function (idx) {
+                        return idx === uiState.selectedIndex;
+                      })), 0);
+            if (currentPos$1 < (selectableIndices.length - 1 | 0)) {
+              var newSelectedIndex$1 = Core__Option.getExn(selectableIndices[currentPos$1 + 1 | 0], undefined);
+              var newScrollOffset$1 = calculateScrollOffset(newSelectedIndex$1, uiState.scrollOffset, contentViewportHeight, totalItems, selectableIndices);
+              setUiState(function (param) {
+                    return {
+                            selectedIndex: newSelectedIndex$1,
+                            scrollOffset: newScrollOffset$1
+                          };
+                  });
+            }
+            
+          } else if (key.return) {
+            var row = output[uiState.selectedIndex];
+            if (row !== undefined) {
+              var changeId = row.changeId;
+              if (changeId !== undefined) {
+                onSelect(changeId);
               }
               
-            } else if (key.downArrow) {
-              var selectedChangeIdRowIdx$1 = Core__Option.getExn(Core__Array.findIndexOpt(topSort, (function (changeId) {
-                          return changeId === selectedChangeId;
-                        })), undefined);
-              if (selectedChangeIdRowIdx$1 < (topSort.length - 1 | 0)) {
-                setSelectedChangeId(function (param) {
-                      return Core__Option.getExn(topSort[selectedChangeIdRowIdx$1 + 1 | 0], undefined);
-                    });
-              }
-              
-            } else if (key.return) {
-              onSelect(selectedChangeId);
             }
             
           }
           
         }), undefined);
-  var selectedChangeIdAncestors = new Set();
-  if (selectedChangeId !== undefined) {
-    selectedChangeIdAncestors.add(selectedChangeId);
-    var cur = selectedChangeId;
-    while(changeGraph.bookmarkedChangeAdjacencyList.has(cur)) {
-      var parentChangeId = Core__Option.getExn(changeGraph.bookmarkedChangeAdjacencyList.get(cur), undefined);
-      selectedChangeIdAncestors.add(parentChangeId);
-      cur = parentChangeId;
-    };
+  var selectedChangeIdAncestors = React.useMemo((function () {
+          var selectedChangeId = Core__Option.flatMap(output[uiState.selectedIndex], (function (row) {
+                  return row.changeId;
+                }));
+          if (selectedChangeId === undefined) {
+            return ;
+          }
+          var updatedAncestors = Belt_SetString.add(undefined, selectedChangeId);
+          var cur = selectedChangeId;
+          var finalAncestors = updatedAncestors;
+          while(changeGraph.bookmarkedChangeAdjacencyList.has(cur)) {
+            var parentChangeId = Core__Option.getExn(changeGraph.bookmarkedChangeAdjacencyList.get(cur), undefined);
+            finalAncestors = Belt_SetString.add(finalAncestors, parentChangeId);
+            cur = parentChangeId;
+          };
+          return finalAncestors;
+        }), [uiState.selectedIndex]);
+  var match$1;
+  if (totalItems <= contentViewportHeight) {
+    match$1 = [
+      0,
+      totalItems - 1 | 0
+    ];
+  } else {
+    var endIndex = (uiState.scrollOffset + contentViewportHeight | 0) - 1 | 0;
+    var clampedEndIndex = Math.min(endIndex, totalItems - 1 | 0);
+    match$1 = [
+      uiState.scrollOffset,
+      clampedEndIndex
+    ];
   }
-  return JsxRuntime.jsxs(React.Fragment, {
+  var visibleEndIndex = match$1[1];
+  var visibleStartIndex = match$1[0];
+  return JsxRuntime.jsxs($$Ink.Box, {
               children: [
                 JsxRuntime.jsx($$Ink.Text, {
                       children: "Select a stack to submit:"
                     }),
-                output.map(function (line, idx) {
-                      var changeId = line.changeId;
+                Core__Array.make((visibleEndIndex - visibleStartIndex | 0) + 1 | 0, 0).map(function (param, i) {
+                        return visibleStartIndex + i | 0;
+                      }).map(function (itemIndex) {
+                      var isSelected = itemIndex === uiState.selectedIndex;
+                      var row = output[itemIndex];
+                      if (row === undefined) {
+                        return null;
+                      }
+                      var changeId = row.changeId;
                       var tmp;
                       if (changeId !== undefined) {
                         var bookmarksStr = " (" + Utils.changeIdToLogEntry(changeGraph, changeId).localBookmarks.join(", ") + ")";
@@ -73,10 +155,11 @@ function AnalyzeCommandComponent(props) {
                               children: [
                                 JsxRuntime.jsx($$Ink.Text, {
                                       children: " " + changeId + bookmarksStr,
-                                      color: selectedChangeIdAncestors.has(changeId) ? "red" : undefined
+                                      color: Belt_SetString.has(selectedChangeIdAncestors, changeId) ? "red" : undefined
                                     }),
-                                Caml_obj.equal(line.changeId, selectedChangeId) ? " ← press enter to select this stack" : null
-                              ]
+                                isSelected ? " ← press enter to select this stack" : null
+                              ],
+                              wrap: "truncate"
                             });
                       } else {
                         tmp = null;
@@ -84,25 +167,38 @@ function AnalyzeCommandComponent(props) {
                       return JsxRuntime.jsxs($$Ink.Text, {
                                   children: [
                                     JsxRuntime.jsx($$Ink.Text, {
-                                          children: line.chars.join("")
+                                          children: isSelected ? "▶ " : "  ",
+                                          color: isSelected ? "red" : "white"
+                                        }),
+                                    JsxRuntime.jsx($$Ink.Text, {
+                                          children: row.chars.join("")
                                         }),
                                     tmp
-                                  ]
-                                }, idx.toString());
+                                  ],
+                                  wrap: "truncate"
+                                }, itemIndex.toString());
                     }),
-                JsxRuntime.jsx($$Ink.Text, {
-                      children: " ○ trunk()\n"
-                    })
-              ]
+                totalItems > contentViewportHeight ? JsxRuntime.jsx($$Ink.Text, {
+                        children: "(" + (visibleStartIndex + 1 | 0).toString() + "-" + (visibleEndIndex + 1 | 0).toString() + " of " + totalItems.toString() + " lines) Use ↑↓ to navigate commits",
+                        dimColor: true
+                      }) : JsxRuntime.jsx($$Ink.Text, {
+                        children: "Use ↑↓ to navigate between commits, Enter to select",
+                        dimColor: true
+                      })
+              ],
+              flexDirection: "column"
             });
 }
 
 var $$Text;
 
+var Box;
+
 var make = AnalyzeCommandComponent;
 
 export {
   $$Text ,
+  Box ,
   make ,
 }
 /* ink Not a pure module */

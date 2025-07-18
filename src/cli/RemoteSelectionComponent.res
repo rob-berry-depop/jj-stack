@@ -49,7 +49,7 @@ let make = (~remotes: array<JJTypes.gitRemote>, ~onComplete: string => unit) => 
   })
 
   // AIDEV-NOTE: Handle keyboard navigation
-  InkBindings.useInput((_, key) => {
+  InkBindings.Hooks.useInput((_, key) => {
     if key.return {
       // User pressed Enter - select the currently focused remote
       let selectedRemote = remotes[selectionState.focusedRemoteIndex]->Option.getExn

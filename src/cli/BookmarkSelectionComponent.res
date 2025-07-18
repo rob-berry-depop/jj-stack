@@ -122,7 +122,7 @@ let make = (
   let isComplete = areAllSelectionsComplete(segments, selectionState.selections)
 
   // AIDEV-NOTE: Handle keyboard navigation
-  InkBindings.useInput((_, key) => {
+  InkBindings.Hooks.useInput((_, key) => {
     if key.return && isComplete {
       // User pressed Enter and all selections are complete
       let selectedBookmarks = getSelectedBookmarks(segments, selectionState.selections)
