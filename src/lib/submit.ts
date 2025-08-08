@@ -330,6 +330,7 @@ export async function createOrUpdateStackComment(
   ).toString("base64");
   let commentBody = `${commentDataPrefix}${encodedPRCommentData}${commentDataPostfix}\nThis PR is part of a stack of ${prCommentData.stack.length} bookmark${prCommentData.stack.length === 1 ? "" : "s"}:\n\n`;
 
+  commentBody += `1. \`trunk()\`\n`;
   for (let i = 0; i < prCommentData.stack.length; i++) {
     const stackItem = prCommentData.stack[i];
     const isCurrent = i === currentBookmarkIdx;
