@@ -187,11 +187,18 @@ let make = (
             <Text> {React.string(`${row.chars->Array.join("")}`)} </Text>
             {switch row.changeId {
             | Some(changeId) => {
+                let bookmarkNamesWithStatus = 
+                  Utils.changeIdToLogEntry(changeGraph, changeId).localBookmarks
+                  ->Array.map(bookmarkName => {
+                    switch changeGraph.bookmarks->Map.get(bookmarkName) {
+                    | Some(bookmark) when bookmark.hasRemote && !bookmark.isSynced => bookmarkName ++ "*"
+                    | Some(bookmark) when !bookmark.hasRemote => bookmarkName ++ "+"
+                    | _ => bookmarkName
+                    }
+                  })
                 let bookmarksStr =
                   " (" ++
-                  Utils.changeIdToLogEntry(changeGraph, changeId).localBookmarks->Array.join(
-                    ", ",
-                  ) ++ ")"
+                  bookmarkNamesWithStatus->Array.join(", ") ++ ")"
                 <Text wrap="truncate">
                   <Text
                     color=?{selectedChangeIdAncestors->Belt.Set.String.has(changeId)

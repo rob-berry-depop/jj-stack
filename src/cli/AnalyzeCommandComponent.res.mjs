@@ -150,7 +150,21 @@ function AnalyzeCommandComponent(props) {
                       var changeId = row.changeId;
                       var tmp;
                       if (changeId !== undefined) {
-                        var bookmarksStr = " (" + Utils.changeIdToLogEntry(changeGraph, changeId).localBookmarks.join(", ") + ")";
+                        var bookmarkNamesWithStatus = Utils.changeIdToLogEntry(changeGraph, changeId).localBookmarks.map(function (bookmarkName) {
+                              var bookmark = changeGraph.bookmarks.get(bookmarkName);
+                              if (bookmark !== undefined) {
+                                if (bookmark.hasRemote && !bookmark.isSynced) {
+                                  return bookmarkName + "*";
+                                } else if (bookmark.hasRemote) {
+                                  return bookmarkName;
+                                } else {
+                                  return bookmarkName + "+";
+                                }
+                              } else {
+                                return bookmarkName;
+                              }
+                            });
+                        var bookmarksStr = " (" + bookmarkNamesWithStatus.join(", ") + ")";
                         tmp = JsxRuntime.jsxs($$Ink.Text, {
                               children: [
                                 JsxRuntime.jsx($$Ink.Text, {
