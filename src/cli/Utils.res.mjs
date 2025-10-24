@@ -123,35 +123,11 @@ function getJJPath() {
                   }
                   var homeDir = Os.homedir();
                   var commonPaths = [
-                    Path.join([
-                          homeDir,
-                          ".cargo",
-                          "bin",
-                          "jj"
-                        ]),
-                    Path.join([
-                          homeDir,
-                          ".cargo",
-                          "bin",
-                          "jj.exe"
-                        ]),
-                    Path.join([
-                          homeDir,
-                          ".nix-profile",
-                          "bin",
-                          "jj"
-                        ]),
-                    Path.join([
-                          homeDir,
-                          ".local",
-                          "bin",
-                          "jj"
-                        ]),
-                    Path.join([
-                          homeDir,
-                          "bin",
-                          "jj"
-                        ]),
+                    Path.join(homeDir, ".cargo", "bin", "jj"),
+                    Path.join(homeDir, ".cargo", "bin", "jj.exe"),
+                    Path.join(homeDir, ".nix-profile", "bin", "jj"),
+                    Path.join(homeDir, ".local", "bin", "jj"),
+                    Path.join(homeDir, "bin", "jj"),
                     "/usr/bin/jj",
                     "/home/linuxbrew/.linuxbrew/bin/jj",
                     "/usr/local/bin/jj",

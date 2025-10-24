@@ -2,7 +2,7 @@
 @module("which")
 external which: (string, {"nothrow": bool}) => Js.Promise.t<Js.Nullable.t<string>> = "default"
 @module("os") external homedir: unit => string = "homedir"
-@module("path") external pathJoinMany: array<string> => string = "join"
+@module("path") @variadic external pathJoinMany: array<string> => string = "join"
 @val external process: {"env": Js.Dict.t<string>} = "process"
 
 // AIDEV-NOTE: Type definition for JJ executable path resolution result
