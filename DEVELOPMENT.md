@@ -1,4 +1,4 @@
-# DEVELOPMENT.md - jj-spice
+# DEVELOPMENT.md - jj-stack
 
 ## The Golden Rule
 
@@ -6,7 +6,7 @@ When unsure about implementation details, ALWAYS ask the developer.
 
 ## Project Context
 
-jj-spice enables developers to create and manage stacked pull requests on GitHub while using the Jujutsu (JJ) version control system.
+jj-stack enables developers to create and manage stacked pull requests on GitHub while using the Jujutsu (JJ) version control system.
 
 ## Critical Architecture Decisions
 
