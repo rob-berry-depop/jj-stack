@@ -674,7 +674,7 @@ export async function executeSubmissionPlan(
     }
 
     // Create/update stack comments for all PRs
-    if (bookmarkToPR.size > 0) {
+    if (false && bookmarkToPR.size > 0) {
       const rootBookmark = plan.bookmarksToSubmit[0];
       const rootPR = bookmarkToPR.get(rootBookmark.name);
       if (!rootPR) {
